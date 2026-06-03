@@ -1,5 +1,65 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+  <!-- Firebase SDKs -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+  import { getFirestore, collection, addDoc, getDocs, updateDoc, doc, deleteDoc, query, orderBy, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+  import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+  
+  const firebaseConfig = {
+    apiKey: "AIzaSyCu31Gb8MLmvxAZCurGKTS",
+    authDomain: "etlop-mn---betak.firebaseapp.com",
+    projectId: "etlop-mn---betak",
+    storageBucket: "etlop-mn---betak.appspot.com",
+    messagingSenderId: "415855489057",
+    appId: "1:415855489057:web:d3526177d5a4353332f360"
+  };
+  
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const auth = getAuth(app);
+  
+  window.db = db;
+  window.auth = auth;
+  
+  // دوال مساعدة
+  window.addOrder = async (orderData) => {
+    const docRef = await addDoc(collection(db, "orders"), {
+      ...orderData,
+      status: "جديد",
+      createdAt: new Date().toISOString()
+    });
+    return docRef.id;
+  };
+  
+  window.getOrders = async () => {
+    const q = query(collection(db, "orders"), orderBy("createdAt", "desc"));
+    const snapshot = await getDocs(q);
+    const orders = [];
+    snapshot.forEach(doc => orders.push({ id: doc.id, ...doc.data() }));
+    return orders;
+  };
+  
+  window.updateOrderStatus = async (orderId, status) => {
+    const orderRef = doc(db, "orders", orderId);
+    await updateDoc(orderRef, { status, updatedAt: new Date().toISOString() });
+  };
+  
+  window.loginAdmin = async (email, password) => {
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      return { success: true, user: userCredential.user };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  };
+  
+  window.logoutAdmin = async () => {
+    await signOut(auth);
+  };
+  
+  console.log("✅ Firebase connected - Admin Panel");
+</script>
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
