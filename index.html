@@ -9,7 +9,8 @@
 <!-- Firebase -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-  import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+  import { getFirestore, collection, addDoc, serverTimestamp, doc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+  import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-storage.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCu31Gb8MLmvxAZCurGKTSQs4DTePSWw_I",
@@ -25,10 +26,20 @@
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
   window.db = db;
+  window._fbCollection = collection;
   window.fbAddDoc = addDoc;
   window.fbCollection = collection;
   window.fbTimestamp = serverTimestamp;
+  const storage = getStorage(app);
+  window._storage = storage;
+  window._fbRef = ref;
+  window._fbUploadBytes = uploadBytes;
+  window._fbGetDownloadURL = getDownloadURL;
   window._firebaseReady = true;
+  window._fbOnSnapshot = onSnapshot;
+  window._fbDoc = doc;
+  window._fbQuery = query;
+  window._fbWhere = where;
   console.log("✅ Firebase Client Ready");
 </script>
 
@@ -163,11 +174,58 @@ footer strong{color:var(--or);}
 .wa{position:fixed;bottom:24px;left:24px;width:54px;height:54px;background:#25D366;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;cursor:pointer;box-shadow:0 4px 18px rgba(37,211,102,.45);z-index:999;animation:bob 3s ease-in-out infinite;}
 .err-msg{color:var(--red);font-size:13px;padding:8px 12px;background:#FEE2E2;border-radius:8px;margin-bottom:10px;display:none;}
 .err-msg.show{display:block;}
+
+/* ===== WA MODAL ===== */
+.wa-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:flex-end;justify-content:center;z-index:9999;}
+.wa-modal-bg.on{display:flex;}
+.wa-modal{background:#fff;border-radius:20px 20px 0 0;padding:1.5rem;width:100%;max-width:500px;animation:slideUp .25s ease;}
+@keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+.wa-modal-title{font-size:15px;font-weight:800;color:var(--nv);margin-bottom:.5rem;text-align:center;}
+.wa-modal-sub{font-size:13px;color:var(--tm);text-align:center;margin-bottom:1.25rem;}
+.wa-opt{display:flex;align-items:center;gap:14px;padding:14px 16px;border:1.5px solid var(--gm);border-radius:14px;margin-bottom:10px;cursor:pointer;transition:.2s;text-decoration:none;color:var(--tx);}
+.wa-opt:hover{border-color:var(--or);background:var(--or-pale);}
+.wa-opt-ico{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+.wa-opt-ico.green{background:#DCFCE7;}
+.wa-opt-ico.blue{background:#EFF6FF;}
+.wa-opt-title{font-size:14px;font-weight:700;}
+.wa-opt-sub{font-size:12px;color:var(--tm);margin-top:2px;}
+.wa-cancel{width:100%;background:var(--gl);border:none;padding:12px;border-radius:12px;font-family:'Cairo',sans-serif;font-weight:700;font-size:14px;color:var(--tm);cursor:pointer;margin-top:4px;}
+.wa-cancel:hover{background:var(--gm);}
+
+/* ===== IMAGE UPLOAD ===== */
+.details-wrap{position:relative;}
+.details-row{display:flex;gap:8px;align-items:flex-start;}
+.details-row textarea{flex:1;}
+.img-upload-btn{
+  width:46px;height:46px;border-radius:10px;
+  background:var(--gl);border:1.5px solid var(--gm);
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;cursor:pointer;transition:.2s;flex-shrink:0;
+  margin-top:0;
+}
+.img-upload-btn:hover{border-color:var(--or);background:var(--or-pale);}
+.img-preview-wrap{display:none;margin-top:8px;position:relative;width:fit-content;}
+.img-preview-wrap.show{display:block;}
+.img-preview{
+  width:100%;max-width:280px;max-height:200px;
+  object-fit:cover;border-radius:10px;
+  border:1.5px solid var(--gm);display:block;
+}
+.img-remove-btn{
+  position:absolute;top:-8px;right:-8px;
+  width:24px;height:24px;background:var(--red);color:#fff;
+  border-radius:50%;border:none;font-size:13px;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;font-weight:700;line-height:1;
+}
+.img-name{font-size:11px;color:var(--tm);margin-top:4px;}
+.img-uploading{font-size:12px;color:var(--or);margin-top:4px;display:none;}
+.img-uploading.show{display:block;}
 </style>
 </head>
 <body>
 
-<a class="wa" href="https://wa.me/201XXXXXXXXX" target="_blank">💬</a>
+<a class="wa" onclick="openWaModal()">💬</a>
 
 <nav>
   <div class="brand" onclick="go('home')">
@@ -244,7 +302,22 @@ footer strong{color:var(--or);}
           </select>
         </div>
         <div class="fg"><label class="fl">اسم المحل أو المكان *</label><input id="oplace" type="text" placeholder="مثال: كنتاكي فرع الجامعة"/></div>
-        <div class="fg"><label class="fl">تفاصيل الطلب</label><textarea id="odetails" placeholder="اكتب تفاصيل الطلب... أو ابعت صورة على واتساب"></textarea></div>
+        <div class="fg">
+          <label class="fl">تفاصيل الطلب</label>
+          <div class="details-row">
+            <textarea id="odetails" placeholder="اكتب تفاصيل الطلب..."></textarea>
+            <div class="img-upload-btn" onclick="document.getElementById('img-input').click()" title="رفع صورة">
+              📷
+            </div>
+            <input type="file" id="img-input" accept="image/*" style="display:none" onchange="handleImgUpload(this)"/>
+          </div>
+          <div class="img-preview-wrap" id="img-preview-wrap">
+            <img class="img-preview" id="img-preview" src="" alt="صورة المنتج"/>
+            <button class="img-remove-btn" onclick="removeImg()" title="حذف الصورة">✕</button>
+            <div class="img-name" id="img-name"></div>
+          </div>
+          <div class="img-uploading" id="img-uploading">⏳ جاري رفع الصورة...</div>
+        </div>
         <div class="fr">
           <div class="fg"><label class="fl">عنوانك *</label><input id="oaddr" type="text" placeholder="الشارع والمنطقة"/></div>
           <div class="fg"><label class="fl">رقم التليفون *</label><input id="ophone" type="tel" placeholder="01XXXXXXXXX"/></div>
@@ -283,6 +356,7 @@ footer strong{color:var(--or);}
         </div>
         <div class="steps">
           <div class="step"><div class="sico-w"><div class="sico done" id="s1">✓</div><div class="sline done"></div></div><div class="stxt"><strong>تم استلام الطلب</strong><span>تم بنجاح</span></div></div>
+          <div class="step"><div class="sico-w"><div class="sico" id="s-prep">🍳</div><div class="sline" id="sl-prep"></div></div><div class="stxt"><strong>في انتظار التحضير</strong><span id="s-prep-sub">في الانتظار</span></div></div>
           <div class="step"><div class="sico-w"><div class="sico" id="s2">🛵</div><div class="sline" id="sl2"></div></div><div class="stxt"><strong>جاري التوصيل</strong><span id="s2-sub">في الانتظار</span></div></div>
           <div class="step"><div class="sico-w"><div class="sico" id="s3">🏠</div></div><div class="stxt"><strong>تم التوصيل</strong><span id="s3-sub">قريبًا</span></div></div>
         </div>
@@ -296,8 +370,8 @@ footer strong{color:var(--or);}
   <div class="cont-pg">
     <div class="sec-hd" style="margin-bottom:1.75rem"><h2>تواصل معنا</h2><p>إحنا هنا 24/7 لخدمتك</p><div class="line"></div></div>
     <div class="cont-grid">
-      <a class="cont-card" href="https://wa.me/201XXXXXXXXX" target="_blank"><div class="cont-ico">💬</div><div class="cont-ttl">واتساب</div><div class="cont-sub">رد فوري</div></a>
-      <a class="cont-card" href="tel:01XXXXXXXXX"><div class="cont-ico">📞</div><div class="cont-ttl">اتصال مباشر</div><div class="cont-sub">01X XXXX XXXX</div></a>
+      <a class="cont-card" onclick="openWaModal()"><div class="cont-ico">💬</div><div class="cont-ttl">واتساب</div><div class="cont-sub">رد فوري</div></a>
+      <a class="cont-card" href="tel:01200452740"><div class="cont-ico">📞</div><div class="cont-ttl">اتصال مباشر</div><div class="cont-sub">01200452740</div></a>
       <a class="cont-card" onclick="go('order')"><div class="cont-ico">🚀</div><div class="cont-ttl">اطلب الآن</div><div class="cont-sub">أسرع طريقة</div></a>
       <a class="cont-card" onclick="go('track')"><div class="cont-ico">🔍</div><div class="cont-ttl">تتبع طلب</div><div class="cont-sub">اعرف فين طلبك</div></a>
     </div>
@@ -319,6 +393,8 @@ function go(id){
   const nl=document.getElementById('nl-'+id);
   if(nl)nl.classList.add('active');
   window.scrollTo(0,0);
+  // حفظ الصفحة الحالية
+  sessionStorage.setItem('emb_client_page', id);
 }
 function goOrder(type){
   go('order');
@@ -364,6 +440,7 @@ async function submitOrder(){
     const orderData = {
       id: orderNum,
       type, place, addr, phone, details, notes,
+      imageUrl: uploadedImageUrl || null,
       status: 'جديد',
       createdAt: window.fbTimestamp(),
       time: new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}),
@@ -389,6 +466,7 @@ async function submitOrder(){
 
 function resetForm(){
   ['otype','oplace','odetails','oaddr','ophone','onotes'].forEach(id=>document.getElementById(id).value='');
+  removeImg();
   document.getElementById('order-form-body').style.display = 'block';
   document.getElementById('order-success').classList.remove('show');
   const btn = document.getElementById('submit-btn');
@@ -399,14 +477,116 @@ function resetForm(){
 }
 
 // TRACK
+let _trackUnsub = null;
+
 function doTrack(){
-  const v = document.getElementById('tinput').value.trim();
+  const v = document.getElementById('tinput').value.trim().toUpperCase();
   if(!v){alert('أدخل رقم الطلب');return;}
-  document.getElementById('tnum').textContent = v;
-  document.getElementById('tstatus').textContent = 'جديد 🟡';
-  document.getElementById('ttime').textContent = new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
-  document.getElementById('tres').classList.add('on');
+  sessionStorage.setItem('emb_track_id', v);
+
+  // Unsubscribe from previous listener
+  if(_trackUnsub) _trackUnsub();
+
+  if(!window._firebaseReady || !window.db){
+    alert('جاري الاتصال، حاول تاني');return;
+  }
+
+  const q = window._fbQuery(
+    window._fbCollection(window.db, 'orders'),
+    window._fbWhere('id', '==', v)
+  );
+
+  _trackUnsub = window._fbOnSnapshot(q, (snapshot) => {
+    if(snapshot.empty){
+      document.getElementById('tres').classList.remove('on');
+      alert('❌ مش لاقيش رقم الطلب ده');
+      return;
+    }
+    const order = snapshot.docs[0].data();
+    updateTrackUI(order);
+    document.getElementById('tres').classList.add('on');
+  });
 }
+
+function updateTrackUI(order){
+  document.getElementById('tnum').textContent = order.id;
+  document.getElementById('ttime').textContent = order.time || '';
+
+  const statusMap = {
+    'جديد':              { text:'جديد 🟡',               s1:'done', s2:'',     s3:'' },
+    'في انتظار التحضير': { text:'في انتظار التحضير 🟣',  s1:'done', s2:'prep', s3:'' },
+    'جاري التوصيل':      { text:'جاري التوصيل 🟢',       s1:'done', s2:'act',  s3:'' },
+    'تم التوصيل':        { text:'تم التوصيل ✅',          s1:'done', s2:'done', s3:'done' },
+    'ملغي':              { text:'ملغي ❌',                s1:'done', s2:'',     s3:'' },
+  };
+
+  const st = statusMap[order.status] || statusMap['جديد'];
+  document.getElementById('tstatus').textContent = st.text;
+
+  // Update step icons
+  const sPrep = document.getElementById('s-prep');
+  const slPrep = document.getElementById('sl-prep');
+  const s2 = document.getElementById('s2');
+  const s3 = document.getElementById('s3');
+  const sl2 = document.getElementById('sl2');
+
+  // prep step
+  if(sPrep){
+    if(order.status === 'في انتظار التحضير'){ sPrep.className='sico act'; }
+    else if(['جاري التوصيل','تم التوصيل'].includes(order.status)){ sPrep.className='sico done'; sPrep.textContent='✓'; }
+    else { sPrep.className='sico'; }
+    if(slPrep) slPrep.className = ['جاري التوصيل','تم التوصيل'].includes(order.status) ? 'sline done' : 'sline';
+  }
+  s2.className = 'sico ' + st.s2;
+  s3.className = 'sico ' + st.s3;
+  if(sl2) sl2.className = 'sline ' + (st.s2 === 'done' ? 'done' : '');
+
+  // Update step 2 text
+  const s2sub = document.getElementById('s2-sub');
+  if(s2sub){
+    if(order.status === 'في انتظار التحضير') s2sub.textContent = 'جاري التحضير...';
+    else if(order.status === 'جاري التوصيل') s2sub.textContent = 'الكابتن في الطريق إليك';
+    else if(order.status === 'تم التوصيل') s2sub.textContent = 'تم التوصيل بنجاح';
+    else s2sub.textContent = 'في الانتظار';
+  }
+}
+
+// استرجاع الصفحة عند الرفريش
+window.addEventListener('load', () => {
+  const lastPage = sessionStorage.getItem('emb_client_page');
+  const lastTrack = sessionStorage.getItem('emb_track_id');
+  if(lastPage && lastPage !== 'home'){
+    go(lastPage);
+  }
+  if(lastTrack && lastPage === 'track'){
+    document.getElementById('tinput').value = lastTrack;
+    setTimeout(()=>doTrack(), 900);
+  }
+});
 </script>
+
+<!-- WA CONTACT MODAL -->
+<div class="wa-modal-bg" id="wa-modal" onclick="if(event.target===this)closeWaModal()">
+  <div class="wa-modal">
+    <div class="wa-modal-title">تواصل معنا 💬</div>
+    <div class="wa-modal-sub">01200452740 — اختار طريقة التواصل</div>
+    <a class="wa-opt" href="https://wa.me/201200452740" target="_blank" onclick="closeWaModal()">
+      <div class="wa-opt-ico green">💬</div>
+      <div>
+        <div class="wa-opt-title">محادثة واتساب</div>
+        <div class="wa-opt-sub">ابعت رسالة على واتساب</div>
+      </div>
+    </a>
+    <a class="wa-opt" href="tel:01200452740" onclick="closeWaModal()">
+      <div class="wa-opt-ico blue">📞</div>
+      <div>
+        <div class="wa-opt-title">اتصال مباشر</div>
+        <div class="wa-opt-sub">رن على الرقم 01200452740</div>
+      </div>
+    </a>
+    <button class="wa-cancel" onclick="closeWaModal()">إلغاء</button>
+  </div>
+</div>
+
 </body>
 </html>
