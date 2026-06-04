@@ -457,69 +457,116 @@ function doTrack(){
   sessionStorage.setItem('emb_track_id', v);
 
   // Unsubscribe from previous listener
-  if(_trackUnsub) _trackUnsub();
+  if(_trackUnsub){ _trackUnsub(); _trackUnsub = null; }
 
-  if(!window._firebaseReady || !window.db){
-    alert('جاري الاتصال، حاول تاني');return;
+  function _startListen(){
+    const q = window._fbQuery(
+      window._fbCollection(window.db, 'orders'),
+      window._fbWhere('id', '==', v)
+    );
+
+    document.getElementById('tnum').textContent = v;
+    document.getElementById('tstatus').textContent = '⏳ جاري البحث...';
+    document.getElementById('tres').classList.add('on');
+
+    _trackUnsub = window._fbOnSnapshot(q, (snapshot) => {
+      if(snapshot.empty){
+        document.getElementById('tstatus').textContent = '❌ مش لاقيش رقم الطلب ده';
+        document.getElementById('ttime').textContent = '';
+        return;
+      }
+      const order = snapshot.docs[0].data();
+      updateTrackUI(order);
+    }, (err) => {
+      document.getElementById('tstatus').textContent = '❌ خطأ: ' + err.message;
+    });
   }
 
-  const q = window._fbQuery(
-    window._fbCollection(window.db, 'orders'),
-    window._fbWhere('id', '==', v)
-  );
-
-  _trackUnsub = window._fbOnSnapshot(q, (snapshot) => {
-    if(snapshot.empty){
-      document.getElementById('tres').classList.remove('on');
-      alert('❌ مش لاقيش رقم الطلب ده');
-      return;
-    }
-    const order = snapshot.docs[0].data();
-    updateTrackUI(order);
+  // إذا Firebase جاهز ابدأ فوراً، لو لسه مش جاهز استنى
+  if(window._firebaseReady && window.db && window._fbQuery){
+    _startListen();
+  } else {
+    document.getElementById('tstatus').textContent = '⏳ جاري الاتصال...';
     document.getElementById('tres').classList.add('on');
-  });
+    const maxWait = 5000;
+    const start = Date.now();
+    const poll = setInterval(() => {
+      if(window._firebaseReady && window.db && window._fbQuery){
+        clearInterval(poll);
+        _startListen();
+      } else if(Date.now() - start > maxWait){
+        clearInterval(poll);
+        document.getElementById('tstatus').textContent = '❌ تعذر الاتصال بـ Firebase، حاول تاني';
+      }
+    }, 100);
+  }
 }
 
 function updateTrackUI(order){
   document.getElementById('tnum').textContent = order.id;
   document.getElementById('ttime').textContent = order.time || '';
 
-  const statusMap = {
-    'جديد':              { text:'جديد 🟡',               s1:'done', s2:'',     s3:'' },
-    'في انتظار التحضير': { text:'في انتظار التحضير 🟣',  s1:'done', s2:'prep', s3:'' },
-    'جاري التوصيل':      { text:'جاري التوصيل 🟢',       s1:'done', s2:'act',  s3:'' },
-    'تم التوصيل':        { text:'تم التوصيل ✅',          s1:'done', s2:'done', s3:'done' },
-    'ملغي':              { text:'ملغي ❌',                s1:'done', s2:'',     s3:'' },
+  // خريطة الحالات — متزامنة مع الأدمن بالظبط
+  const STEP_ORDER = ['جديد','في انتظار التحضير','جاري التحضير','جاري التوصيل','تم التوصيل'];
+  const statusText = {
+    'جديد':              '🟡 تم استلام طلبك',
+    'في انتظار التحضير': '🟣 في انتظار التحضير',
+    'جاري التحضير':      '🔵 جاري التحضير الآن',
+    'جاري التوصيل':      '🟢 الكابتن في الطريق إليك 🛵',
+    'تم التوصيل':        '✅ تم التوصيل بنجاح',
+    'ملغي':              '❌ الطلب ملغي',
   };
 
-  const st = statusMap[order.status] || statusMap['جديد'];
-  document.getElementById('tstatus').textContent = st.text;
+  document.getElementById('tstatus').textContent = statusText[order.status] || order.status;
 
-  // Update step icons
-  const sPrep = document.getElementById('s-prep');
-  const slPrep = document.getElementById('sl-prep');
-  const s2 = document.getElementById('s2');
-  const s3 = document.getElementById('s3');
-  const sl2 = document.getElementById('sl2');
+  const curIdx = STEP_ORDER.indexOf(order.status);
 
-  // prep step
-  if(sPrep){
-    if(order.status === 'في انتظار التحضير'){ sPrep.className='sico act'; }
-    else if(['جاري التوصيل','تم التوصيل'].includes(order.status)){ sPrep.className='sico done'; sPrep.textContent='✓'; }
-    else { sPrep.className='sico'; }
-    if(slPrep) slPrep.className = ['جاري التوصيل','تم التوصيل'].includes(order.status) ? 'sline done' : 'sline';
+  // Steps: s1=جديد, s-prep=في انتظار/جاري التحضير, s2=جاري التوصيل, s3=تم التوصيل
+  // نحسب index كل step في STEP_ORDER
+  const stepDefs = [
+    { ico: 's1',     line: null,     stepIdx: 0 },
+    { ico: 's-prep', line: 'sl-prep',stepIdx: 2 }, // done بعد جاري التحضير
+    { ico: 's2',     line: 'sl2',    stepIdx: 3 },
+    { ico: 's3',     line: null,     stepIdx: 4 },
+  ];
+
+  stepDefs.forEach(({ico, line, stepIdx}) => {
+    const el = document.getElementById(ico);
+    const ln = line ? document.getElementById(line) : null;
+    if(!el) return;
+    el.classList.remove('done','act','prep');
+    if(order.status === 'ملغي'){
+      // لا تحديث للـ steps في حالة الإلغاء
+    } else if(curIdx > stepIdx){
+      el.classList.add('done');
+      el.textContent = '✓';
+      if(ln) ln.classList.add('done');
+    } else if(curIdx === stepIdx || (ico === 's-prep' && ['في انتظار التحضير','جاري التحضير'].includes(order.status))){
+      el.classList.add('act');
+      if(ln) ln.classList.remove('done');
+    } else {
+      if(ln) ln.classList.remove('done');
+    }
+  });
+
+  // نصوص الـ sub-labels
+  const prepSub = document.getElementById('s-prep-sub');
+  const s2sub   = document.getElementById('s2-sub');
+  const s3sub   = document.getElementById('s3-sub');
+
+  if(prepSub){
+    if(order.status === 'في انتظار التحضير') prepSub.textContent = 'في الانتظار';
+    else if(order.status === 'جاري التحضير') prepSub.textContent = 'جاري التحضير...';
+    else if(STEP_ORDER.indexOf(order.status) > 2) prepSub.textContent = 'تم ✓';
+    else prepSub.textContent = 'في الانتظار';
   }
-  s2.className = 'sico ' + st.s2;
-  s3.className = 'sico ' + st.s3;
-  if(sl2) sl2.className = 'sline ' + (st.s2 === 'done' ? 'done' : '');
-
-  // Update step 2 text
-  const s2sub = document.getElementById('s2-sub');
   if(s2sub){
-    if(order.status === 'في انتظار التحضير') s2sub.textContent = 'جاري التحضير...';
-    else if(order.status === 'جاري التوصيل') s2sub.textContent = 'الكابتن في الطريق إليك';
-    else if(order.status === 'تم التوصيل') s2sub.textContent = 'تم التوصيل بنجاح';
+    if(order.status === 'جاري التوصيل') s2sub.textContent = 'الكابتن في الطريق إليك';
+    else if(order.status === 'تم التوصيل') s2sub.textContent = 'وصل بنجاح';
     else s2sub.textContent = 'في الانتظار';
+  }
+  if(s3sub){
+    s3sub.textContent = order.status === 'تم التوصيل' ? 'تم التوصيل ✅' : 'قريبًا';
   }
 }
 
