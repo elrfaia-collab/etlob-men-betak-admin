@@ -1,11 +1,36 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+  
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>لوحة تحكم الأدمن — اطلب من بيتك</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet"/>
 <style>
+  <!-- Firebase SDKs -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+  import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, orderBy, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+  import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+  
+  const firebaseConfig = {
+    apiKey: "AIzaSyCu31Gb8MLmvxAZCurGKTS",
+    authDomain: "etlop-mn---betak.firebaseapp.com",
+    projectId: "etlop-mn---betak",
+    storageBucket: "etlop-mn---betak.appspot.com",
+    messagingSenderId: "415855489057",
+    appId: "1:415855489057:web:d3526177d5a4353332f360"
+  };
+  
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const auth = getAuth(app);
+  
+  window.db = db;
+  window.auth = auth;
+  
+  console.log("✅ Firebase connected!");
+</script>
 *{margin:0;padding:0;box-sizing:border-box;}
 :root{
   --or:#FF6B00;--or2:#FF8C3A;--or-pale:#FFF3E8;
