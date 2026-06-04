@@ -666,7 +666,7 @@ function nav(id){
 }
 
 // ========= STATUS MAP =========
-const SMAP={'جديد':'b-new','في انتظار التحضير':'b-prep','جاري التوصيل':'b-go','تم التوصيل':'b-done','ملغي':'b-cancel'};
+const SMAP={'جديد':'b-new','في انتظار التحضير':'b-prep','جاري التحضير':'b-prep','جاري التوصيل':'b-go','تم التوصيل':'b-done','ملغي':'b-cancel'};
 
 // ========= DEMO ORDER =========
 const TYPES=['🍕 مطعم','🛒 سوبر ماركت','💊 صيدلية','📦 شحن','🚗 مشوار','✨ أخرى'];
@@ -695,7 +695,7 @@ function renderDash(){
   const orders=getOrders();
   const newC=orders.filter(o=>o.status==='جديد').length;
   const done=orders.filter(o=>o.status==='تم التوصيل').length;
-  const active=orders.filter(o=>o.status==='جاري التوصيل').length;
+  const active=orders.filter(o=>['جاري التوصيل','جاري التحضير'].includes(o.status)).length;
   document.getElementById('k-total').textContent=orders.length;
   document.getElementById('k-done').textContent=done;
   document.getElementById('k-active').textContent=active;
@@ -753,7 +753,8 @@ function renderOrders(){
       <td><div class="action-btns">
         <button class="abtn bl" onclick="viewOrder('${o.id}')">عرض</button>
         ${o.status==='جديد'?`<button class="abtn prep" onclick="updOrd('${o.id}','في انتظار التحضير')">قبول</button><button class="abtn red" onclick="updOrd('${o.id}','ملغي')">رفض</button>`:''}
-        ${o.status==='في انتظار التحضير'?`<button class="abtn grn" onclick="updOrd('${o.id}','جاري التوصيل')">جاري التوصيل 🛵</button>`:''}
+        ${o.status==='في انتظار التحضير'?`<button class="abtn prep" onclick="updOrd('${o.id}','جاري التحضير')">جاري التحضير 🍳</button>`:''}
+        ${o.status==='جاري التحضير'?`<button class="abtn grn" onclick="updOrd('${o.id}','جاري التوصيل')">جاري التوصيل 🛵</button>`:``}
         ${o.status==='جاري التوصيل'?`<button class="abtn or" onclick="updOrd('${o.id}','تم التوصيل')">تم التوصيل 🏠</button>`:''}
       </div></td>
     </tr>`).join('');
@@ -773,25 +774,16 @@ function doSearch(){
 }
 
 async function updOrd(id,status){
-  const orders=getOrders();
-  const o=orders.find(x=>x.id===id);
-  if(!o){showToast('❌ مش لاقي الطلب');return;}
-  // Update locally first for instant UI
-  o.status=status;
-  saveOrders(orders);
-  renderOrders();
-  renderDash();
-  // Then sync to Firebase
-  if(o._docId && window._fbUpdateOrder){
-    try{
-      await window._fbUpdateOrder(o._docId,{status:status});
-      showToast('✅ '+id+' → '+status);
-    }catch(err){
-      showToast('❌ Firebase خطأ: '+err.message);
-      console.error(err);
-    }
-  } else {
+  const o=getOrders().find(x=>x.id===id);
+  if(!o||!o._docId){showToast('❌ مش لاقي الطلب في Firebase');return;}
+  if(!window._fbUpdateOrder){showToast('⚠️ Firebase مش جاهز');return;}
+  try{
+    await window._fbUpdateOrder(o._docId,{status:status});
     showToast('✅ '+id+' → '+status);
+    // onSnapshot هيحدث الـ UI تلقائياً
+  }catch(err){
+    showToast('❌ Firebase خطأ: '+err.message);
+    console.error(err);
   }
 }
 
@@ -990,7 +982,7 @@ function startOrdersListener(){
       const tb = b.createdAt?.seconds || 0;
       return tb - ta;
     });
-    saveOrders(newOrders);
+    window._firestoreOrders = newOrders;
     renderDash();
     if(document.getElementById('page-orders').classList.contains('on')) renderOrders();
     // Show notification if new orders arrived
