@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>اطلب من بيتك</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet"/>
+
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+  import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCu31Gb8MLmvxAZCurGKTS",
+    authDomain: "etlop-mn---betak.firebaseapp.com",
+    projectId: "etlop-mn---betak",
+    storageBucket: "etlop-mn---betak.appspot.com",
+    messagingSenderId: "415855489057",
+    appId: "1:415855489057:web:d3526177d5a4353332f360"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  window.db = db;
+  window.fbAddDoc = addDoc;
+  window.fbCollection = collection;
+  window.fbTimestamp = serverTimestamp;
+  window._firebaseReady = true;
+  console.log("✅ Firebase Client Ready");
+</script>
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --or:#FF6B00;--or2:#FF8C3A;--or-pale:#FFF3E8;
+  --nv:#0D2461;--nv2:#1A3580;
+  --wh:#fff;--gl:#F5F7FC;--gm:#E4E8F4;
+  --tx:#0D2461;--tm:#5A6A85;--tl:#9AAAC0;
+  --green:#22C55E;--red:#EF4444;
+}
+body{font-family:'Cairo',sans-serif;direction:rtl;background:var(--wh);color:var(--tx);overflow-x:hidden;}
+nav{background:var(--nv);height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 2rem;position:sticky;top:0;z-index:200;box-shadow:0 2px 20px rgba(13,36,97,.25);}
+.brand{display:flex;align-items:center;gap:10px;cursor:pointer;}
+.brand-icon{width:40px;height:40px;background:var(--or);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;}
+.brand-name{color:var(--or);font-size:19px;font-weight:900;line-height:1;}
+.brand-tag{color:rgba(255,255,255,.55);font-size:10px;font-weight:600;}
+.nav-links{display:flex;gap:2px;list-style:none;}
+.nav-links a{color:rgba(255,255,255,.7);text-decoration:none;padding:8px 13px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;transition:.2s;}
+.nav-links a:hover,.nav-links a.active{color:#fff;background:rgba(255,255,255,.1);}
+.nav-btn{background:var(--or);color:#fff;border:none;padding:9px 20px;border-radius:10px;font-family:'Cairo',sans-serif;font-weight:700;font-size:13px;cursor:pointer;transition:.2s;}
+.nav-btn:hover{background:var(--or2);}
+.pg{display:none;min-height:calc(100vh - 64px);}.pg.on{display:block;}
+
+/* HERO */
+.hero{background:var(--nv);padding:4rem 2rem 3rem;display:flex;align-items:center;gap:3rem;position:relative;overflow:hidden;min-height:480px;}
+.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 60% 80% at 80% 50%,rgba(255,107,0,.13) 0%,transparent 70%);}
+.hero-left{max-width:500px;position:relative;z-index:2;}
+.hero-pill{display:inline-flex;align-items:center;gap:7px;background:rgba(255,107,0,.18);border:1px solid rgba(255,107,0,.35);color:#FF8C3A;padding:5px 14px;border-radius:20px;font-size:12px;font-weight:700;margin-bottom:1.4rem;}
+.hero h1{color:#fff;font-size:32px;font-weight:900;line-height:1.4;margin-bottom:1rem;}
+.hero h1 em{color:var(--or);font-style:normal;}
+.hero-sub{color:rgba(255,255,255,.72);font-size:15px;border-right:3px solid var(--or);padding-right:13px;margin-bottom:2rem;line-height:1.7;}
+.hero-btns{display:flex;gap:12px;flex-wrap:wrap;}
+.cta-main{background:var(--or);color:#fff;border:none;padding:14px 30px;border-radius:13px;font-family:'Cairo',sans-serif;font-weight:700;font-size:15px;cursor:pointer;transition:.2s;}
+.cta-main:hover{background:var(--or2);transform:translateY(-2px);}
+.cta-sec{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.25);padding:14px 26px;border-radius:13px;font-family:'Cairo',sans-serif;font-weight:600;font-size:15px;cursor:pointer;transition:.2s;}
+.cta-sec:hover{background:rgba(255,255,255,.18);}
+.hero-right{flex:1;display:flex;justify-content:center;align-items:center;position:relative;z-index:2;}
+.hero-ring{width:220px;height:220px;border-radius:50%;border:2px dashed rgba(255,107,0,.3);display:flex;align-items:center;justify-content:center;animation:spin 18s linear infinite;position:relative;}
+.hero-ring-inner{width:170px;height:170px;border-radius:50%;background:linear-gradient(135deg,rgba(255,107,0,.18),rgba(26,53,128,.3));border:1px solid rgba(255,107,0,.2);display:flex;align-items:center;justify-content:center;font-size:62px;animation:spin 18s linear infinite reverse;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.fcard{position:absolute;background:#fff;border-radius:12px;padding:9px 14px;display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--tx);box-shadow:0 8px 24px rgba(0,0,0,.18);}
+.fcard.a{top:10px;right:-10px;animation:bob 3.5s ease-in-out infinite;}
+.fcard.b{bottom:20px;left:-20px;animation:bob 3.5s ease-in-out infinite .8s;}
+@keyframes bob{0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);}}
+.dot{width:8px;height:8px;border-radius:50%;}
+.dot.g{background:#22C55E;}.dot.o{background:var(--or);}
+
+/* STATS */
+.statsbar{background:var(--gl);padding:1.5rem 2rem;display:flex;justify-content:center;flex-wrap:wrap;border-bottom:1px solid var(--gm);}
+.sitem{text-align:center;padding:.75rem 2rem;border-left:1px solid var(--gm);}
+.sitem:last-child{border-left:none;}
+.snum{font-size:26px;font-weight:900;color:var(--or);}
+.slbl{font-size:12px;color:var(--tm);margin-top:3px;}
+
+/* SERVICES */
+.srv-sec{padding:3rem 2rem;}
+.sec-hd{text-align:center;margin-bottom:2rem;}
+.sec-hd h2{font-size:24px;font-weight:900;margin-bottom:6px;}
+.sec-hd p{color:var(--tm);font-size:14px;}
+.line{width:48px;height:4px;background:var(--or);border-radius:2px;margin:10px auto 0;}
+.srv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;max-width:700px;margin:0 auto;}
+.scard{background:#fff;border:1.5px solid var(--gm);border-radius:16px;padding:1.4rem 1rem;text-align:center;cursor:pointer;transition:.25s;}
+.scard:hover{border-color:var(--or);background:var(--or-pale);transform:translateY(-4px);}
+.scard-ico{font-size:32px;margin-bottom:10px;}
+.scard-nm{font-size:13px;font-weight:700;}
+
+/* ORDER FORM */
+.order-pg{padding:2rem;max-width:600px;margin:0 auto;}
+.form-card{background:#fff;border:1.5px solid var(--gm);border-radius:20px;padding:2rem;}
+.form-hd{display:flex;align-items:center;gap:12px;margin-bottom:1.5rem;padding-bottom:1.25rem;border-bottom:1px solid var(--gm);}
+.form-ico{width:46px;height:46px;background:var(--or);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;}
+.fg{margin-bottom:1rem;}
+.fl{display:block;font-size:13px;font-weight:700;color:var(--tm);margin-bottom:6px;}
+input,select,textarea{width:100%;padding:11px 14px;border:1.5px solid var(--gm);border-radius:10px;font-family:'Cairo',sans-serif;font-size:14px;color:var(--tx);background:var(--gl);transition:.2s;text-align:right;direction:rtl;}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--or);background:#fff;}
+textarea{resize:vertical;min-height:80px;}
+.fr{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.price-row{background:var(--or-pale);border:1px solid rgba(255,107,0,.2);border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;font-size:13px;margin-bottom:1rem;}
+.price-row strong{color:var(--or);font-size:16px;}
+
+/* SUBMIT BUTTON STATES */
+.sub-btn{width:100%;background:var(--or);color:#fff;border:none;padding:14px;border-radius:12px;font-family:'Cairo',sans-serif;font-weight:700;font-size:16px;cursor:pointer;transition:.2s;}
+.sub-btn:hover:not(:disabled){background:var(--or2);}
+.sub-btn:disabled{background:#ccc;cursor:not-allowed;}
+.sub-btn.loading{background:#aaa;}
+
+/* SUCCESS STATE */
+.success-box{display:none;text-align:center;padding:2rem;}
+.success-box.show{display:block;}
+.success-ico{font-size:64px;margin-bottom:1rem;}
+.success-num{font-size:22px;font-weight:900;color:var(--or);margin-bottom:.5rem;}
+.success-msg{font-size:14px;color:var(--tm);margin-bottom:1.5rem;line-height:1.7;}
+.back-btn{background:var(--nv);color:#fff;border:none;padding:12px 28px;border-radius:12px;font-family:'Cairo',sans-serif;font-weight:700;font-size:14px;cursor:pointer;}
+
+/* TRACK */
+.track-pg{padding:2rem;max-width:580px;margin:0 auto;}
+.track-card{background:#fff;border:1.5px solid var(--gm);border-radius:20px;padding:2rem;}
+.track-row{display:flex;gap:10px;margin-bottom:1.5rem;}
+.track-row input{flex:1;padding:12px 16px;border:1.5px solid var(--gm);border-radius:10px;font-family:'Cairo',sans-serif;font-size:14px;text-align:right;direction:rtl;}
+.track-row input:focus{outline:none;border-color:var(--or);}
+.tbtn{background:var(--nv);color:#fff;border:none;padding:12px 18px;border-radius:10px;font-family:'Cairo',sans-serif;font-weight:700;cursor:pointer;font-size:14px;}
+.tres{display:none;}.tres.on{display:block;}
+.info-card{background:var(--gl);border-radius:14px;padding:1.25rem;margin-bottom:1.25rem;}
+.irow{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:14px;}
+.irow span:first-child{color:var(--tm);}
+.irow span:last-child{font-weight:700;}
+.steps{margin-top:1.5rem;}
+.step{display:flex;align-items:flex-start;gap:14px;margin-bottom:20px;}
+.sico-w{display:flex;flex-direction:column;align-items:center;}
+.sico{width:36px;height:36px;border-radius:50%;border:2px solid var(--gm);display:flex;align-items:center;justify-content:center;font-size:14px;background:#fff;flex-shrink:0;}
+.sico.done{background:#22C55E;border-color:#22C55E;color:#fff;}
+.sico.act{background:var(--or);border-color:var(--or);color:#fff;animation:pulse 1.5s ease-in-out infinite;}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,107,0,.4);}50%{box-shadow:0 0 0 8px rgba(255,107,0,0);}}
+.sline{width:2px;height:28px;background:var(--gm);margin:2px 0;}
+.sline.done{background:#22C55E;}
+.stxt{padding-top:6px;}
+.stxt strong{font-size:14px;font-weight:700;display:block;}
+.stxt span{font-size:12px;color:var(--tm);}
+
+/* CONTACT */
+.cont-pg{padding:2rem;max-width:580px;margin:0 auto;}
+.cont-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:2rem;}
+.cont-card{border:1.5px solid var(--gm);border-radius:16px;padding:1.5rem;text-align:center;cursor:pointer;transition:.2s;color:var(--tx);display:block;}
+.cont-card:hover{border-color:var(--or);background:var(--or-pale);transform:translateY(-2px);}
+.cont-ico{font-size:30px;margin-bottom:8px;}
+.cont-ttl{font-size:14px;font-weight:700;}
+.cont-sub{font-size:12px;color:var(--tm);margin-top:3px;}
+footer{background:var(--nv);padding:2rem;text-align:center;color:rgba(255,255,255,.6);font-size:13px;}
+footer strong{color:var(--or);}
+.wa{position:fixed;bottom:24px;left:24px;width:54px;height:54px;background:#25D366;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;cursor:pointer;box-shadow:0 4px 18px rgba(37,211,102,.45);z-index:999;animation:bob 3s ease-in-out infinite;}
+.err-msg{color:var(--red);font-size:13px;padding:8px 12px;background:#FEE2E2;border-radius:8px;margin-bottom:10px;display:none;}
+.err-msg.show{display:block;}
+</style>
+</head>
+<body>
+
+<a class="wa" href="https://wa.me/201XXXXXXXXX" target="_blank">💬</a>
+
+<nav>
+  <div class="brand" onclick="go('home')">
+    <div class="brand-icon">🛵</div>
+    <div><div class="brand-name">اطلب من بيتك</div><div class="brand-tag">خليك في مكانك.. وطلباتك نجيبلك</div></div>
+  </div>
+  <ul class="nav-links">
+    <li><a id="nl-home" class="active" onclick="go('home')">الرئيسية</a></li>
+    <li><a id="nl-order" onclick="go('order')">اطلب الآن</a></li>
+    <li><a id="nl-track" onclick="go('track')">تتبع طلبك</a></li>
+    <li><a id="nl-contact" onclick="go('contact')">تواصل</a></li>
+  </ul>
+  <button class="nav-btn" onclick="go('order')">اطلب دلوقتي 🚀</button>
+</nav>
+
+<!-- HOME -->
+<div id="pg-home" class="pg on">
+  <div class="hero">
+    <div class="hero-left">
+      <div class="hero-pill">🛵 دليفري بورسعيد رقم 1</div>
+      <h1>خليك في مكانك…<br><em>وطلباتك إحنا نجيبلك!</em></h1>
+      <div class="hero-sub">مطاعم، سوبر ماركت، دواء، مشاوير — كل حاجة من بيتك في دقايق</div>
+      <div class="hero-btns">
+        <button class="cta-main" onclick="go('order')">اطلب دلوقتي 🚀</button>
+        <button class="cta-sec" onclick="go('track')">تتبع طلبك</button>
+      </div>
+    </div>
+    <div class="hero-right">
+      <div class="hero-ring"><div class="hero-ring-inner">🛵</div></div>
+      <div class="fcard a"><div class="dot g"></div> طلب مقبول ✓</div>
+      <div class="fcard b"><div class="dot o"></div> في الطريق 🛵</div>
+    </div>
+  </div>
+  <div class="statsbar">
+    <div class="sitem"><div class="snum">+500</div><div class="slbl">طلب يومي</div></div>
+    <div class="sitem"><div class="snum">30 دقيقة</div><div class="slbl">متوسط التوصيل</div></div>
+    <div class="sitem"><div class="snum">25 جم</div><div class="slbl">داخل بورسعيد</div></div>
+    <div class="sitem"><div class="snum">24/7</div><div class="slbl">خدمة مستمرة</div></div>
+  </div>
+  <div class="srv-sec">
+    <div class="sec-hd"><h2>إيه اللي تقدر تطلبه؟</h2><p>مش مطاعم بس — أي حاجة تخطر على بالك</p><div class="line"></div></div>
+    <div class="srv-grid">
+      <div class="scard" onclick="goOrder('🍕 مطعم')"><div class="scard-ico">🍕</div><div class="scard-nm">مطاعم</div></div>
+      <div class="scard" onclick="goOrder('🛒 سوبر ماركت')"><div class="scard-ico">🛒</div><div class="scard-nm">سوبر ماركت</div></div>
+      <div class="scard" onclick="goOrder('💊 صيدلية')"><div class="scard-ico">💊</div><div class="scard-nm">دواء</div></div>
+      <div class="scard" onclick="goOrder('📦 شحن طرود')"><div class="scard-ico">📦</div><div class="scard-nm">شحن طرود</div></div>
+      <div class="scard" onclick="goOrder('🚗 مشوار خاص')"><div class="scard-ico">🚗</div><div class="scard-nm">مشاوير</div></div>
+      <div class="scard" onclick="goOrder('✨ أي حاجة تانية')"><div class="scard-ico">✨</div><div class="scard-nm">أي حاجة</div></div>
+    </div>
+  </div>
+  <footer><strong>اطلب من بيتك</strong> — خليك في مكانك.. وطلباتك نجيبلك | بورسعيد<br>داخل بورسعيد: <strong>25 جنيه</strong> | مشاوير خاصة: حسب المسافة</footer>
+</div>
+
+<!-- ORDER -->
+<div id="pg-order" class="pg">
+  <div class="order-pg">
+    <div class="form-card">
+      <div class="form-hd">
+        <div class="form-ico">🛵</div>
+        <div><div style="font-size:17px;font-weight:800">اطلب من بيتك</div><div style="font-size:12px;color:var(--tm)">خليك في مكانك.. إحنا نجيبلك</div></div>
+      </div>
+
+      <!-- ERROR MSG -->
+      <div class="err-msg" id="order-err"></div>
+
+      <!-- FORM -->
+      <div id="order-form-body">
+        <div class="fg"><label class="fl">إيه اللي عايزه؟ *</label>
+          <select id="otype">
+            <option value="">اختار نوع الطلب</option>
+            <option>🍕 مطعم</option><option>🛒 سوبر ماركت</option>
+            <option>💊 صيدلية</option><option>📦 شحن طرود</option>
+            <option>🚗 مشوار خاص</option><option>✨ أي حاجة تانية</option>
+          </select>
+        </div>
+        <div class="fg"><label class="fl">اسم المحل أو المكان *</label><input id="oplace" type="text" placeholder="مثال: كنتاكي فرع الجامعة"/></div>
+        <div class="fg"><label class="fl">تفاصيل الطلب</label><textarea id="odetails" placeholder="اكتب تفاصيل الطلب... أو ابعت صورة على واتساب"></textarea></div>
+        <div class="fr">
+          <div class="fg"><label class="fl">عنوانك *</label><input id="oaddr" type="text" placeholder="الشارع والمنطقة"/></div>
+          <div class="fg"><label class="fl">رقم التليفون *</label><input id="ophone" type="tel" placeholder="01XXXXXXXXX"/></div>
+        </div>
+        <div class="fg"><label class="fl">ملاحظات إضافية</label><input id="onotes" type="text" placeholder="أي تفاصيل إضافية..."/></div>
+        <div class="price-row"><span>رسوم التوصيل داخل بورسعيد</span><strong>25 جنيه فقط</strong></div>
+        <button class="sub-btn" id="submit-btn" onclick="submitOrder()">تأكيد الطلب ✅</button>
+      </div>
+
+      <!-- SUCCESS -->
+      <div class="success-box" id="order-success">
+        <div class="success-ico">✅</div>
+        <div class="success-num" id="success-order-num"></div>
+        <div class="success-msg">تم استلام طلبك بنجاح!<br>هنتواصل معك على التليفون في أقرب وقت 🛵</div>
+        <button class="back-btn" onclick="resetForm()">اطلب تاني</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TRACK -->
+<div id="pg-track" class="pg">
+  <div class="track-pg">
+    <div class="track-card">
+      <div style="font-size:17px;font-weight:800;margin-bottom:4px">تتبع طلبك</div>
+      <div style="font-size:13px;color:var(--tm);margin-bottom:1.25rem">أدخل رقم الطلب عشان تعرف فين الكابتن</div>
+      <div class="track-row">
+        <input id="tinput" type="text" placeholder="مثال: ORD-1234"/>
+        <button class="tbtn" onclick="doTrack()">تتبع 🔍</button>
+      </div>
+      <div id="tres" class="tres">
+        <div class="info-card">
+          <div class="irow"><span>رقم الطلب</span><span id="tnum" style="color:var(--or);font-weight:900"></span></div>
+          <div class="irow"><span>الحالة</span><span id="tstatus" style="font-weight:700"></span></div>
+          <div class="irow"><span>الوقت</span><span id="ttime" style="color:var(--tm)"></span></div>
+        </div>
+        <div class="steps">
+          <div class="step"><div class="sico-w"><div class="sico done" id="s1">✓</div><div class="sline done"></div></div><div class="stxt"><strong>تم استلام الطلب</strong><span>تم بنجاح</span></div></div>
+          <div class="step"><div class="sico-w"><div class="sico" id="s2">🛵</div><div class="sline" id="sl2"></div></div><div class="stxt"><strong>جاري التوصيل</strong><span id="s2-sub">في الانتظار</span></div></div>
+          <div class="step"><div class="sico-w"><div class="sico" id="s3">🏠</div></div><div class="stxt"><strong>تم التوصيل</strong><span id="s3-sub">قريبًا</span></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CONTACT -->
+<div id="pg-contact" class="pg">
+  <div class="cont-pg">
+    <div class="sec-hd" style="margin-bottom:1.75rem"><h2>تواصل معنا</h2><p>إحنا هنا 24/7 لخدمتك</p><div class="line"></div></div>
+    <div class="cont-grid">
+      <a class="cont-card" href="https://wa.me/201XXXXXXXXX" target="_blank"><div class="cont-ico">💬</div><div class="cont-ttl">واتساب</div><div class="cont-sub">رد فوري</div></a>
+      <a class="cont-card" href="tel:01XXXXXXXXX"><div class="cont-ico">📞</div><div class="cont-ttl">اتصال مباشر</div><div class="cont-sub">01X XXXX XXXX</div></a>
+      <a class="cont-card" onclick="go('order')"><div class="cont-ico">🚀</div><div class="cont-ttl">اطلب الآن</div><div class="cont-sub">أسرع طريقة</div></a>
+      <a class="cont-card" onclick="go('track')"><div class="cont-ico">🔍</div><div class="cont-ttl">تتبع طلب</div><div class="cont-sub">اعرف فين طلبك</div></a>
+    </div>
+    <div style="background:var(--gl);border-radius:16px;padding:1.5rem;text-align:center;">
+      <div style="font-size:36px;margin-bottom:8px">🛵</div>
+      <div style="font-weight:900;font-size:16px;color:var(--nv)">اطلب من بيتك</div>
+      <div style="font-size:13px;color:var(--tm);margin-top:4px">خليك في مكانك.. وطلباتك نجيبلك | بورسعيد</div>
+      <div style="font-size:13px;color:var(--or);font-weight:700;margin-top:8px">داخل بورسعيد: 25 جنيه | مشاوير خاصة: حسب المسافة</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// NAV
+function go(id){
+  document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.nav-links a').forEach(a=>a.classList.remove('active'));
+  document.getElementById('pg-'+id).classList.add('on');
+  const nl=document.getElementById('nl-'+id);
+  if(nl)nl.classList.add('active');
+  window.scrollTo(0,0);
+}
+function goOrder(type){
+  go('order');
+  setTimeout(()=>{
+    const sel=document.getElementById('otype');
+    for(let o of sel.options)if(o.text===type){sel.value=o.value||o.text;break;}
+  },50);
+}
+
+// ===== SUBMIT ORDER — FIREBASE =====
+async function submitOrder(){
+  const type  = document.getElementById('otype').value.trim();
+  const place = document.getElementById('oplace').value.trim();
+  const phone = document.getElementById('ophone').value.trim();
+  const addr  = document.getElementById('oaddr').value.trim();
+  const details = document.getElementById('odetails').value.trim();
+  const notes = document.getElementById('onotes').value.trim();
+
+  const errEl = document.getElementById('order-err');
+  errEl.classList.remove('show');
+
+  // Validation
+  if(!type){errEl.textContent='⚠️ من فضلك اختار نوع الطلب';errEl.classList.add('show');return;}
+  if(!place){errEl.textContent='⚠️ من فضلك اكتب اسم المحل';errEl.classList.add('show');return;}
+  if(!addr){errEl.textContent='⚠️ من فضلك اكتب عنوانك';errEl.classList.add('show');return;}
+  if(!phone||phone.length<11){errEl.textContent='⚠️ رقم التليفون غير صحيح (11 رقم)';errEl.classList.add('show');return;}
+
+  // Check Firebase ready
+  if(!window._firebaseReady||!window.db){
+    errEl.textContent='⚠️ جاري الاتصال بالخادم، حاول تاني بعد ثانية';
+    errEl.classList.add('show');
+    return;
+  }
+
+  // Disable button + show loading
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ جاري الإرسال...';
+  btn.classList.add('loading');
+
+  try {
+    const orderNum = 'ORD-' + Math.floor(1000 + Math.random() * 9000);
+    const orderData = {
+      id: orderNum,
+      type, place, addr, phone, details, notes,
+      status: 'جديد',
+      createdAt: window.fbTimestamp(),
+      time: new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}),
+      date: new Date().toLocaleDateString('ar-EG')
+    };
+
+    await window.fbAddDoc(window.fbCollection(window.db, 'orders'), orderData);
+
+    // Show success
+    document.getElementById('order-form-body').style.display = 'none';
+    document.getElementById('success-order-num').textContent = 'رقم طلبك: ' + orderNum;
+    document.getElementById('order-success').classList.add('show');
+
+  } catch(err) {
+    console.error('Firebase error:', err);
+    errEl.textContent = '❌ حصل خطأ: ' + (err.message || 'حاول تاني');
+    errEl.classList.add('show');
+    btn.disabled = false;
+    btn.textContent = 'تأكيد الطلب ✅';
+    btn.classList.remove('loading');
+  }
+}
+
+function resetForm(){
+  ['otype','oplace','odetails','oaddr','ophone','onotes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('order-form-body').style.display = 'block';
+  document.getElementById('order-success').classList.remove('show');
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = false;
+  btn.textContent = 'تأكيد الطلب ✅';
+  btn.classList.remove('loading');
+  document.getElementById('order-err').classList.remove('show');
+}
+
+// TRACK
+function doTrack(){
+  const v = document.getElementById('tinput').value.trim();
+  if(!v){alert('أدخل رقم الطلب');return;}
+  document.getElementById('tnum').textContent = v;
+  document.getElementById('tstatus').textContent = 'جديد 🟡';
+  document.getElementById('ttime').textContent = new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('tres').classList.add('on');
+}
+</script>
+</body>
+</html>
