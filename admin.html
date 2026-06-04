@@ -10,9 +10,8 @@
 <!-- Firebase SDKs -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-  import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, orderBy, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-  import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
-  
+  import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, setDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+
   const firebaseConfig = {
     apiKey: "AIzaSyCu31Gb8MLmvxAZCurGKTSQs4DTePSWw_I",
     authDomain: "etlop--mn---betak.firebaseapp.com",
@@ -21,35 +20,60 @@
     messagingSenderId: "415855489057",
     appId: "1:415855489057:web:d3526177d5a4353332f360"
   };
-  
+
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
-  const auth = getAuth(app);
-  
   window.db = db;
-  window.auth = auth;
 
-  let orders = [];
+  // ===== LIVE ORDERS LISTENER =====
+  const qOrders = query(collection(db, "orders"), orderBy("createdAt", "desc"));
+  onSnapshot(qOrders, (snapshot) => {
+    window._firestoreOrders = [];
+    snapshot.forEach((docSnap) => {
+      window._firestoreOrders.push({ _docId: docSnap.id, ...docSnap.data() });
+    });
+    if(typeof renderDash === 'function') renderDash();
+    if(typeof renderOrders === 'function') renderOrders();
+  }, (err) => { console.error("Orders listener error:", err); });
 
-const q = query(
-  collection(db, "orders"),
-  orderBy("createdAt", "desc")
-);
+  // ===== LIVE DRIVERS LISTENER =====
+  onSnapshot(collection(db, "drivers"), (snapshot) => {
+    window._firestoreDrivers = [];
+    snapshot.forEach((docSnap) => {
+      window._firestoreDrivers.push({ _docId: docSnap.id, ...docSnap.data() });
+    });
+    if(typeof renderDash === 'function') renderDash();
+    if(typeof renderDrivers === 'function') {
+      const pg = document.getElementById('page-drivers');
+      if(pg && pg.classList.contains('on')) renderDrivers();
+    }
+  }, (err) => { console.error("Drivers listener error:", err); });
 
-onSnapshot(q, (snapshot) => {
-  orders = [];
+  // ===== FIRESTORE HELPERS (exposed to global scope) =====
+  window._fbUpdateOrder = async (docId, data) => {
+    await updateDoc(doc(db, "orders", docId), data);
+  };
+  window._fbDeleteOrder = async (docId) => {
+    await deleteDoc(doc(db, "orders", docId));
+  };
+  window._fbAddDriver = async (driverData) => {
+    const ref = doc(collection(db, "drivers"));
+    await setDoc(ref, { ...driverData, _docId: ref.id });
+    return ref.id;
+  };
+  window._fbUpdateDriver = async (docId, data) => {
+    await updateDoc(doc(db, "drivers", docId), data);
+  };
+  window._fbDeleteDriver = async (docId) => {
+    await deleteDoc(doc(db, "drivers", docId));
+  };
+  window._fbAddDemoOrder = async (orderData) => {
+    await addDoc(collection(db, "orders"), { ...orderData, createdAt: serverTimestamp() });
+  };
+  window._fbTimestamp = serverTimestamp;
 
-  snapshot.forEach((docSnap) => {
-    orders.push(docSnap.data());
-  });
-
-  renderDash();
-  renderOrders();
-});
-  
-  console.log("✅ Firebase connected!");
-
-  
+  window._firebaseReady = true;
+  console.log("✅ Firebase Admin connected!");
 </script>
 <style>
 
@@ -527,19 +551,11 @@ tr:hover td{background:rgba(13,36,97,.02);}
 </div>
 
 <script>
-// ========= STORAGE =========
+// ========= DATA HELPERS — FIRESTORE ==========
+// الطلبات والسائقين بتيجي real-time من Firebase onSnapshot
 
-function getDrivers(){try{return JSON.parse(localStorage.getItem('emb_drivers')||JSON.stringify(defaultDrivers()));}catch{return defaultDrivers();}}
-function saveDrivers(arr){localStorage.setItem('emb_drivers',JSON.stringify(arr));}
-
-function defaultDrivers(){
-  return[
-    {id:'DRV-001',fname:'محمود',lname:'أحمد',phone:'01011111111',wa:'01011111111',area:'الحي السادس',vtype:'دراجة نارية',plate:'أ ب 1234',uname:'driver_mahmoud',status:'مفعل',orders:47,rating:4.9,online:true},
-    {id:'DRV-002',fname:'أحمد',lname:'محمد',phone:'01022222222',wa:'01022222222',area:'شارع 23 يوليو',vtype:'توك توك',plate:'ج د 5678',uname:'driver_ahmed',status:'مفعل',orders:83,rating:4.7,online:true},
-    {id:'DRV-003',fname:'علي',lname:'حسن',phone:'01033333333',wa:'01033333333',area:'شارع الجيش',vtype:'دراجة نارية',plate:'هـ و 9012',uname:'driver_ali',status:'مفعل',orders:31,rating:4.5,online:false},
-    {id:'DRV-004',fname:'كريم',lname:'سامي',phone:'01044444444',wa:'01044444444',area:'حي الزهور',vtype:'سيارة',plate:'ز ح 3456',uname:'driver_karim',status:'مفعل',orders:19,rating:4.8,online:true},
-  ];
-}
+function getOrders(){ return window._firestoreOrders || []; }
+function getDrivers(){ return window._firestoreDrivers || []; }
 
 // ========= LOGIN — SECURE =========
 // كلمة السر مخزنة كـ SHA-256 hash — مش plain text
@@ -641,8 +657,7 @@ const PLACES=['كنتاكي فرع الجامعة','كارفور بورسعيد'
 const ADDRS=['شارع 23 يوليو، الحي الثالث','الحي السادس، بجوار المسجد','شارع الجيش، أمام البنك','المنطقة الصناعية','حي الزهور، عمارة 4','شارع النصر، دور 2'];
 function rnd(a){return a[Math.floor(Math.random()*a.length)];}
 
-function addDemoOrder(){
-  const orders=getOrders();
+async function addDemoOrder(){
   const o={
     id:'ORD-'+Math.floor(1000+Math.random()*9000),
     type:rnd(TYPES),place:rnd(PLACES),addr:rnd(ADDRS),
@@ -651,8 +666,11 @@ function addDemoOrder(){
     time:new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}),
     date:new Date().toLocaleDateString('ar-EG'),status:'جديد'
   };
-  orders.unshift(o);saveOrders(orders);
-  refresh();showToast('📋 طلب جديد: '+o.id);
+  if(!window._fbAddDemoOrder){showToast('⚠️ Firebase مش جاهز');return;}
+  try{
+    await window._fbAddDemoOrder(o);
+    showToast('📋 طلب تجريبي: '+o.id);
+  }catch(err){showToast('❌ خطأ: '+err.message);}
 }
 
 // ========= RENDER DASH =========
@@ -731,12 +749,13 @@ function filterOrders(f,btn){
 }
 function searchOrders(v){curSearch=v.trim().toLowerCase();renderOrders();}
 
-function updOrd(id,status){
-  const orders=getOrders();
-  const o=orders.find(x=>x.id===id);
-  if(o){o.status=status;saveOrders(orders);}
-  renderOrders();renderDash();
-  showToast('✅ '+id+' → '+status);
+async function updOrd(id,status){
+  const o=getOrders().find(x=>x.id===id);
+  if(!o||!o._docId){showToast('❌ مش لاقي الطلب');return;}
+  try{
+    await window._fbUpdateOrder(o._docId,{status});
+    showToast('✅ '+id+' → '+status);
+  }catch(err){showToast('❌ خطأ: '+err.message);}
 }
 
 function viewOrder(id){
@@ -835,21 +854,28 @@ function viewDriver(id){
   openModal('driver-modal');
 }
 
-function toggleDriverStatus(id){
-  const drivers=getDrivers();
-  const d=drivers.find(x=>x.id===id);
-  if(d){d.status=d.status==='مفعل'?'معلق':'مفعل';saveDrivers(drivers);}
-  renderDrivers();showToast('✅ تم تحديث حالة السائق');
+async function toggleDriverStatus(id){
+  const d=getDrivers().find(x=>x.id===id);
+  if(!d||!d._docId){showToast('❌ مش لاقي السائق');return;}
+  const newStatus=d.status==='مفعل'?'معلق':'مفعل';
+  try{
+    await window._fbUpdateDriver(d._docId,{status:newStatus});
+    showToast('✅ تم تحديث حالة السائق');
+  }catch(err){showToast('❌ خطأ: '+err.message);}
 }
 
-function deleteDriver(id){
+async function deleteDriver(id){
   if(!confirm('هل أنت متأكد من حذف هذا السائق؟'))return;
-  const drivers=getDrivers().filter(x=>x.id!==id);
-  saveDrivers(drivers);renderDrivers();showToast('🗑 تم حذف السائق');
+  const d=getDrivers().find(x=>x.id===id);
+  if(!d||!d._docId){showToast('❌ مش لاقي السائق');return;}
+  try{
+    await window._fbDeleteDriver(d._docId);
+    showToast('🗑 تم حذف السائق');
+  }catch(err){showToast('❌ خطأ: '+err.message);}
 }
 
 // ========= SAVE DRIVER =========
-function saveDriver(){
+async function saveDriver(){
   const fname=document.getElementById('d-fname').value.trim();
   const lname=document.getElementById('d-lname').value.trim();
   const phone=document.getElementById('d-phone').value.trim();
@@ -878,16 +904,17 @@ function saveDriver(){
     status:document.getElementById('d-status').value,
     orders:0,rating:5.0,online:false
   };
-  drivers.push(newDriver);
-  saveDrivers(drivers);
 
-  // clear form
-  ['d-fname','d-lname','d-phone','d-wa','d-area','d-plate','d-uname','d-pass'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('d-vtype').selectedIndex=0;
-  document.getElementById('d-status').selectedIndex=0;
-
-  showToast('✅ تم إضافة السائق '+fname+' '+lname+' بنجاح!');
-  nav('drivers');
+  if(!window._fbAddDriver){showToast('⚠️ Firebase مش جاهز');return;}
+  try{
+    await window._fbAddDriver(newDriver);
+    // clear form
+    ['d-fname','d-lname','d-phone','d-wa','d-area','d-plate','d-uname','d-pass'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('d-vtype').selectedIndex=0;
+    document.getElementById('d-status').selectedIndex=0;
+    showToast('✅ تم إضافة السائق '+fname+' '+lname+' بنجاح!');
+    nav('drivers');
+  }catch(err){showToast('❌ خطأ في الحفظ: '+err.message);}
 }
 
 // ========= MODAL =========
