@@ -1,9 +1,15 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
-  <!-- Firebase SDKs -->
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>لوحة تحكم الأدمن — اطلب من بيتك</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet"/>
+
+<!-- Firebase SDKs -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-  import { getFirestore, collection, addDoc, getDocs, updateDoc, doc, deleteDoc, query, orderBy, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+  import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, orderBy, onSnapshot, getDoc, where } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
   import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
   
   const firebaseConfig = {
@@ -22,17 +28,18 @@
   window.db = db;
   window.auth = auth;
   
-  // دوال مساعدة
-  window.addOrder = async (orderData) => {
+  // دوال Firebase
+  window.addOrderToFirebase = async (orderData) => {
     const docRef = await addDoc(collection(db, "orders"), {
       ...orderData,
       status: "جديد",
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     });
     return docRef.id;
   };
   
-  window.getOrders = async () => {
+  window.getOrdersFromFirebase = async () => {
     const q = query(collection(db, "orders"), orderBy("createdAt", "desc"));
     const snapshot = await getDocs(q);
     const orders = [];
@@ -40,12 +47,43 @@
     return orders;
   };
   
-  window.updateOrderStatus = async (orderId, status) => {
+  window.updateOrderStatusFirebase = async (orderId, newStatus) => {
     const orderRef = doc(db, "orders", orderId);
-    await updateDoc(orderRef, { status, updatedAt: new Date().toISOString() });
+    await updateDoc(orderRef, { status: newStatus, updatedAt: new Date().toISOString() });
   };
   
-  window.loginAdmin = async (email, password) => {
+  window.getDriversFromFirebase = async () => {
+    const snapshot = await getDocs(collection(db, "drivers"));
+    const drivers = [];
+    snapshot.forEach(doc => drivers.push({ id: doc.id, ...doc.data() }));
+    return drivers;
+  };
+  
+  window.addDriverToFirebase = async (driverData) => {
+    const docRef = await addDoc(collection(db, "drivers"), {
+      ...driverData,
+      createdAt: new Date().toISOString(),
+      orders: 0,
+      rating: 5.0,
+      online: false
+    });
+    return docRef.id;
+  };
+  
+  window.deleteDriverFromFirebase = async (driverId) => {
+    await deleteDoc(doc(db, "drivers", driverId));
+  };
+  
+  window.subscribeToOrdersRealtime = (callback) => {
+    const q = query(collection(db, "orders"), orderBy("createdAt", "desc"));
+    return onSnapshot(q, (snapshot) => {
+      const orders = [];
+      snapshot.forEach(doc => orders.push({ id: doc.id, ...doc.data() }));
+      callback(orders);
+    });
+  };
+  
+  window.loginWithEmail = async (email, password) => {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       return { success: true, user: userCredential.user };
@@ -54,17 +92,13 @@
     }
   };
   
-  window.logoutAdmin = async () => {
+  window.logoutFirebase = async () => {
     await signOut(auth);
   };
   
   console.log("✅ Firebase connected - Admin Panel");
 </script>
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>لوحة تحكم الأدمن — اطلب من بيتك</title>
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet"/>
+
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 :root{
@@ -291,11 +325,11 @@ tr:hover td{background:rgba(13,36,97,.02);}
     <div class="login-logo">🛵</div>
     <div class="login-title">اطلب من بيتك</div>
     <div class="login-sub">لوحة تحكم الأدمن</div>
-    <input type="text" id="l-user" placeholder="اسم المستخدم"/>
+    <input type="email" id="l-user" placeholder="البريد الإلكتروني"/>
     <input type="password" id="l-pass" placeholder="كلمة السر"/>
     <button class="login-btn" onclick="doLogin()">دخول ➜</button>
-    <div id="l-err" class="login-err">❌ بيانات غلط، حاول تاني</div>
-    <div class="login-hint">اسم المستخدم: admin &nbsp;|&nbsp; كلمة السر: EMB@2025!port</div>
+    <div id="l-err" class="login-err"></div>
+    <div class="login-hint">admin@delivery.com | EMB@2025!port</div>
   </div>
 </div>
 
@@ -330,9 +364,7 @@ tr:hover td{background:rgba(13,36,97,.02);}
         <div class="topbar-title" id="page-title">الرئيسية</div>
       </div>
       <div class="topbar-right">
-        <button class="notif-btn" onclick="nav('orders')" title="الإشعارات">
-          🔔<div class="notif-dot" id="notif-dot"></div>
-        </button>
+        <button class="notif-btn" onclick="nav('orders')" title="الإشعارات">🔔<div class="notif-dot" id="notif-dot"></div></button>
         <button class="refresh-btn" onclick="refresh()">🔄 تحديث</button>
       </div>
     </div>
@@ -349,375 +381,148 @@ tr:hover td{background:rgba(13,36,97,.02);}
         </div>
 
         <div class="dash-grid">
-          <div class="card">
-            <div class="card-hd"><h3>📋 آخر الطلبات</h3><a style="font-size:12px;color:var(--or);cursor:pointer;font-weight:700" onclick="nav('orders')">عرض الكل ←</a></div>
-            <div id="dash-orders"></div>
-          </div>
-          <div class="card">
-            <div class="card-hd"><h3>🛵 السائقين</h3><a style="font-size:12px;color:var(--or);cursor:pointer;font-weight:700" onclick="nav('drivers')">إدارة ←</a></div>
-            <div id="dash-drivers"></div>
-          </div>
+          <div class="card"><div class="card-hd"><h3>📋 آخر الطلبات</h3><a style="font-size:12px;color:var(--or);cursor:pointer;font-weight:700" onclick="nav('orders')">عرض الكل ←</a></div><div id="dash-orders"></div></div>
+          <div class="card"><div class="card-hd"><h3>🛵 السائقين</h3><a style="font-size:12px;color:var(--or);cursor:pointer;font-weight:700" onclick="nav('drivers')">إدارة ←</a></div><div id="dash-drivers"></div></div>
         </div>
 
-        <div class="card">
-          <div class="card-hd"><h3>⚡ إجراءات سريعة</h3></div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap;">
-            <button class="abtn bl" onclick="nav('orders')">📋 إدارة الطلبات</button>
-            <button class="abtn grn" onclick="addDemoOrder()">➕ طلب تجريبي</button>
-            <button class="abtn or" onclick="nav('add-driver')">🛵 إضافة سائق جديد</button>
-            <button class="abtn gray" onclick="nav('settings')">⚙️ الإعدادات</button>
-          </div>
-        </div>
+        <div class="card"><div class="card-hd"><h3>⚡ إجراءات سريعة</h3></div><div style="display:flex;gap:10px;flex-wrap:wrap;"><button class="abtn bl" onclick="nav('orders')">📋 إدارة الطلبات</button><button class="abtn grn" onclick="addDemoOrder()">➕ طلب تجريبي</button><button class="abtn or" onclick="nav('add-driver')">🛵 إضافة سائق جديد</button><button class="abtn gray" onclick="nav('settings')">⚙️ الإعدادات</button></div></div>
       </div>
 
       <!-- ========== ORDERS ========== -->
       <div id="page-orders" class="page">
-        <div class="page-hd">
-          <h2>إدارة الطلبات</h2>
-          <button class="abtn grn" onclick="addDemoOrder()">➕ طلب تجريبي</button>
-        </div>
-        <div class="filters">
-          <button class="fbtn act" onclick="filterOrders('all',this)">الكل</button>
-          <button class="fbtn" onclick="filterOrders('جديد',this)">🟡 جديد</button>
-          <button class="fbtn" onclick="filterOrders('جاري التوصيل',this)">🟢 جاري</button>
-          <button class="fbtn" onclick="filterOrders('تم التوصيل',this)">✅ مكتمل</button>
-          <button class="fbtn" onclick="filterOrders('ملغي',this)">❌ ملغي</button>
-          <div class="search-wrap"><input type="text" placeholder="🔍 ابحث برقم الطلب أو التليفون..." oninput="searchOrders(this.value)"/></div>
-        </div>
-        <div class="tbl-wrap">
-          <table>
-            <thead><tr>
-              <th>#</th><th>رقم الطلب</th><th>النوع</th><th>المحل</th>
-              <th>العنوان</th><th>التليفون</th><th>الوقت</th><th>الحالة</th><th>إجراءات</th>
-            </tr></thead>
-            <tbody id="orders-tbody"></tbody>
-          </table>
-        </div>
+        <div class="page-hd"><h2>إدارة الطلبات</h2><button class="abtn grn" onclick="addDemoOrder()">➕ طلب تجريبي</button></div>
+        <div class="filters"><button class="fbtn act" onclick="filterOrders('all',this)">الكل</button><button class="fbtn" onclick="filterOrders('جديد',this)">🟡 جديد</button><button class="fbtn" onclick="filterOrders('جاري التوصيل',this)">🟢 جاري</button><button class="fbtn" onclick="filterOrders('تم التوصيل',this)">✅ مكتمل</button><button class="fbtn" onclick="filterOrders('ملغي',this)">❌ ملغي</button><div class="search-wrap"><input type="text" placeholder="🔍 ابحث برقم الطلب أو التليفون..." oninput="searchOrders(this.value)"/></div></div>
+        <div class="tbl-wrap"><table><thead><tr><th>#</th><th>رقم الطلب</th><th>النوع</th><th>المحل</th><th>العنوان</th><th>التليفون</th><th>الوقت</th><th>الحالة</th><th>إجراءات</th></tr></thead><tbody id="orders-tbody"></tbody></table></div>
       </div>
 
       <!-- ========== DRIVERS ========== -->
       <div id="page-drivers" class="page">
-        <div class="page-hd">
-          <h2>السائقين المسجلين</h2>
-          <button class="abtn grn" onclick="nav('add-driver')">➕ إضافة سائق جديد</button>
-        </div>
+        <div class="page-hd"><h2>السائقين المسجلين</h2><button class="abtn grn" onclick="nav('add-driver')">➕ إضافة سائق جديد</button></div>
         <div class="drivers-grid" id="drivers-grid"></div>
-
-        <div class="users-section">
-          <div class="card" style="margin-top:1.5rem">
-            <div class="card-hd"><h3>📋 قائمة السائقين</h3></div>
-            <div class="tbl-wrap" style="border:none;">
-              <table>
-                <thead><tr>
-                  <th>#</th><th>الاسم</th><th>التليفون</th><th>المنطقة</th>
-                  <th>الحالة</th><th>الطلبات</th><th>التقييم</th><th>إجراءات</th>
-                </tr></thead>
-                <tbody id="drivers-tbody"></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+        <div class="users-section"><div class="card" style="margin-top:1.5rem"><div class="card-hd"><h3>📋 قائمة السائقين</h3></div><div class="tbl-wrap" style="border:none;"><table><thead><tr><th>#</th><th>الاسم</th><th>التليفون</th><th>المنطقة</th><th>الحالة</th><th>الطلبات</th><th>التقييم</th><th>إجراءات</th></tr></thead><tbody id="drivers-tbody"></tbody></table></div></div></div>
       </div>
 
       <!-- ========== ADD DRIVER ========== -->
-      <div id="page-add-driver" class="page">
-        <div class="page-hd">
-          <h2>➕ إضافة سائق جديد</h2>
-        </div>
-        <div class="add-driver-card">
-          <div class="form-section">
-            <h4>👤 البيانات الشخصية</h4>
-            <div class="fr2">
-              <div class="fg"><label class="fl">الاسم الأول *</label><input class="fi" id="d-fname" type="text" placeholder="محمود"/></div>
-              <div class="fg"><label class="fl">الاسم الأخير *</label><input class="fi" id="d-lname" type="text" placeholder="أحمد"/></div>
-            </div>
-            <div class="fr2">
-              <div class="fg"><label class="fl">رقم التليفون *</label><input class="fi" id="d-phone" type="tel" placeholder="01XXXXXXXXX" dir="ltr" style="text-align:left"/></div>
-              <div class="fg"><label class="fl">رقم الواتساب</label><input class="fi" id="d-wa" type="tel" placeholder="01XXXXXXXXX" dir="ltr" style="text-align:left"/></div>
-            </div>
-            <div class="fg"><label class="fl">العنوان / المنطقة *</label><input class="fi" id="d-area" type="text" placeholder="مثال: الحي السادس، بورسعيد"/></div>
-          </div>
-
-          <div class="form-section">
-            <h4>🛵 بيانات السيارة / الدراجة</h4>
-            <div class="fr2">
-              <div class="fg"><label class="fl">نوع المركبة</label>
-                <select class="fi" id="d-vtype">
-                  <option value="دراجة نارية">🏍️ دراجة نارية</option>
-                  <option value="توك توك">🛺 توك توك</option>
-                  <option value="سيارة">🚗 سيارة</option>
-                </select>
-              </div>
-              <div class="fg"><label class="fl">رقم اللوحة</label><input class="fi" id="d-plate" type="text" placeholder="أ ب ج 1234" dir="ltr" style="text-align:left"/></div>
-            </div>
-          </div>
-
-          <div class="form-section">
-            <h4>🔐 بيانات الدخول</h4>
-            <div class="fr2">
-              <div class="fg"><label class="fl">اسم المستخدم *</label><input class="fi" id="d-uname" type="text" placeholder="driver_mahmoud" dir="ltr" style="text-align:left"/></div>
-              <div class="fg"><label class="fl">كلمة السر *</label><input class="fi" id="d-pass" type="password" placeholder="كلمة سر قوية" dir="ltr" style="text-align:left"/></div>
-            </div>
-            <div class="fg"><label class="fl">الحالة عند التسجيل</label>
-              <select class="fi" id="d-status">
-                <option value="مفعل">✅ مفعل</option>
-                <option value="معلق">⏳ معلق (مراجعة)</option>
-              </select>
-            </div>
-          </div>
-
-          <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-            <button class="submit-driver-btn" onclick="saveDriver()">💾 حفظ السائق</button>
-            <button class="cancel-btn" onclick="nav('drivers')">إلغاء</button>
-          </div>
-        </div>
-      </div>
+      <div id="page-add-driver" class="page"><div class="page-hd"><h2>➕ إضافة سائق جديد</h2></div><div class="add-driver-card"><div class="form-section"><h4>👤 البيانات الشخصية</h4><div class="fr2"><div class="fg"><label class="fl">الاسم الأول *</label><input class="fi" id="d-fname" type="text" placeholder="محمود"/></div><div class="fg"><label class="fl">الاسم الأخير *</label><input class="fi" id="d-lname" type="text" placeholder="أحمد"/></div></div><div class="fr2"><div class="fg"><label class="fl">رقم التليفون *</label><input class="fi" id="d-phone" type="tel" placeholder="01XXXXXXXXX" dir="ltr" style="text-align:left"/></div><div class="fg"><label class="fl">رقم الواتساب</label><input class="fi" id="d-wa" type="tel" placeholder="01XXXXXXXXX" dir="ltr" style="text-align:left"/></div></div><div class="fg"><label class="fl">العنوان / المنطقة *</label><input class="fi" id="d-area" type="text" placeholder="مثال: الحي السادس، بورسعيد"/></div></div><div class="form-section"><h4>🛵 بيانات السيارة / الدراجة</h4><div class="fr2"><div class="fg"><label class="fl">نوع المركبة</label><select class="fi" id="d-vtype"><option value="دراجة نارية">🏍️ دراجة نارية</option><option value="توك توك">🛺 توك توك</option><option value="سيارة">🚗 سيارة</option></select></div><div class="fg"><label class="fl">رقم اللوحة</label><input class="fi" id="d-plate" type="text" placeholder="أ ب ج 1234" dir="ltr" style="text-align:left"/></div></div></div><div class="form-section"><h4>🔐 بيانات الدخول</h4><div class="fr2"><div class="fg"><label class="fl">اسم المستخدم *</label><input class="fi" id="d-uname" type="text" placeholder="driver_mahmoud" dir="ltr" style="text-align:left"/></div><div class="fg"><label class="fl">كلمة السر *</label><input class="fi" id="d-pass" type="password" placeholder="كلمة سر قوية" dir="ltr" style="text-align:left"/></div></div><div class="fg"><label class="fl">الحالة عند التسجيل</label><select class="fi" id="d-status"><option value="مفعل">✅ مفعل</option><option value="معلق">⏳ معلق (مراجعة)</option></select></div></div><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;"><button class="submit-driver-btn" onclick="saveDriver()">💾 حفظ السائق</button><button class="cancel-btn" onclick="nav('drivers')">إلغاء</button></div></div></div>
 
       <!-- ========== SETTINGS ========== -->
-      <div id="page-settings" class="page">
-        <div class="page-hd"><h2>الإعدادات</h2></div>
-        <div class="settings-grid">
-          <div class="setting-card">
-            <h3>⚙️ إعدادات التوصيل</h3>
-            <div class="sg"><label>رسوم التوصيل داخل بورسعيد (جم)</label><input type="number" value="25"/></div>
-            <div class="sg"><label>حد أقصى للمسافة (كم)</label><input type="number" value="15"/></div>
-            <div class="sg"><label>متوسط وقت التوصيل (دقيقة)</label><input type="number" value="30"/></div>
-            <button class="save-btn" onclick="showToast('✅ تم حفظ إعدادات التوصيل')">حفظ</button>
-          </div>
-          <div class="setting-card">
-            <h3>📱 بيانات التواصل</h3>
-            <div class="sg"><label>رقم واتساب الخدمة</label><input type="tel" value="01XXXXXXXXX" dir="ltr" style="text-align:left"/></div>
-            <div class="sg"><label>رقم الاتصال المباشر</label><input type="tel" value="01XXXXXXXXX" dir="ltr" style="text-align:left"/></div>
-            <button class="save-btn" onclick="showToast('✅ تم حفظ بيانات التواصل')">حفظ</button>
-          </div>
-          <div class="setting-card">
-            <h3>🔐 تغيير كلمة سر الأدمن</h3>
-            <div style="background:#FFF3E8;border:1px solid rgba(255,107,0,.2);border-radius:10px;padding:10px 14px;font-size:12px;color:#92400E;margin-bottom:1rem;line-height:1.7;">
-              لتغيير كلمة السر، افتح الملف وغيّر القيمة في السطر:<br>
-              <code style="background:rgba(0,0,0,.06);padding:2px 6px;border-radius:4px;font-size:11px;direction:ltr;display:inline-block;margin-top:4px">const validPass = passHash === await sha256('كلمة_سرك_الجديدة');</code>
-            </div>
-            <div class="sg"><label>كلمة السر الحالية</label><input type="password" placeholder="●●●●●●" id="cur-pass"/></div>
-            <div class="sg"><label>كلمة السر الجديدة</label><input type="password" placeholder="●●●●●●" id="new-pass"/></div>
-            <div class="sg"><label>تأكيد كلمة السر</label><input type="password" placeholder="●●●●●●" id="conf-pass"/></div>
-            <button class="save-btn" onclick="changePass()">حفظ</button>
-          </div>
-          <div class="setting-card">
-            <h3>🔧 الخدمات المتاحة</h3>
-            <div class="toggle-row"><span class="toggle-lbl">🍕 مطاعم</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
-            <div class="toggle-row"><span class="toggle-lbl">🛒 سوبر ماركت</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
-            <div class="toggle-row"><span class="toggle-lbl">💊 صيدلية</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
-            <div class="toggle-row"><span class="toggle-lbl">📦 شحن طرود</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
-            <div class="toggle-row"><span class="toggle-lbl">🚗 مشاوير خاصة</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
-          </div>
-        </div>
-      </div>
+      <div id="page-settings" class="page"><div class="page-hd"><h2>الإعدادات</h2></div><div class="settings-grid"><div class="setting-card"><h3>⚙️ إعدادات التوصيل</h3><div class="sg"><label>رسوم التوصيل داخل بورسعيد (جم)</label><input type="number" id="delivery-fee" value="25"/></div><div class="sg"><label>حد أقصى للمسافة (كم)</label><input type="number" id="max-distance" value="15"/></div><div class="sg"><label>متوسط وقت التوصيل (دقيقة)</label><input type="number" id="avg-time" value="30"/></div><button class="save-btn" onclick="saveSettings()">حفظ</button></div><div class="setting-card"><h3>📱 بيانات التواصل</h3><div class="sg"><label>رقم واتساب الخدمة</label><input type="tel" id="whatsapp-num" value="01234567890" dir="ltr" style="text-align:left"/></div><div class="sg"><label>رقم الاتصال المباشر</label><input type="tel" id="phone-num" value="01234567890" dir="ltr" style="text-align:left"/></div><button class="save-btn" onclick="saveSettings()">حفظ</button></div></div></div>
 
-    </div><!-- content -->
-  </div><!-- main -->
-</div><!-- app -->
+    </div>
+  </div>
+</div>
 
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
 <!-- ORDER MODAL -->
-<div class="modal-bg" id="order-modal" onclick="if(event.target===this)closeModal('order-modal')">
-  <div class="modal">
-    <div class="modal-hd"><h3>📋 تفاصيل الطلب</h3><button class="modal-close" onclick="closeModal('order-modal')">✕</button></div>
-    <div id="modal-order-body"></div>
-    <div class="modal-actions" id="modal-order-actions"></div>
-  </div>
-</div>
+<div class="modal-bg" id="order-modal" onclick="if(event.target===this)closeModal('order-modal')"><div class="modal"><div class="modal-hd"><h3>📋 تفاصيل الطلب</h3><button class="modal-close" onclick="closeModal('order-modal')">✕</button></div><div id="modal-order-body"></div><div class="modal-actions" id="modal-order-actions"></div></div></div>
 
 <!-- DRIVER MODAL -->
-<div class="modal-bg" id="driver-modal" onclick="if(event.target===this)closeModal('driver-modal')">
-  <div class="modal">
-    <div class="modal-hd"><h3>🛵 تفاصيل السائق</h3><button class="modal-close" onclick="closeModal('driver-modal')">✕</button></div>
-    <div id="modal-driver-body"></div>
-    <div class="modal-actions" id="modal-driver-actions"></div>
-  </div>
-</div>
+<div class="modal-bg" id="driver-modal" onclick="if(event.target===this)closeModal('driver-modal')"><div class="modal"><div class="modal-hd"><h3>🛵 تفاصيل السائق</h3><button class="modal-close" onclick="closeModal('driver-modal')">✕</button></div><div id="modal-driver-body"></div><div class="modal-actions" id="modal-driver-actions"></div></div></div>
 
 <script>
-// ========= STORAGE =========
-function getOrders(){try{return JSON.parse(localStorage.getItem('emb_orders')||'[]');}catch{return[];}}
-function saveOrders(arr){localStorage.setItem('emb_orders',JSON.stringify(arr));}
-function getDrivers(){try{return JSON.parse(localStorage.getItem('emb_drivers')||JSON.stringify(defaultDrivers()));}catch{return defaultDrivers();}}
-function saveDrivers(arr){localStorage.setItem('emb_drivers',JSON.stringify(arr));}
+let currentOrders = [];
+let currentFilter = 'all';
+let currentSearch = '';
+let unsubscribeOrders = null;
 
-function defaultDrivers(){
-  return[
-    {id:'DRV-001',fname:'محمود',lname:'أحمد',phone:'01011111111',wa:'01011111111',area:'الحي السادس',vtype:'دراجة نارية',plate:'أ ب 1234',uname:'driver_mahmoud',status:'مفعل',orders:47,rating:4.9,online:true},
-    {id:'DRV-002',fname:'أحمد',lname:'محمد',phone:'01022222222',wa:'01022222222',area:'شارع 23 يوليو',vtype:'توك توك',plate:'ج د 5678',uname:'driver_ahmed',status:'مفعل',orders:83,rating:4.7,online:true},
-    {id:'DRV-003',fname:'علي',lname:'حسن',phone:'01033333333',wa:'01033333333',area:'شارع الجيش',vtype:'دراجة نارية',plate:'هـ و 9012',uname:'driver_ali',status:'مفعل',orders:31,rating:4.5,online:false},
-    {id:'DRV-004',fname:'كريم',lname:'سامي',phone:'01044444444',wa:'01044444444',area:'حي الزهور',vtype:'سيارة',plate:'ز ح 3456',uname:'driver_karim',status:'مفعل',orders:19,rating:4.8,online:true},
-  ];
-}
-
-// ========= LOGIN — SECURE =========
-// كلمة السر مخزنة كـ SHA-256 hash — مش plain text
-// الباسورد الحالي: EMB@2025!port  — غيّره من إعدادات الأدمن
-const ADMIN_USER_HASH = '7b6f2c3e8a1d4f9c2b5e8a1d4f9c2b5e8a1d4f9c2b5e8a1d4f9c2b5e8a1d4f'; // placeholder
-const ADMIN_CREDS = {
-  user: btoa('admin'),  // base64 — مش plain text في الكود
-  // SHA-256 of "EMB@2025!port"
-  pass: 'a7f3c9e2b5d8f1a4c7e0b3d6f9a2c5e8b1d4f7a0c3e6b9d2f5a8c1e4b7d0f3a6'
-};
-
-let loginAttempts = 0;
-let lockUntil = 0;
-
-async function sha256(str){
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
-}
-
-async function doLogin(){
-  const now = Date.now();
-  if(now < lockUntil){
-    const secs = Math.ceil((lockUntil - now)/1000);
-    document.getElementById('l-err').textContent = `⏳ كثير من المحاولات — انتظر ${secs} ثانية`;
-    document.getElementById('l-err').style.display='block';
+// ========= DO LOGIN =========
+async function doLogin() {
+  const email = document.getElementById('l-user').value.trim();
+  const password = document.getElementById('l-pass').value.trim();
+  
+  if (!email || !password) {
+    showToast('⚠️ ادخل البريد الإلكتروني وكلمة السر', true);
     return;
   }
-
-  const u = document.getElementById('l-user').value.trim();
-  const p = document.getElementById('l-pass').value.trim();
-
-  if(!u || !p){
-    document.getElementById('l-err').textContent='⚠️ ادخل اسم المستخدم وكلمة السر';
-    document.getElementById('l-err').style.display='block';
-    return;
-  }
-
-  const passHash = await sha256(p);
-  // التحقق: اسم المستخدم "admin" وكلمة السر "EMB@2025!port"
-  // لتغيير كلمة السر: شغّل في console المتصفح: crypto.subtle.digest('SHA-256', new TextEncoder().encode('كلمة_سرك')).then(b=>console.log(Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('')))
-  const validUser = u === 'admin';
-  const validPass = passHash === await sha256('EMB@2025!port');
-
-  if(validUser && validPass){
-    loginAttempts = 0;
-    lockUntil = 0;
-    document.getElementById('login-screen').style.display='none';
+  
+  const result = await window.loginWithEmail(email, password);
+  if (result.success) {
+    document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app').classList.add('on');
-    document.getElementById('sb-uname-txt').textContent = u;
-    sessionStorage.setItem('emb_auth', btoa(Date.now().toString()));
+    document.getElementById('sb-uname-txt').textContent = email.split('@')[0];
+    startRealtimeUpdates();
     refresh();
   } else {
-    loginAttempts++;
-    if(loginAttempts >= 5){
-      lockUntil = Date.now() + 60000; // 60 ثانية حظر
-      loginAttempts = 0;
-      document.getElementById('l-err').textContent='🔒 5 محاولات فاشلة — محظور لمدة 60 ثانية';
-    } else {
-      document.getElementById('l-err').textContent=`❌ بيانات غلط (${loginAttempts}/5)`;
-    }
-    document.getElementById('l-err').style.display='block';
-    document.getElementById('l-pass').value='';
-    document.getElementById('l-pass').focus();
+    document.getElementById('l-err').textContent = '❌ ' + result.error;
+    document.getElementById('l-err').style.display = 'block';
   }
 }
-document.getElementById('l-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
-document.getElementById('l-user').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('l-pass').focus();});
 
-function doLogout(){
-  sessionStorage.removeItem('emb_auth');
-  document.getElementById('login-screen').style.display='flex';
+function doLogout() {
+  window.logoutFirebase();
+  if (unsubscribeOrders) unsubscribeOrders();
+  document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('app').classList.remove('on');
-  ['l-user','l-pass'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('l-err').style.display='none';
-  document.getElementById('l-err').textContent='\u274C بيانات غلط، حاول تاني';
+  document.getElementById('l-user').value = '';
+  document.getElementById('l-pass').value = '';
+  document.getElementById('l-err').style.display = 'none';
 }
 
-// ========= NAV =========
-const PAGE_NAMES={dash:'الرئيسية',orders:'إدارة الطلبات',drivers:'السائقين','add-driver':'إضافة سائق جديد',settings:'الإعدادات'};
-function nav(id){
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
-  document.querySelectorAll('.sb-nav a').forEach(a=>a.classList.remove('act'));
-  document.getElementById('page-'+id).classList.add('on');
-  const link=document.querySelector(`.sb-nav a[onclick="nav('${id}')"]`);
-  if(link)link.classList.add('act');
-  document.getElementById('page-title').textContent=PAGE_NAMES[id]||id;
-  window.scrollTo(0,0);
-  if(id==='orders')renderOrders();
-  else if(id==='drivers')renderDrivers();
-  else if(id==='dash')renderDash();
+function startRealtimeUpdates() {
+  if (unsubscribeOrders) unsubscribeOrders();
+  unsubscribeOrders = window.subscribeToOrdersRealtime((orders) => {
+    currentOrders = orders;
+    renderCurrentPage();
+  });
 }
 
-// ========= STATUS MAP =========
-const SMAP={'جديد':'b-new','جاري التوصيل':'b-go','تم التوصيل':'b-done','ملغي':'b-cancel'};
-
-// ========= DEMO ORDER =========
-const TYPES=['🍕 مطعم','🛒 سوبر ماركت','💊 صيدلية','📦 شحن','🚗 مشوار','✨ أخرى'];
-const PLACES=['كنتاكي فرع الجامعة','كارفور بورسعيد','صيدلية النور','سبيدي بيتزا','ماكدونالدز','مطعم الشيف','بيتزا هت'];
-const ADDRS=['شارع 23 يوليو، الحي الثالث','الحي السادس، بجوار المسجد','شارع الجيش، أمام البنك','المنطقة الصناعية','حي الزهور، عمارة 4','شارع النصر، دور 2'];
-function rnd(a){return a[Math.floor(Math.random()*a.length)];}
-
-function addDemoOrder(){
-  const orders=getOrders();
-  const o={
-    id:'ORD-'+Math.floor(1000+Math.random()*9000),
-    type:rnd(TYPES),place:rnd(PLACES),addr:rnd(ADDRS),
-    phone:'010'+Math.floor(10000000+Math.random()*89999999),
-    details:'طلب تجريبي',notes:'',
-    time:new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}),
-    date:new Date().toLocaleDateString('ar-EG'),status:'جديد'
-  };
-  orders.unshift(o);saveOrders(orders);
-  refresh();showToast('📋 طلب جديد: '+o.id);
+function renderCurrentPage() {
+  if (document.getElementById('page-dash').classList.contains('on')) renderDash();
+  if (document.getElementById('page-orders').classList.contains('on')) renderOrders();
+  if (document.getElementById('page-drivers').classList.contains('on')) renderDrivers();
 }
 
 // ========= RENDER DASH =========
-function renderDash(){
-  const orders=getOrders();
-  const newC=orders.filter(o=>o.status==='جديد').length;
-  const done=orders.filter(o=>o.status==='تم التوصيل').length;
-  const active=orders.filter(o=>o.status==='جاري التوصيل').length;
-  document.getElementById('k-total').textContent=orders.length;
-  document.getElementById('k-done').textContent=done;
-  document.getElementById('k-active').textContent=active;
-  document.getElementById('k-rev').textContent=(done*25)+' جم';
-  document.getElementById('k-new-lbl').textContent=newC?newC+' طلب جديد ⬆':'';
-  document.getElementById('new-count').textContent=newC;
-  const nd=document.getElementById('notif-dot');
-  nd.style.display=newC?'block':'none';
-
-  // orders list
-  const ol=document.getElementById('dash-orders');
-  if(!orders.length){ol.innerHTML='<div class="empty-state"><div>📭</div>لا يوجد طلبات<br><button class="abtn grn" style="margin-top:10px" onclick="addDemoOrder()">➕ أضف طلب تجريبي</button></div>';return;}
-  ol.innerHTML=orders.slice(0,5).map(o=>`
-    <div class="mini-order" onclick="viewOrder('${o.id}')" style="cursor:pointer">
-      <div class="mo-ico">${o.type.split(' ')[0]}</div>
-      <div class="mo-info">
-        <div class="mo-id">${o.id} — ${o.place}</div>
-        <div class="mo-sub">📍 ${o.addr} | 📞 ${o.phone}</div>
-      </div>
-      <span class="badge ${SMAP[o.status]||'b-new'}">${o.status}</span>
-    </div>`).join('');
-
-  // drivers list
-  const drivers=getDrivers();
-  const dl=document.getElementById('dash-drivers');
-  dl.innerHTML=drivers.map(d=>`
-    <div class="dr-row">
-      <div class="dr-av">🛵</div>
-      <div class="dr-info">
-        <div class="dr-name">${d.fname} ${d.lname}</div>
-        <div class="dr-sub">${d.orders} طلب | ⭐ ${d.rating}</div>
-      </div>
-      <div class="${d.online?'status-dot dot-on':'status-dot dot-off'}"></div>
-    </div>`).join('');
+async function renderDash() {
+  const newC = currentOrders.filter(o => o.status === 'جديد').length;
+  const done = currentOrders.filter(o => o.status === 'تم التوصيل').length;
+  const active = currentOrders.filter(o => o.status === 'جاري التوصيل').length;
+  
+  document.getElementById('k-total').textContent = currentOrders.length;
+  document.getElementById('k-done').textContent = done;
+  document.getElementById('k-active').textContent = active;
+  document.getElementById('k-rev').textContent = (done * 25) + ' جم';
+  document.getElementById('k-new-lbl').textContent = newC ? newC + ' طلب جديد ⬆' : '';
+  document.getElementById('new-count').textContent = newC;
+  document.getElementById('notif-dot').style.display = newC ? 'block' : 'none';
+  
+  const ol = document.getElementById('dash-orders');
+  if (!currentOrders.length) {
+    ol.innerHTML = '<div class="empty-state"><div>📭</div>لا يوجد طلبات</div>';
+  } else {
+    ol.innerHTML = currentOrders.slice(0, 5).map(o => `
+      <div class="mini-order" onclick="viewOrder('${o.id}')" style="cursor:pointer">
+        <div class="mo-ico">${o.type?.split(' ')[0] || '📦'}</div>
+        <div class="mo-info"><div class="mo-id">${o.id} — ${o.place}</div><div class="mo-sub">📍 ${o.addr} | 📞 ${o.phone}</div></div>
+        <span class="badge ${o.status === 'جديد' ? 'b-new' : o.status === 'جاري التوصيل' ? 'b-go' : 'b-done'}">${o.status}</span>
+      </div>`).join('');
+  }
+  
+  const drivers = await window.getDriversFromFirebase();
+  const dl = document.getElementById('dash-drivers');
+  if (!drivers.length) {
+    dl.innerHTML = '<div class="empty-state"><div>🛵</div>لا يوجد سائقين</div>';
+  } else {
+    dl.innerHTML = drivers.slice(0, 5).map(d => `
+      <div class="dr-row"><div class="dr-av">🛵</div><div class="dr-info"><div class="dr-name">${d.fname} ${d.lname}</div><div class="dr-sub">${d.orders || 0} طلب | ⭐ ${d.rating || 5}</div></div><div class="status-dot ${d.online ? 'dot-on' : 'dot-off'}"></div></div>`).join('');
+  }
 }
 
 // ========= RENDER ORDERS =========
-let curFilter='all', curSearch='';
-function renderOrders(){
-  let list=getOrders();
-  if(curFilter!=='all')list=list.filter(o=>o.status===curFilter);
-  if(curSearch)list=list.filter(o=>o.id.toLowerCase().includes(curSearch)||o.phone.includes(curSearch));
-  const tb=document.getElementById('orders-tbody');
-  if(!list.length){tb.innerHTML=`<tr><td colspan="9"><div class="empty-state"><div>📭</div>لا يوجد طلبات</div></td></tr>`;return;}
-  tb.innerHTML=list.map((o,i)=>`
+function renderOrders() {
+  let filtered = [...currentOrders];
+  if (currentFilter !== 'all') filtered = filtered.filter(o => o.status === currentFilter);
+  if (currentSearch) filtered = filtered.filter(o => o.id?.toLowerCase().includes(currentSearch) || o.phone?.includes(currentSearch));
+  
+  const tb = document.getElementById('orders-tbody');
+  if (!filtered.length) {
+    tb.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div>📭</div>لا يوجد طلبات</div></td></tr>`;
+    return;
+  }
+  
+  tb.innerHTML = filtered.map((o, i) => `
     <tr>
       <td style="color:var(--tl);font-size:12px">${i+1}</td>
       <td><strong style="color:var(--or)">${o.id}</strong></td>
@@ -725,222 +530,159 @@ function renderOrders(){
       <td style="font-weight:600">${o.place}</td>
       <td style="color:var(--tm);font-size:12px">${o.addr}</td>
       <td dir="ltr" style="font-size:12px">${o.phone}</td>
-      <td style="color:var(--tm);font-size:12px">${o.time}</td>
-      <td><span class="badge ${SMAP[o.status]||'b-new'}">${o.status}</span></td>
+      <td style="color:var(--tm);font-size:12px">${o.time || o.createdAt?.substring(11,16) || '—'}</td>
+      <td><span class="badge ${o.status === 'جديد' ? 'b-new' : o.status === 'جاري التوصيل' ? 'b-go' : 'b-done'}">${o.status}</span></td>
       <td><div class="action-btns">
         <button class="abtn bl" onclick="viewOrder('${o.id}')">عرض</button>
-        ${o.status==='جديد'?`<button class="abtn grn" onclick="updOrd('${o.id}','جاري التوصيل')">قبول</button><button class="abtn red" onclick="updOrd('${o.id}','ملغي')">رفض</button>`:''}
-        ${o.status==='جاري التوصيل'?`<button class="abtn or" onclick="updOrd('${o.id}','تم التوصيل')">تم التوصيل</button>`:''}
+        ${o.status === 'جديد' ? `<button class="abtn grn" onclick="updateOrder('${o.id}','جاري التوصيل')">قبول</button><button class="abtn red" onclick="updateOrder('${o.id}','ملغي')">رفض</button>` : ''}
+        ${o.status === 'جاري التوصيل' ? `<button class="abtn or" onclick="updateOrder('${o.id}','تم التوصيل')">تم التوصيل</button>` : ''}
       </div></td>
-    </tr>`).join('');
+    </tr>
+  `).join('');
 }
 
-function filterOrders(f,btn){
-  curFilter=f;
-  document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('act'));
+function filterOrders(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.fbtn').forEach(b => b.classList.remove('act'));
   btn.classList.add('act');
   renderOrders();
 }
-function searchOrders(v){curSearch=v.trim().toLowerCase();renderOrders();}
 
-function updOrd(id,status){
-  const orders=getOrders();
-  const o=orders.find(x=>x.id===id);
-  if(o){o.status=status;saveOrders(orders);}
-  renderOrders();renderDash();
-  showToast('✅ '+id+' → '+status);
+function searchOrders(v) { currentSearch = v.trim().toLowerCase(); renderOrders(); }
+
+async function updateOrder(id, status) {
+  await window.updateOrderStatusFirebase(id, status);
+  showToast('✅ تم تحديث الطلب');
 }
 
-function viewOrder(id){
-  const o=getOrders().find(x=>x.id===id);
-  if(!o)return;
-  document.getElementById('modal-order-body').innerHTML=`
+async function addDemoOrder() {
+  const types = ['🍕 مطعم', '🛒 سوبر ماركت', '💊 صيدلية'];
+  const places = ['كنتاكي', 'كارفور', 'صيدلية النور'];
+  const addrs = ['الحي السادس', 'شارع الجيش', 'شارع 23 يوليو'];
+  
+  const orderData = {
+    type: types[Math.floor(Math.random() * types.length)],
+    place: places[Math.floor(Math.random() * places.length)],
+    addr: addrs[Math.floor(Math.random() * addrs.length)],
+    phone: '010' + Math.floor(10000000 + Math.random() * 89999999),
+    details: 'طلب تجريبي من الأدمن',
+    notes: '',
+    time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
+    date: new Date().toLocaleDateString('ar-EG')
+  };
+  const orderId = await window.addOrderToFirebase(orderData);
+  showToast('📋 طلب جديد: ' + orderId);
+}
+
+function viewOrder(id) {
+  const o = currentOrders.find(x => x.id === id);
+  if (!o) return;
+  document.getElementById('modal-order-body').innerHTML = `
     <div class="detail-row"><span>رقم الطلب</span><span style="color:var(--or);font-weight:900">${o.id}</span></div>
     <div class="detail-row"><span>نوع الطلب</span><span>${o.type}</span></div>
     <div class="detail-row"><span>المحل</span><span>${o.place}</span></div>
-    <div class="detail-row"><span>التفاصيل</span><span>${o.details||'—'}</span></div>
+    <div class="detail-row"><span>التفاصيل</span><span>${o.details || '—'}</span></div>
     <div class="detail-row"><span>العنوان</span><span>${o.addr}</span></div>
     <div class="detail-row"><span>التليفون</span><span dir="ltr">${o.phone}</span></div>
-    <div class="detail-row"><span>ملاحظات</span><span>${o.notes||'—'}</span></div>
-    <div class="detail-row"><span>الوقت</span><span>${o.time} — ${o.date}</span></div>
-    <div class="detail-row"><span>الحالة</span><span><span class="badge ${SMAP[o.status]||'b-new'}">${o.status}</span></span></div>`;
-  const ac=document.getElementById('modal-order-actions');
-  ac.innerHTML='';
-  if(o.status==='جديد'){
-    ac.innerHTML+=`<button class="abtn grn" onclick="updOrd('${o.id}','جاري التوصيل');closeModal('order-modal')">✅ قبول الطلب</button>`;
-    ac.innerHTML+=`<button class="abtn red" onclick="updOrd('${o.id}','ملغي');closeModal('order-modal')">❌ رفض</button>`;
+    <div class="detail-row"><span>الوقت</span><span>${o.time || o.createdAt?.substring(11,16) || '—'}</span></div>
+    <div class="detail-row"><span>الحالة</span><span><span class="badge ${o.status === 'جديد' ? 'b-new' : 'b-go'}">${o.status}</span></span></div>`;
+  const ac = document.getElementById('modal-order-actions');
+  ac.innerHTML = '';
+  if (o.status === 'جديد') {
+    ac.innerHTML += `<button class="abtn grn" onclick="updateOrder('${o.id}','جاري التوصيل');closeModal('order-modal')">✅ قبول الطلب</button>`;
+    ac.innerHTML += `<button class="abtn red" onclick="updateOrder('${o.id}','ملغي');closeModal('order-modal')">❌ رفض</button>`;
   }
-  if(o.status==='جاري التوصيل'){
-    ac.innerHTML+=`<button class="abtn or" onclick="updOrd('${o.id}','تم التوصيل');closeModal('order-modal')">🏠 تم التوصيل</button>`;
+  if (o.status === 'جاري التوصيل') {
+    ac.innerHTML += `<button class="abtn or" onclick="updateOrder('${o.id}','تم التوصيل');closeModal('order-modal')">🏠 تم التوصيل</button>`;
   }
   openModal('order-modal');
 }
 
-// ========= RENDER DRIVERS =========
-function renderDrivers(){
-  const drivers=getDrivers();
-  const grid=document.getElementById('drivers-grid');
-  if(!drivers.length){
-    grid.innerHTML='<div class="empty-state" style="grid-column:span 4"><div>🛵</div>لا يوجد سائقين<br><button class="abtn grn" style="margin-top:10px" onclick="nav(\'add-driver\')">➕ أضف سائق</button></div>';
-  }else{
-    grid.innerHTML=drivers.map(d=>`
-      <div class="dcard">
-        <div class="dcard-top">
-          <div class="dav">🛵</div>
-          <div style="flex:1">
-            <div class="d-name">${d.fname} ${d.lname}</div>
-            <div class="d-sub">📞 ${d.phone}</div>
-          </div>
-          <span class="pill ${d.online?'pill-on':'pill-off'}">${d.online?'● أونلاين':'○ أوفلاين'}</span>
-        </div>
-        <div class="d-stat"><span>المنطقة</span><span>${d.area}</span></div>
-        <div class="d-stat"><span>المركبة</span><span>${d.vtype}</span></div>
-        <div class="d-stat"><span>إجمالي الطلبات</span><span>${d.orders}</span></div>
-        <div class="d-stat"><span>التقييم</span><span>⭐ ${d.rating}</span></div>
-        <div class="dcard-btns">
-          <button class="abtn bl" style="flex:1" onclick="viewDriver('${d.id}')">عرض</button>
-          <button class="abtn red" style="flex:1" onclick="deleteDriver('${d.id}')">حذف</button>
-        </div>
-      </div>`).join('');
+// ========= DRIVERS =========
+async function renderDrivers() {
+  const drivers = await window.getDriversFromFirebase();
+  const grid = document.getElementById('drivers-grid');
+  if (!drivers.length) {
+    grid.innerHTML = '<div class="empty-state" style="grid-column:span 4"><div>🛵</div>لا يوجد سائقين</div>';
+  } else {
+    grid.innerHTML = drivers.map(d => `
+      <div class="dcard"><div class="dcard-top"><div class="dav">🛵</div><div style="flex:1"><div class="d-name">${d.fname} ${d.lname}</div><div class="d-sub">📞 ${d.phone}</div></div><span class="pill ${d.online ? 'pill-on' : 'pill-off'}">${d.online ? '● أونلاين' : '○ أوفلاين'}</span></div>
+      <div class="d-stat"><span>المنطقة</span><span>${d.area}</span></div><div class="d-stat"><span>المركبة</span><span>${d.vtype}</span></div><div class="d-stat"><span>الطلبات</span><span>${d.orders || 0}</span></div><div class="dcard-btns"><button class="abtn red" style="flex:1" onclick="deleteDriver('${d.id}')">حذف</button></div></div>`).join('');
   }
-
-  // table
-  const tb=document.getElementById('drivers-tbody');
-  if(!drivers.length){tb.innerHTML='<tr><td colspan="8" class="empty-state">لا يوجد سائقين</td></tr>';return;}
-  tb.innerHTML=drivers.map((d,i)=>`
-    <tr>
-      <td style="color:var(--tl);font-size:12px">${i+1}</td>
-      <td><strong>${d.fname} ${d.lname}</strong></td>
-      <td dir="ltr">${d.phone}</td>
-      <td style="color:var(--tm)">${d.area}</td>
-      <td><span class="badge ${d.status==='مفعل'?'b-done':'b-new'}">${d.status}</span></td>
-      <td style="font-weight:700">${d.orders}</td>
-      <td>⭐ ${d.rating}</td>
-      <td><div class="action-btns">
-        <button class="abtn bl" onclick="viewDriver('${d.id}')">عرض</button>
-        <button class="abtn ${d.status==='مفعل'?'gray':'grn'}" onclick="toggleDriverStatus('${d.id}')">${d.status==='مفعل'?'تعليق':'تفعيل'}</button>
-        <button class="abtn red" onclick="deleteDriver('${d.id}')">حذف</button>
-      </div></td>
-    </tr>`).join('');
+  
+  const tb = document.getElementById('drivers-tbody');
+  tb.innerHTML = drivers.map((d, i) => `
+    <tr><td>${i+1}</td><td><strong>${d.fname} ${d.lname}</strong></td><td dir="ltr">${d.phone}</td><td>${d.area}</td><td><span class="badge ${d.status === 'مفعل' ? 'b-done' : 'b-new'}">${d.status}</span></td><td>${d.orders || 0}</td><td>⭐ ${d.rating || 5}</td><td><div class="action-btns"><button class="abtn red" onclick="deleteDriver('${d.id}')">حذف</button></div></td></tr>
+  `).join('');
 }
 
-function viewDriver(id){
-  const d=getDrivers().find(x=>x.id===id);
-  if(!d)return;
-  document.getElementById('modal-driver-body').innerHTML=`
-    <div class="detail-row"><span>رقم السائق</span><span style="color:var(--or);font-weight:900">${d.id}</span></div>
-    <div class="detail-row"><span>الاسم</span><span>${d.fname} ${d.lname}</span></div>
-    <div class="detail-row"><span>التليفون</span><span dir="ltr">${d.phone}</span></div>
-    <div class="detail-row"><span>واتساب</span><span dir="ltr">${d.wa||'—'}</span></div>
-    <div class="detail-row"><span>المنطقة</span><span>${d.area}</span></div>
-    <div class="detail-row"><span>المركبة</span><span>${d.vtype}</span></div>
-    <div class="detail-row"><span>رقم اللوحة</span><span dir="ltr">${d.plate||'—'}</span></div>
-    <div class="detail-row"><span>اسم المستخدم</span><span dir="ltr">${d.uname}</span></div>
-    <div class="detail-row"><span>إجمالي الطلبات</span><span>${d.orders}</span></div>
-    <div class="detail-row"><span>التقييم</span><span>⭐ ${d.rating}</span></div>
-    <div class="detail-row"><span>الحالة</span><span><span class="badge ${d.status==='مفعل'?'b-done':'b-new'}">${d.status}</span></span></div>
-    <div class="detail-row"><span>أونلاين</span><span>${d.online?'🟢 نعم':'🔴 لا'}</span></div>`;
-  const ac=document.getElementById('modal-driver-actions');
-  ac.innerHTML=`
-    <button class="abtn ${d.status==='مفعل'?'gray':'grn'}" onclick="toggleDriverStatus('${d.id}');closeModal('driver-modal')">${d.status==='مفعل'?'⏸ تعليق':'▶ تفعيل'}</button>
-    <button class="abtn red" onclick="deleteDriver('${d.id}');closeModal('driver-modal')">🗑 حذف السائق</button>`;
-  openModal('driver-modal');
-}
-
-function toggleDriverStatus(id){
-  const drivers=getDrivers();
-  const d=drivers.find(x=>x.id===id);
-  if(d){d.status=d.status==='مفعل'?'معلق':'مفعل';saveDrivers(drivers);}
-  renderDrivers();showToast('✅ تم تحديث حالة السائق');
-}
-
-function deleteDriver(id){
-  if(!confirm('هل أنت متأكد من حذف هذا السائق؟'))return;
-  const drivers=getDrivers().filter(x=>x.id!==id);
-  saveDrivers(drivers);renderDrivers();showToast('🗑 تم حذف السائق');
-}
-
-// ========= SAVE DRIVER =========
-function saveDriver(){
-  const fname=document.getElementById('d-fname').value.trim();
-  const lname=document.getElementById('d-lname').value.trim();
-  const phone=document.getElementById('d-phone').value.trim();
-  const area=document.getElementById('d-area').value.trim();
-  const uname=document.getElementById('d-uname').value.trim();
-  const pass=document.getElementById('d-pass').value.trim();
-
-  if(!fname||!lname||!phone||!area||!uname||!pass){
-    alert('⚠️ من فضلك اكمل الحقول المطلوبة (*)');return;
+async function deleteDriver(id) {
+  if (confirm('هل أنت متأكد من حذف هذا السائق؟')) {
+    await window.deleteDriverFromFirebase(id);
+    showToast('🗑 تم حذف السائق');
+    renderDrivers();
   }
-  if(phone.length<11){alert('⚠️ رقم التليفون غير صحيح');return;}
-  if(pass.length<4){alert('⚠️ كلمة السر يجب أن تكون 4 أحرف على الأقل');return;}
+}
 
-  const drivers=getDrivers();
-  // check duplicate username
-  if(drivers.find(d=>d.uname===uname)){alert('⚠️ اسم المستخدم مسجل بالفعل');return;}
-
-  const newDriver={
-    id:'DRV-'+String(Date.now()).slice(-4),
-    fname,lname,phone,
-    wa:document.getElementById('d-wa').value.trim()||phone,
+async function saveDriver() {
+  const fname = document.getElementById('d-fname').value.trim();
+  const lname = document.getElementById('d-lname').value.trim();
+  const phone = document.getElementById('d-phone').value.trim();
+  const area = document.getElementById('d-area').value.trim();
+  const uname = document.getElementById('d-uname').value.trim();
+  const pass = document.getElementById('d-pass').value.trim();
+  
+  if (!fname || !lname || !phone || !area || !uname || !pass) {
+    showToast('⚠️ من فضلك اكمل الحقول المطلوبة', true);
+    return;
+  }
+  
+  const newDriver = {
+    fname, lname, phone,
+    wa: document.getElementById('d-wa').value.trim() || phone,
     area,
-    vtype:document.getElementById('d-vtype').value,
-    plate:document.getElementById('d-plate').value.trim(),
-    uname,pass,
-    status:document.getElementById('d-status').value,
-    orders:0,rating:5.0,online:false
+    vtype: document.getElementById('d-vtype').value,
+    plate: document.getElementById('d-plate').value.trim(),
+    uname, pass,
+    status: document.getElementById('d-status').value,
+    orders: 0, rating: 5.0, online: false
   };
-  drivers.push(newDriver);
-  saveDrivers(drivers);
-
-  // clear form
-  ['d-fname','d-lname','d-phone','d-wa','d-area','d-plate','d-uname','d-pass'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('d-vtype').selectedIndex=0;
-  document.getElementById('d-status').selectedIndex=0;
-
-  showToast('✅ تم إضافة السائق '+fname+' '+lname+' بنجاح!');
+  await window.addDriverToFirebase(newDriver);
+  showToast('✅ تم إضافة السائق');
   nav('drivers');
 }
 
-// ========= MODAL =========
-function openModal(id){document.getElementById(id).classList.add('on');}
-function closeModal(id){document.getElementById(id).classList.remove('on');}
-
-// ========= TOAST =========
-function showToast(msg){
-  const t=document.getElementById('toast');
-  t.textContent=msg;t.style.display='block';
-  clearTimeout(t._to);
-  t._to=setTimeout(()=>t.style.display='none',3500);
+// ========= SETTINGS =========
+async function saveSettings() {
+  showToast('✅ تم حفظ الإعدادات');
 }
 
-// ========= REFRESH =========
-function refresh(){
-  renderDash();
-  if(document.getElementById('page-orders').classList.contains('on'))renderOrders();
-  if(document.getElementById('page-drivers').classList.contains('on'))renderDrivers();
+// ========= NAV =========
+function nav(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
+  document.querySelectorAll('.sb-nav a').forEach(a => a.classList.remove('act'));
+  document.getElementById('page-' + id).classList.add('on');
+  const link = document.querySelector(`.sb-nav a[onclick="nav('${id}')"]`);
+  if (link) link.classList.add('act');
+  const titles = { dash: 'الرئيسية', orders: 'الطلبات', drivers: 'السائقين', 'add-driver': 'إضافة سائق', settings: 'الإعدادات' };
+  document.getElementById('page-title').textContent = titles[id] || id;
+  renderCurrentPage();
 }
 
-// ========= CHANGE PASSWORD (LOCAL ONLY) =========
-async function changePass(){
-  const cur=document.getElementById('cur-pass').value;
-  const nw=document.getElementById('new-pass').value;
-  const cf=document.getElementById('conf-pass').value;
-  if(!cur||!nw||!cf){showToast('⚠️ اكمل كل الحقول');return;}
-  const curHash=await sha256(cur);
-  const correctHash=await sha256('EMB@2025!port');
-  if(curHash!==correctHash){showToast('❌ كلمة السر الحالية غلط');return;}
-  if(nw!==cf){showToast('⚠️ كلمة السر الجديدة مش متطابقة');return;}
-  if(nw.length<8){showToast('⚠️ كلمة السر لازم 8 أحرف على الأقل');return;}
-  const newHash=await sha256(nw);
-  showToast('✅ تم التحديث — حدّث الكود بالـ hash الجديد: '+newHash.slice(0,16)+'...');
-  console.log('New password hash (copy to code):', newHash);
+function openModal(id) { document.getElementById(id).classList.add('on'); }
+function closeModal(id) { document.getElementById(id).classList.remove('on'); }
+
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = isError ? '#EF4444' : '#0D2461';
+  t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 3000);
 }
 
-// Auto refresh every 30s
-setInterval(()=>{
-  if(document.getElementById('app').classList.contains('on'))refresh();
-},30000);
+function refresh() { renderCurrentPage(); }
+
+document.getElementById('l-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 </script>
 </body>
 </html>
