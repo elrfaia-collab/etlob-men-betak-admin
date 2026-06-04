@@ -24,6 +24,8 @@
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
   window.db = db;
+  window._fbCollection = collection;
+  window._fbOnSnapshot = onSnapshot;
 
   // ===== LIVE ORDERS LISTENER =====
   const qOrders = query(collection(db, "orders"), orderBy("createdAt", "desc"));
@@ -173,6 +175,7 @@ body{font-family:'Cairo',sans-serif;direction:rtl;background:var(--gl);color:var
 .b-go{background:#DCFCE7;color:#166534;}
 .b-done{background:#EFF6FF;color:#1D4ED8;}
 .b-cancel{background:#FEE2E2;color:#991B1B;}
+.b-prep{background:#EDE9FE;color:#5B21B6;}
 
 /* driver mini */
 .dr-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--gm);}
@@ -207,6 +210,7 @@ tr:hover td{background:rgba(13,36,97,.02);}
 .abtn.bl{background:rgba(59,130,246,.1);color:var(--blue);}
 .abtn.bl:hover{background:var(--blue);color:#fff;}
 .abtn.or{background:var(--or-pale);color:var(--or);}
+.abtn.prep{background:#EDE9FE;color:#5B21B6;}
 .abtn.or:hover{background:var(--or);color:#fff;}
 .abtn.gray{background:var(--gl);color:var(--tm);}
 .abtn.gray:hover{background:var(--gm);}
@@ -392,10 +396,16 @@ tr:hover td{background:rgba(13,36,97,.02);}
         <div class="filters">
           <button class="fbtn act" onclick="filterOrders('all',this)">الكل</button>
           <button class="fbtn" onclick="filterOrders('جديد',this)">🟡 جديد</button>
+          <button class="fbtn" onclick="filterOrders('في انتظار التحضير',this)">🟣 تحضير</button>
           <button class="fbtn" onclick="filterOrders('جاري التوصيل',this)">🟢 جاري</button>
           <button class="fbtn" onclick="filterOrders('تم التوصيل',this)">✅ مكتمل</button>
           <button class="fbtn" onclick="filterOrders('ملغي',this)">❌ ملغي</button>
-          <div class="search-wrap"><input type="text" placeholder="🔍 ابحث برقم الطلب أو التليفون..." oninput="searchOrders(this.value)"/></div>
+          <div class="search-wrap" style="display:flex;gap:6px;max-width:320px;">
+            <input type="text" id="search-input" placeholder="ابحث برقم الطلب أو التليفون..." 
+              onkeydown="if(event.key==='Enter')doSearch()"
+              style="flex:1;"/>
+            <button onclick="doSearch()" style="background:var(--nv);color:#fff;border:none;padding:8px 14px;border-radius:10px;font-family:'Cairo',sans-serif;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;transition:.2s;" onmouseover="this.style.background='var(--nv2)'" onmouseout="this.style.background='var(--nv)'">🔍 بحث</button>
+          </div>
         </div>
         <div class="tbl-wrap">
           <table>
@@ -606,7 +616,12 @@ async function doLogin(){
     document.getElementById('app').classList.add('on');
     document.getElementById('sb-uname-txt').textContent = u;
     sessionStorage.setItem('emb_auth', btoa(Date.now().toString()));
+    // استرجاع آخر صفحة
+    const lastPage = sessionStorage.getItem('emb_last_page') || 'dash';
     refresh();
+    nav(lastPage);
+    // Start real-time listener
+    setTimeout(startOrdersListener, 500);
   } else {
     loginAttempts++;
     if(loginAttempts >= 6){
@@ -643,13 +658,15 @@ function nav(id){
   if(link)link.classList.add('act');
   document.getElementById('page-title').textContent=PAGE_NAMES[id]||id;
   window.scrollTo(0,0);
+  // حفظ الصفحة الحالية
+  sessionStorage.setItem('emb_last_page', id);
   if(id==='orders')renderOrders();
   else if(id==='drivers')renderDrivers();
   else if(id==='dash')renderDash();
 }
 
 // ========= STATUS MAP =========
-const SMAP={'جديد':'b-new','جاري التوصيل':'b-go','تم التوصيل':'b-done','ملغي':'b-cancel'};
+const SMAP={'جديد':'b-new','في انتظار التحضير':'b-prep','جاري التوصيل':'b-go','تم التوصيل':'b-done','ملغي':'b-cancel'};
 
 // ========= DEMO ORDER =========
 const TYPES=['🍕 مطعم','🛒 سوبر ماركت','💊 صيدلية','📦 شحن','🚗 مشوار','✨ أخرى'];
@@ -735,8 +752,9 @@ function renderOrders(){
       <td><span class="badge ${SMAP[o.status]||'b-new'}">${o.status}</span></td>
       <td><div class="action-btns">
         <button class="abtn bl" onclick="viewOrder('${o.id}')">عرض</button>
-        ${o.status==='جديد'?`<button class="abtn grn" onclick="updOrd('${o.id}','جاري التوصيل')">قبول</button><button class="abtn red" onclick="updOrd('${o.id}','ملغي')">رفض</button>`:''}
-        ${o.status==='جاري التوصيل'?`<button class="abtn or" onclick="updOrd('${o.id}','تم التوصيل')">تم التوصيل</button>`:''}
+        ${o.status==='جديد'?`<button class="abtn prep" onclick="updOrd('${o.id}','في انتظار التحضير')">قبول</button><button class="abtn red" onclick="updOrd('${o.id}','ملغي')">رفض</button>`:''}
+        ${o.status==='في انتظار التحضير'?`<button class="abtn grn" onclick="updOrd('${o.id}','جاري التوصيل')">جاري التوصيل 🛵</button>`:''}
+        ${o.status==='جاري التوصيل'?`<button class="abtn or" onclick="updOrd('${o.id}','تم التوصيل')">تم التوصيل 🏠</button>`:''}
       </div></td>
     </tr>`).join('');
 }
@@ -749,13 +767,32 @@ function filterOrders(f,btn){
 }
 function searchOrders(v){curSearch=v.trim().toLowerCase();renderOrders();}
 
+function doSearch(){
+  const v = document.getElementById('search-input');
+  if(v) searchOrders(v.value);
+}
+
 async function updOrd(id,status){
-  const o=getOrders().find(x=>x.id===id);
-  if(!o||!o._docId){showToast('❌ مش لاقي الطلب');return;}
-  try{
-    await window._fbUpdateOrder(o._docId,{status});
+  const orders=getOrders();
+  const o=orders.find(x=>x.id===id);
+  if(!o){showToast('❌ مش لاقي الطلب');return;}
+  // Update locally first for instant UI
+  o.status=status;
+  saveOrders(orders);
+  renderOrders();
+  renderDash();
+  // Then sync to Firebase
+  if(o._docId && window._fbUpdateOrder){
+    try{
+      await window._fbUpdateOrder(o._docId,{status:status});
+      showToast('✅ '+id+' → '+status);
+    }catch(err){
+      showToast('❌ Firebase خطأ: '+err.message);
+      console.error(err);
+    }
+  } else {
     showToast('✅ '+id+' → '+status);
-  }catch(err){showToast('❌ خطأ: '+err.message);}
+  }
 }
 
 function viewOrder(id){
@@ -766,6 +803,7 @@ function viewOrder(id){
     <div class="detail-row"><span>نوع الطلب</span><span>${o.type}</span></div>
     <div class="detail-row"><span>المحل</span><span>${o.place}</span></div>
     <div class="detail-row"><span>التفاصيل</span><span>${o.details||'—'}</span></div>
+    ${o.imageUrl && o.imageUrl !== 'local' ? `<div class="detail-row" style="flex-direction:column;align-items:flex-start;gap:8px"><span style="color:var(--tm)">صورة المنتج</span><img src="${o.imageUrl}" style="max-width:100%;max-height:200px;border-radius:10px;border:1.5px solid var(--gm);object-fit:cover;" alt="صورة الطلب"/></div>` : ''}
     <div class="detail-row"><span>العنوان</span><span>${o.addr}</span></div>
     <div class="detail-row"><span>التليفون</span><span dir="ltr">${o.phone}</span></div>
     <div class="detail-row"><span>ملاحظات</span><span>${o.notes||'—'}</span></div>
@@ -774,8 +812,11 @@ function viewOrder(id){
   const ac=document.getElementById('modal-order-actions');
   ac.innerHTML='';
   if(o.status==='جديد'){
-    ac.innerHTML+=`<button class="abtn grn" onclick="updOrd('${o.id}','جاري التوصيل');closeModal('order-modal')">✅ قبول الطلب</button>`;
+    ac.innerHTML+=`<button class="abtn prep" onclick="updOrd('${o.id}','في انتظار التحضير');closeModal('order-modal')">✅ قبول الطلب</button>`;
     ac.innerHTML+=`<button class="abtn red" onclick="updOrd('${o.id}','ملغي');closeModal('order-modal')">❌ رفض</button>`;
+  }
+  if(o.status==='في انتظار التحضير'){
+    ac.innerHTML+=`<button class="abtn grn" onclick="updOrd('${o.id}','جاري التوصيل');closeModal('order-modal')">🛵 جاري التوصيل</button>`;
   }
   if(o.status==='جاري التوصيل'){
     ac.innerHTML+=`<button class="abtn or" onclick="updOrd('${o.id}','تم التوصيل');closeModal('order-modal')">🏠 تم التوصيل</button>`;
@@ -930,10 +971,44 @@ function showToast(msg){
 }
 
 // ========= REFRESH =========
+// Real-time orders listener
+let _ordersUnsub = null;
+
+function startOrdersListener(){
+  if(!window.db || !window._fbOnSnapshot) return;
+  if(_ordersUnsub) _ordersUnsub(); // unsubscribe previous
+
+  const ordersRef = window._fbCollection(window.db, 'orders');
+  _ordersUnsub = window._fbOnSnapshot(ordersRef, (snapshot) => {
+    const newOrders = [];
+    snapshot.forEach(doc => {
+      newOrders.push({...doc.data(), _docId: doc.id});
+    });
+    // Sort by createdAt desc
+    newOrders.sort((a,b)=>{
+      const ta = a.createdAt?.seconds || 0;
+      const tb = b.createdAt?.seconds || 0;
+      return tb - ta;
+    });
+    saveOrders(newOrders);
+    renderDash();
+    if(document.getElementById('page-orders').classList.contains('on')) renderOrders();
+    // Show notification if new orders arrived
+    const newCount = newOrders.filter(o=>o.status==='جديد').length;
+    document.getElementById('new-count').textContent = newCount;
+    document.getElementById('notif-dot').style.display = newCount ? 'block' : 'none';
+  }, (err) => {
+    console.error('Orders listener error:', err);
+  });
+}
+
 function refresh(){
+  // Restart Firebase listener for fresh data
+  startOrdersListener();
   renderDash();
   if(document.getElementById('page-orders').classList.contains('on'))renderOrders();
   if(document.getElementById('page-drivers').classList.contains('on'))renderDrivers();
+  showToast('🔄 تم التحديث');
 }
 
 // ========= CHANGE PASSWORD (LOCAL ONLY) =========
@@ -956,6 +1031,19 @@ async function changePass(){
 setInterval(()=>{
   if(document.getElementById('app').classList.contains('on'))refresh();
 },30000);
+
+// استرجاع الجلسة عند الرفريش
+window.addEventListener('load', () => {
+  const auth = sessionStorage.getItem('emb_auth');
+  const lastPage = sessionStorage.getItem('emb_last_page') || 'dash';
+  if(auth){
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('app').classList.add('on');
+    refresh();
+    setTimeout(()=>nav(lastPage), 100);
+    setTimeout(startOrdersListener, 600);
+  }
+});
 </script>
 </body>
 </html>
