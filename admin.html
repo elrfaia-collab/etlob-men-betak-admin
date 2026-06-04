@@ -28,8 +28,28 @@
   
   window.db = db;
   window.auth = auth;
+
+  let orders = [];
+
+const q = query(
+  collection(db, "orders"),
+  orderBy("createdAt", "desc")
+);
+
+onSnapshot(q, (snapshot) => {
+  orders = [];
+
+  snapshot.forEach((docSnap) => {
+    orders.push(docSnap.data());
+  });
+
+  renderDash();
+  renderOrders();
+});
   
   console.log("✅ Firebase connected!");
+
+  
 </script>
 <style>
 
@@ -508,8 +528,7 @@ tr:hover td{background:rgba(13,36,97,.02);}
 
 <script>
 // ========= STORAGE =========
-function getOrders(){try{return JSON.parse(localStorage.getItem('emb_orders')||'[]');}catch{return[];}}
-function saveOrders(arr){localStorage.setItem('emb_orders',JSON.stringify(arr));}
+
 function getDrivers(){try{return JSON.parse(localStorage.getItem('emb_drivers')||JSON.stringify(defaultDrivers()));}catch{return defaultDrivers();}}
 function saveDrivers(arr){localStorage.setItem('emb_drivers',JSON.stringify(arr));}
 
