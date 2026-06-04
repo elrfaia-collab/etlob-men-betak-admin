@@ -574,12 +574,12 @@ async function doLogin(){
     refresh();
   } else {
     loginAttempts++;
-    if(loginAttempts >= 5){
+    if(loginAttempts >= 6){
       lockUntil = Date.now() + 60000; // 60 ثانية حظر
       loginAttempts = 0;
-      document.getElementById('l-err').textContent='🔒 5 محاولات فاشلة — محظور لمدة 60 ثانية';
+      document.getElementById('l-err').textContent='🔒 6 محاولات فاشلة — محظور لمدة 60 ثانية';
     } else {
-      document.getElementById('l-err').textContent=`❌ بيانات غلط (${loginAttempts}/5)`;
+      document.getElementById('l-err').textContent=`❌ بيانات غلط (${loginAttempts}/6)`;
     }
     document.getElementById('l-err').style.display='block';
     document.getElementById('l-pass').value='';
