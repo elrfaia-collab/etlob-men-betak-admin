@@ -10,7 +10,6 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
   import { getFirestore, collection, addDoc, serverTimestamp, doc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
-  import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-storage.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCu31Gb8MLmvxAZCurGKTSQs4DTePSWw_I",
@@ -30,11 +29,7 @@
   window.fbAddDoc = addDoc;
   window.fbCollection = collection;
   window.fbTimestamp = serverTimestamp;
-  const storage = getStorage(app);
-  window._storage = storage;
-  window._fbRef = ref;
-  window._fbUploadBytes = uploadBytes;
-  window._fbGetDownloadURL = getDownloadURL;
+
   window._firebaseReady = true;
   window._fbOnSnapshot = onSnapshot;
   window._fbDoc = doc;
@@ -196,14 +191,8 @@ footer strong{color:var(--or);}
 .details-wrap{position:relative;}
 .details-row{display:flex;gap:8px;align-items:flex-start;}
 .details-row textarea{flex:1;}
-.img-upload-btn{
-  width:46px;height:46px;border-radius:10px;
-  background:var(--gl);border:1.5px solid var(--gm);
-  display:flex;align-items:center;justify-content:center;
-  font-size:22px;cursor:pointer;transition:.2s;flex-shrink:0;
-  margin-top:0;
-}
-.img-upload-btn:hover{border-color:var(--or);background:var(--or-pale);}
+
+
 .img-preview-wrap{display:none;margin-top:8px;position:relative;width:fit-content;}
 .img-preview-wrap.show{display:block;}
 .img-preview{
@@ -302,22 +291,7 @@ footer strong{color:var(--or);}
           </select>
         </div>
         <div class="fg"><label class="fl">اسم المحل أو المكان *</label><input id="oplace" type="text" placeholder="مثال: كنتاكي فرع الجامعة"/></div>
-        <div class="fg">
-          <label class="fl">تفاصيل الطلب</label>
-          <div class="details-row">
-            <textarea id="odetails" placeholder="اكتب تفاصيل الطلب..."></textarea>
-            <div class="img-upload-btn" onclick="document.getElementById('img-input').click()" title="رفع صورة">
-              📷
-            </div>
-            <input type="file" id="img-input" accept="image/*" style="display:none" onchange="handleImgUpload(this)"/>
-          </div>
-          <div class="img-preview-wrap" id="img-preview-wrap">
-            <img class="img-preview" id="img-preview" src="" alt="صورة المنتج"/>
-            <button class="img-remove-btn" onclick="removeImg()" title="حذف الصورة">✕</button>
-            <div class="img-name" id="img-name"></div>
-          </div>
-          <div class="img-uploading" id="img-uploading">⏳ جاري رفع الصورة...</div>
-        </div>
+        <div class="fg"><label class="fl">تفاصيل الطلب</label><textarea id="odetails" placeholder="اكتب تفاصيل الطلب... أو ابعت صورة على واتساب"></textarea></div>
         <div class="fr">
           <div class="fg"><label class="fl">عنوانك *</label><input id="oaddr" type="text" placeholder="الشارع والمنطقة"/></div>
           <div class="fg"><label class="fl">رقم التليفون *</label><input id="ophone" type="tel" placeholder="01XXXXXXXXX"/></div>
@@ -440,7 +414,6 @@ async function submitOrder(){
     const orderData = {
       id: orderNum,
       type, place, addr, phone, details, notes,
-      imageUrl: uploadedImageUrl || null,
       status: 'جديد',
       createdAt: window.fbTimestamp(),
       time: new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}),
@@ -466,7 +439,6 @@ async function submitOrder(){
 
 function resetForm(){
   ['otype','oplace','odetails','oaddr','ophone','onotes'].forEach(id=>document.getElementById(id).value='');
-  removeImg();
   document.getElementById('order-form-body').style.display = 'block';
   document.getElementById('order-success').classList.remove('show');
   const btn = document.getElementById('submit-btn');
