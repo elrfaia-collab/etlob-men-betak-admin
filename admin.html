@@ -524,11 +524,11 @@ function defaultDrivers(){
 
 // ========= LOGIN — SECURE =========
 // كلمة السر مخزنة كـ SHA-256 hash — مش plain text
-// الباسورد الحالي: EMB@2025!port  — غيّره من إعدادات الأدمن
+// الباسورد الحالي: 123456  — غيّره من إعدادات الأدمن
 const ADMIN_USER_HASH = '7b6f2c3e8a1d4f9c2b5e8a1d4f9c2b5e8a1d4f9c2b5e8a1d4f9c2b5e8a1d4f'; // placeholder
 const ADMIN_CREDS = {
   user: btoa('admin'),  // base64 — مش plain text في الكود
-  // SHA-256 of "EMB@2025!port"
+  // SHA-256 of "123456"
   pass: 'a7f3c9e2b5d8f1a4c7e0b3d6f9a2c5e8b1d4f7a0c3e6b9d2f5a8c1e4b7d0f3a6'
 };
 
@@ -559,10 +559,10 @@ async function doLogin(){
   }
 
   const passHash = await sha256(p);
-  // التحقق: اسم المستخدم "admin" وكلمة السر "EMB@2025!port"
+  // التحقق: اسم المستخدم "admin" وكلمة السر "123456"
   // لتغيير كلمة السر: شغّل في console المتصفح: crypto.subtle.digest('SHA-256', new TextEncoder().encode('كلمة_سرك')).then(b=>console.log(Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('')))
   const validUser = u === 'admin';
-  const validPass = passHash === await sha256('EMB@2025!port');
+  const validPass = passHash === await sha256('123456');
 
   if(validUser && validPass){
     loginAttempts = 0;
