@@ -10,6 +10,58 @@
 
 <!-- Firebase -->
 <script type="module">
+import { collection as fbCollection, query as fbQuery, where as fbWhere, onSnapshot as fbOnSnapshot } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+
+let clientAreas = [];
+
+// استماع حي للمناطق المتاحة فقط (الظاهرة)
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    if (!window.db) return;
+    
+    // جلب المناطق المحددة كـ visible فقط من قبل الأدمن
+    const q = fbQuery(fbCollection(window.db, "areas"), fbWhere("visible", "==", true));
+    
+    fbOnSnapshot(q, (snapshot) => {
+      clientAreas = [];
+      const selectEl = document.getElementById('order-area-select');
+      if (!selectEl) return;
+      
+      // إعادة تعيين القائمة المنسدلة
+      selectEl.innerHTML = '<option value="">-- اختر المنطقة لطلب التوصيل --</option>';
+      
+      snapshot.forEach((docSnap) => {
+        const areaData = docSnap.data();
+        clientAreas.push({ id: docSnap.id, ...areaData });
+        
+        // إضافة المنطقة كخيار في القائمة المنسدلة
+        const opt = document.createElement('option');
+        opt.value = areaData.name;
+        opt.textContent = `${areaData.name} (${areaData.price} جم)`;
+        opt.dataset.price = areaData.price;
+        selectEl.appendChild(opt);
+      });
+    });
+  }, 1000); // مهلة للتأكد من اتصال Firebase
+});
+
+// تحديث السعر تلقائياً عند تغيير المنطقة من قبل الكلاينت
+window.updateDeliveryPrice = function() {
+  const selectEl = document.getElementById('order-area-select');
+  const priceDisplay = document.getElementById('client-delivery-price');
+  
+  if (!selectEl || !priceDisplay) return;
+  
+  const selectedOption = selectEl.options[selectEl.selectedIndex];
+  const price = selectedOption.dataset.price || 0;
+  
+  priceDisplay.textContent = `${price} جم`;
+  
+  // إذا كان لديك حسّابة لإجمالي الفاتورة، يمكنك إدراج سعر التوصيل المتغير هنا ليتم جمعه مع سعر الأوردر الأساسي
+};
+
+
+  
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
   import { getFirestore, collection, addDoc, serverTimestamp, doc, updateDoc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
@@ -351,13 +403,23 @@ footer strong{color:var(--or);}
 </div>
 
 <!-- ORDER -->
-<div id="pg-order" class="pg">
-  <div class="order-pg">
-    <div class="form-card">
-      <div class="form-hd">
-        <div class="form-ico">🛵</div>
-        <div><div style="font-size:17px;font-weight:800">اطلب من بيتك</div><div style="font-size:12px;color:var(--tm)">خليك في مكانك.. إحنا نجيلك</div></div>
-      </div>
+<div class="fg">
+  <label class="fl">اختر منطقتك / مكان التوصيل *</label>
+  <select id="order-area-select" onchange="updateDeliveryPrice()" required>
+    <option value="">-- اختر المنطقة لطلب التوصيل --</option>
+  </select>
+</div>
+
+<div class="fg">
+  <label class="fl">العنوان بالتفصيل (المنطقه /اسم الشارع / رقم العمارة / الدور) *</label>
+  <input type="text" id="order-address-details" placeholder="مثال: بورسعيد ،شارع النصر، عمارة رقم 5، الدور الثالث" required />
+</div>
+
+<!-- كارد عرض السعر المتغير بحسب المنطقة -->
+<div class="price-row">
+  <span>💵 رسوم التوصيل لهذه المنطقة:</span>
+  <strong id="client-delivery-price">0 جم</strong>
+</div>
 
       <!-- ERROR MSG -->
       <div class="err-msg" id="order-err"></div>
@@ -542,6 +604,18 @@ function goOrder(type){
 
 // ===== SUBMIT ORDER — FIREBASE =====
 async function submitOrder(){
+// مثال لتعديل كائن الطلب قبل عمل addDoc أو السيف في الكلاينت:
+const areaSelect = document.getElementById('order-area-select').value;
+const addressDetails = document.getElementById('order-address-details').value;
+const selectedOption = document.getElementById('order-area-select').options[document.getElementById('order-area-select').selectedIndex];
+const deliveryCost = parseFloat(selectedOption.dataset.price || 0);
+
+const orderData = {
+ 
+};
+
+
+  
   const type  = document.getElementById('otype').value.trim();
   const place = document.getElementById('oplace').value.trim();
   const phone = document.getElementById('ophone').value.trim();
