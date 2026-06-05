@@ -297,13 +297,21 @@ footer strong{color:var(--or);}
   </ul>
   <button class="nav-btn" onclick="go('order')">اطلب دلوقتي 🚀</button>
 </nav>
-<!-- شريط العروض اليومية الديناميكي -->
-<div id="daily-promo-bar" style="display: none; background: linear-gradient(90deg, var(--or2), var(--or)); color: #fff; padding: 8px 1rem; font-size: 13px; font-weight: 700; text-align: center; position: relative; z-index: 100; box-shadow: inset 0 -2px 5px rgba(0,0,0,0.1); overflow: hidden;">
-  <div style="display: inline-flex; align-items: center; gap: 8px; animation: pulse 1.5s infinite;">
-    <span>🎉 عرض اليوم:</span>
+<!-- شريط العروض اليومية الديناميكي المتحرك -->
+<div id="daily-promo-bar" style="display: none; background: linear-gradient(90deg, var(--or2), var(--or)); color: #fff; padding: 10px 0; font-size: 14px; font-weight: 700; position: relative; z-index: 100; box-shadow: inset 0 -2px 5px rgba(0,0,0,0.1); overflow: hidden; white-space: nowrap;">
+  <div style="display: inline-block; padding-right: 100%; animation: marquee-speed 15s linear infinite;">
+    <span style="margin-left: 20px;">🎉 عرض اليوم:</span>
     <span id="daily-promo-text">جاري تحميل أقوى عروض التوصيل...</span>
   </div>
 </div>
+
+<!-- إضافة كود الـ CSS الخاص بالحركة -->
+<style>
+@keyframes marquee-speed {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(100%, 0, 0); } /* يتحرك من اليمين لليسار متوافقاً مع الـ RTL */
+}
+</style>
 <!-- HOME -->
 <div id="pg-home" class="pg on">
   <div class="hero">
