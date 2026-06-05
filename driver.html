@@ -9,7 +9,7 @@
 <!-- Firebase -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-  import { getFirestore, collection, query, where, orderBy, onSnapshot, doc, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+  import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCu31Gb8MLmvxAZCurGKTSQs4DTePSWw_I",
@@ -37,19 +37,24 @@
 
   // ── الاستماع للطلبات المتاحة (جديد) ──
   window._listenAvailableOrders = (cb) => {
-    const q = query(collection(db, "orders"), where("status", "==", "جديد"), orderBy("createdAt", "desc"));
+    const q = query(collection(db, "orders"), where("status", "==", "جديد"));
     return onSnapshot(q, snap => {
       const orders = snap.docs.map(d => ({ ...d.data(), _docId: d.id }));
       cb(orders);
+    }, err => {
+      console.error('Available orders error:', err);
+      alert('خطأ في تحميل الطلبات: ' + err.message + '\nافتح Firebase Console وأنشئ الـ Index المطلوب');
     });
   };
 
   // ── الاستماع لطلبات السائق الحالية ──
   window._listenMyOrders = (driverName, cb) => {
-    const q = query(collection(db, "orders"), where("driverName", "==", driverName), orderBy("createdAt", "desc"));
+    const q = query(collection(db, "orders"), where("driverName", "==", driverName));
     return onSnapshot(q, snap => {
       const orders = snap.docs.map(d => ({ ...d.data(), _docId: d.id }));
       cb(orders);
+    }, err => {
+      console.error('My orders error:', err);
     });
   };
 
@@ -70,6 +75,7 @@
   };
 
   window._firebaseReady = true;
+  window.dispatchEvent(new Event('firebaseReady'));
   console.log("✅ Driver Firebase Ready");
 </script>
 
@@ -472,7 +478,11 @@ async function doLogin() {
   errEl.classList.remove('show');
 
   if(!uname || !pass) { showErr('أدخل اسم المستخدم وكلمة السر'); return; }
-  if(!window._driverLogin) { showErr('جاري الاتصال، حاول تاني'); return; }
+  if(!window._driverLogin) { 
+    showErr('جاري الاتصال بالخادم...');
+    window.addEventListener('firebaseReady', ()=>doLogin(), {once:true});
+    return; 
+  }
 
   // Show loading
   const btn = document.querySelector('.login-btn');
@@ -530,9 +540,14 @@ function listenOrders() {
   if(unsubAvailable) unsubAvailable();
   if(unsubMy) unsubMy();
 
-  // Available orders (جديد)
+  // Available orders (جديد فقط - للسائقين يشوفوا ويقبلوا)
   unsubAvailable = window._listenAvailableOrders(orders => {
-    availableOrders = orders;
+    // Sort by createdAt descending in JS
+    availableOrders = orders.sort((a,b) => {
+      const ta = a.createdAt?.seconds || 0;
+      const tb = b.createdAt?.seconds || 0;
+      return tb - ta;
+    });
     renderAvailable();
     updateStats();
   });
@@ -540,7 +555,12 @@ function listenOrders() {
   // My orders
   const fullName = currentDriver.fname + ' ' + currentDriver.lname;
   unsubMy = window._listenMyOrders(fullName, orders => {
-    myOrders = orders;
+    // Sort by createdAt descending in JS
+    myOrders = orders.sort((a,b) => {
+      const ta = a.createdAt?.seconds || 0;
+      const tb = b.createdAt?.seconds || 0;
+      return tb - ta;
+    });
     renderMyOrders();
     updateBadges();
     updateStats();
