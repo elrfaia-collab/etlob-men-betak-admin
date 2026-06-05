@@ -47,9 +47,9 @@
     });
   };
 
-  // ── الاستماع لطلبات السائق — بناءً على assignedTo = uname ──
-  window._listenMyOrders = (driverUname, cb) => {
-    const q = query(collection(db, "orders"), where("assignedTo", "==", driverUname));
+  // ── الاستماع لطلبات السائق الحالية ──
+  window._listenMyOrders = (driverName, cb) => {
+    const q = query(collection(db, "orders"), where("driverName", "==", driverName));
     return onSnapshot(q, snap => {
       const orders = snap.docs.map(d => ({ ...d.data(), _docId: d.id }));
       cb(orders);
@@ -409,7 +409,7 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
   <!-- Tabs -->
   <div class="tabs">
     <button class="tab on" onclick="nav('available')" id="tab-available">
-      📋 كل الطلبات
+      📋 طلبات جديدة
       <span class="tab-badge" id="badge-available" style="display:none">0</span>
     </button>
     <button class="tab" onclick="nav('myorders')" id="tab-myorders">
@@ -426,7 +426,7 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
       <div class="stat-card"><div class="stat-num blue" id="st-active">0</div><div class="stat-lbl">جارية</div></div>
       <div class="stat-card"><div class="stat-num green" id="st-done">0</div><div class="stat-lbl">مكتملة</div></div>
     </div>
-    <div class="sec-title">الطلبات الجديدة (يعينها الأدمن)</div>
+    <div class="sec-title">الطلبات الجديدة المتاحة</div>
     <div id="available-list"></div>
   </div>
 
@@ -573,8 +573,9 @@ function listenOrders() {
     updateStats();
   });
 
-  // My orders — بناءً على uname السائق
-  unsubMy = window._listenMyOrders(currentDriver.uname, orders => {
+  // My orders
+  const fullName = currentDriver.fname + ' ' + currentDriver.lname;
+  unsubMy = window._listenMyOrders(fullName, orders => {
     // Sort by createdAt descending in JS
     myOrders = orders.sort((a,b) => {
       const ta = a.createdAt?.seconds || 0;
@@ -618,6 +619,7 @@ function renderAvailable() {
         ${o.details ? `<div class="oc-row"><span class="oc-ico">📝</span><div class="oc-info"><div class="oc-lbl">تفاصيل</div><div class="oc-val">${o.details}</div></div></div>` : ''}
       </div>
       <div class="oc-actions">
+        <button class="abtn accept" onclick="acceptOrder('${o._docId}','${o.id}')">✅ قبول</button>
         <button class="abtn wa" onclick="contactWA('${o.phone}')">💬 واتساب</button>
         <button class="abtn call" onclick="callClient('${o.phone}')">📞 اتصال</button>
       </div>
