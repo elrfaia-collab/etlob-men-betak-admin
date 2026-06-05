@@ -691,30 +691,50 @@ function updateDriverMap(order){
   const uname = order.driverUname || order.assignedTo;
   if(uname && !_driverLocUnsub && window._listenDriverLocation){
     _driverLocUnsub = window._listenDriverLocation(uname, ({lat, lng}) => {
-      _renderOnMap(lat, lng);
+      _renderOnMap(parseFloat(lat), parseFloat(lng));
     });
   }
 }
 
 function _renderOnMap(lat, lng){
+  if(!lat || !lng || isNaN(lat) || isNaN(lng)) return;
   const wrap = document.getElementById('driver-map-wrap');
-  if(!wrap || wrap.style.display === 'none') return;
-  if(typeof L === 'undefined') return; // Leaflet not loaded yet
+  if(!wrap) return;
+  wrap.style.display = 'block'; // force show
+
+  if(typeof L === 'undefined'){
+    // Leaflet not loaded yet — retry after 1s
+    setTimeout(() => _renderOnMap(lat, lng), 1000);
+    return;
+  }
+
+  const mapEl = document.getElementById('driver-map');
+  if(!mapEl) return;
 
   if(!_mapInitialized){
-    _driverMap = L.map('driver-map', { zoomControl:true, attributionControl:false }).setView([lat, lng], 15);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19 }).addTo(_driverMap);
+    _driverMap = L.map('driver-map', {
+      zoomControl: true,
+      attributionControl: false,
+      tap: false  // fix iOS click issue
+    }).setView([lat, lng], 15);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      subdomains: 'abc'
+    }).addTo(_driverMap);
+
     const driverIcon = L.divIcon({
-      html: '<div style="font-size:30px;line-height:1;filter:drop-shadow(0 2px 6px rgba(0,0,0,.5))">🛵</div>',
-      iconSize:[36,36], iconAnchor:[18,18], className:''
+      html: '<div style="font-size:32px;line-height:1;filter:drop-shadow(0 2px 8px rgba(0,0,0,.6))">🛵</div>',
+      iconSize: [40,40], iconAnchor: [20,20], className: ''
     });
     _driverMarker = L.marker([lat, lng], { icon: driverIcon }).addTo(_driverMap);
-    _driverMarker.bindPopup('<b>🛵 السائق في طريقه إليك</b>').openPopup();
+    _driverMarker.bindPopup('<b style="font-family:Cairo,sans-serif">🛵 السائق في طريقه إليك</b>').openPopup();
     _mapInitialized = true;
-    setTimeout(() => { if(_driverMap) _driverMap.invalidateSize(); }, 300);
+    // Multiple invalidateSize calls to fix grey tiles
+    [300, 600, 1000].forEach(t => setTimeout(() => { if(_driverMap) _driverMap.invalidateSize(); }, t));
   } else {
     _driverMarker.setLatLng([lat, lng]);
-    _driverMap.panTo([lat, lng], { animate:true, duration:0.8 });
+    _driverMap.panTo([lat, lng], { animate: true, duration: 0.8 });
   }
 }
 
