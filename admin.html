@@ -297,6 +297,15 @@ tr:hover td{background:rgba(13,36,97,.02);}
   :root{--sidebar:200px;}
 }
 
+
+/* ===== DRIVERS MAP ===== */
+#drivers-map{width:100%;height:320px;border-radius:14px;border:1.5px solid var(--gm);margin-bottom:1rem;background:var(--gl);display:flex;align-items:center;justify-content:center;overflow:hidden;}
+.map-placeholder-txt{color:var(--tm);font-size:14px;text-align:center;}
+.online-pill{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:10px;font-size:11px;font-weight:700;}
+.pill-on{background:#DCFCE7;color:#166534;}
+.pill-off{background:var(--gl);color:var(--tm);}
+.driver-location{font-size:11px;color:var(--tm);margin-top:3px;}
+
 </style>
 
 </head>
@@ -424,6 +433,18 @@ tr:hover td{background:rgba(13,36,97,.02);}
           <h2>السائقين المسجلين</h2>
           <button class="abtn grn" onclick="nav('add-driver')">➕ إضافة سائق جديد</button>
         </div>
+
+        <!-- LIVE MAP -->
+        <div class="card" style="margin-bottom:1rem;">
+          <div class="card-hd"><h3>🗺️ مواقع السائقين المتاحين</h3><span id="online-drivers-count" style="font-size:12px;color:var(--green);font-weight:700;"></span></div>
+          <div id="drivers-map">
+            <div class="map-placeholder-txt">
+              <div style="font-size:32px;margin-bottom:8px">🗺️</div>
+              <div>جاري تحميل الخريطة...</div>
+            </div>
+          </div>
+        </div>
+
         <div class="drivers-grid" id="drivers-grid"></div>
 
         <div class="users-section">
@@ -666,7 +687,7 @@ function nav(id){
 }
 
 // ========= STATUS MAP =========
-const SMAP={'جديد':'b-new','في انتظار التحضير':'b-prep','جاري التحضير':'b-prep','جاري التوصيل':'b-go','تم التوصيل':'b-done','ملغي':'b-cancel'};
+const SMAP={'جديد':'b-new','في انتظار التحضير':'b-prep','جاري التوصيل':'b-go','تم التوصيل':'b-done','ملغي':'b-cancel'};
 
 // ========= DEMO ORDER =========
 const TYPES=['🍕 مطعم','🛒 سوبر ماركت','💊 صيدلية','📦 شحن','🚗 مشوار','✨ أخرى'];
@@ -695,7 +716,7 @@ function renderDash(){
   const orders=getOrders();
   const newC=orders.filter(o=>o.status==='جديد').length;
   const done=orders.filter(o=>o.status==='تم التوصيل').length;
-  const active=orders.filter(o=>['جاري التوصيل','جاري التحضير'].includes(o.status)).length;
+  const active=orders.filter(o=>o.status==='جاري التوصيل').length;
   document.getElementById('k-total').textContent=orders.length;
   document.getElementById('k-done').textContent=done;
   document.getElementById('k-active').textContent=active;
@@ -726,7 +747,7 @@ function renderDash(){
       <div class="dr-av">🛵</div>
       <div class="dr-info">
         <div class="dr-name">${d.fname} ${d.lname}</div>
-        <div class="dr-sub">${d.orders} طلب | ⭐ ${d.rating}</div>
+        <div class="dr-sub">${d.orders||0} طلب | ⭐ ${d.rating||5} ${d.online&&d.lat?'| 📍 مباشر':''}</div>
       </div>
       <div class="${d.online?'status-dot dot-on':'status-dot dot-off'}"></div>
     </div>`).join('');
@@ -753,8 +774,7 @@ function renderOrders(){
       <td><div class="action-btns">
         <button class="abtn bl" onclick="viewOrder('${o.id}')">عرض</button>
         ${o.status==='جديد'?`<button class="abtn prep" onclick="updOrd('${o.id}','في انتظار التحضير')">قبول</button><button class="abtn red" onclick="updOrd('${o.id}','ملغي')">رفض</button>`:''}
-        ${o.status==='في انتظار التحضير'?`<button class="abtn prep" onclick="updOrd('${o.id}','جاري التحضير')">جاري التحضير 🍳</button>`:''}
-        ${o.status==='جاري التحضير'?`<button class="abtn grn" onclick="updOrd('${o.id}','جاري التوصيل')">جاري التوصيل 🛵</button>`:``}
+        ${o.status==='في انتظار التحضير'?`<button class="abtn grn" onclick="updOrd('${o.id}','جاري التوصيل')">جاري التوصيل 🛵</button>`:''}
         ${o.status==='جاري التوصيل'?`<button class="abtn or" onclick="updOrd('${o.id}','تم التوصيل')">تم التوصيل 🏠</button>`:''}
       </div></td>
     </tr>`).join('');
@@ -774,16 +794,25 @@ function doSearch(){
 }
 
 async function updOrd(id,status){
-  const o=getOrders().find(x=>x.id===id);
-  if(!o||!o._docId){showToast('❌ مش لاقي الطلب في Firebase');return;}
-  if(!window._fbUpdateOrder){showToast('⚠️ Firebase مش جاهز');return;}
-  try{
-    await window._fbUpdateOrder(o._docId,{status:status});
+  const orders=getOrders();
+  const o=orders.find(x=>x.id===id);
+  if(!o){showToast('❌ مش لاقي الطلب');return;}
+  // Update locally first for instant UI
+  o.status=status;
+  saveOrders(orders);
+  renderOrders();
+  renderDash();
+  // Then sync to Firebase
+  if(o._docId && window._fbUpdateOrder){
+    try{
+      await window._fbUpdateOrder(o._docId,{status:status});
+      showToast('✅ '+id+' → '+status);
+    }catch(err){
+      showToast('❌ Firebase خطأ: '+err.message);
+      console.error(err);
+    }
+  } else {
     showToast('✅ '+id+' → '+status);
-    // onSnapshot هيحدث الـ UI تلقائياً
-  }catch(err){
-    showToast('❌ Firebase خطأ: '+err.message);
-    console.error(err);
   }
 }
 
@@ -823,6 +852,14 @@ function renderDrivers(){
   if(!drivers.length){
     grid.innerHTML='<div class="empty-state" style="grid-column:span 4"><div>🛵</div>لا يوجد سائقين<br><button class="abtn grn" style="margin-top:10px" onclick="nav(\'add-driver\')">➕ أضف سائق</button></div>';
   }else{
+    // Update online count
+    const onlineCount = drivers.filter(d=>d.online).length;
+    const countEl = document.getElementById('online-drivers-count');
+    if(countEl) countEl.textContent = onlineCount + ' متاح الآن 🟢';
+
+    // Render map
+    renderDriversMap(drivers);
+
     grid.innerHTML=drivers.map(d=>`
       <div class="dcard">
         <div class="dcard-top">
@@ -830,16 +867,18 @@ function renderDrivers(){
           <div style="flex:1">
             <div class="d-name">${d.fname} ${d.lname}</div>
             <div class="d-sub">📞 ${d.phone}</div>
+            ${d.online && d.lat ? `<div class="driver-location">📍 ${d.lat.toFixed(4)}, ${d.lng.toFixed(4)}</div>` : ''}
           </div>
           <span class="pill ${d.online?'pill-on':'pill-off'}">${d.online?'● أونلاين':'○ أوفلاين'}</span>
         </div>
         <div class="d-stat"><span>المنطقة</span><span>${d.area}</span></div>
         <div class="d-stat"><span>المركبة</span><span>${d.vtype}</span></div>
-        <div class="d-stat"><span>إجمالي الطلبات</span><span>${d.orders}</span></div>
-        <div class="d-stat"><span>التقييم</span><span>⭐ ${d.rating}</span></div>
+        <div class="d-stat"><span>إجمالي الطلبات</span><span>${d.orders||0}</span></div>
+        <div class="d-stat"><span>التقييم</span><span>⭐ ${d.rating||5}</span></div>
+        ${d.online && d.lat ? `<div class="d-stat"><span>آخر موقع</span><span style="color:var(--green)">🟢 مباشر</span></div>` : ''}
         <div class="dcard-btns">
-          <button class="abtn bl" style="flex:1" onclick="viewDriver('${d.id}')">عرض</button>
-          <button class="abtn red" style="flex:1" onclick="deleteDriver('${d.id}')">حذف</button>
+          <button class="abtn bl" style="flex:1" onclick="viewDriver('${d._docId||d.id}')">عرض</button>
+          <button class="abtn red" style="flex:1" onclick="deleteDriver('${d._docId||d.id}')">حذف</button>
         </div>
       </div>`).join('');
   }
@@ -982,7 +1021,7 @@ function startOrdersListener(){
       const tb = b.createdAt?.seconds || 0;
       return tb - ta;
     });
-    window._firestoreOrders = newOrders;
+    saveOrders(newOrders);
     renderDash();
     if(document.getElementById('page-orders').classList.contains('on')) renderOrders();
     // Show notification if new orders arrived
@@ -1001,6 +1040,69 @@ function refresh(){
   if(document.getElementById('page-orders').classList.contains('on'))renderOrders();
   if(document.getElementById('page-drivers').classList.contains('on'))renderDrivers();
   showToast('🔄 تم التحديث');
+}
+
+
+// ===== DRIVERS MAP (Leaflet) =====
+let _map = null;
+let _mapMarkers = [];
+
+function renderDriversMap(drivers){
+  const onlineDrivers = drivers.filter(d => d.online && d.lat && d.lng);
+  const mapEl = document.getElementById('drivers-map');
+  if(!mapEl) return;
+
+  if(!onlineDrivers.length){
+    if(_map){ _map.remove(); _map = null; }
+    mapEl.innerHTML = '<div class="map-placeholder-txt"><div style="font-size:32px;margin-bottom:8px">🗺️</div><div>مفيش سائقين أونلاين دلوقتي</div></div>';
+    return;
+  }
+
+  // Load Leaflet if not loaded
+  if(typeof L === 'undefined'){
+    if(!document.getElementById('leaflet-css')){
+      const css = document.createElement('link');
+      css.id = 'leaflet-css';
+      css.rel = 'stylesheet';
+      css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      document.head.appendChild(css);
+    }
+    if(!document.getElementById('leaflet-js')){
+      const js = document.createElement('script');
+      js.id = 'leaflet-js';
+      js.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      js.onload = () => initMap(onlineDrivers, mapEl);
+      document.head.appendChild(js);
+    }
+    return;
+  }
+  initMap(onlineDrivers, mapEl);
+}
+
+function initMap(drivers, mapEl){
+  // Clear old markers
+  _mapMarkers.forEach(m => m.remove());
+  _mapMarkers = [];
+
+  if(!_map){
+    mapEl.innerHTML = '';
+    _map = L.map(mapEl).setView([drivers[0].lat, drivers[0].lng], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap'
+    }).addTo(_map);
+  }
+
+  const bounds = [];
+  drivers.forEach(d => {
+    const marker = L.marker([d.lat, d.lng])
+      .addTo(_map)
+      .bindPopup(`<b>🛵 ${d.fname} ${d.lname}</b><br>📞 ${d.phone}<br>🟢 أونلاين`);
+    _mapMarkers.push(marker);
+    bounds.push([d.lat, d.lng]);
+  });
+
+  if(bounds.length > 1) _map.fitBounds(bounds, {padding:[30,30]});
+  else _map.setView(bounds[0], 14);
 }
 
 // ========= CHANGE PASSWORD (LOCAL ONLY) =========
