@@ -74,6 +74,27 @@
     await updateDoc(doc(db, "orders", docId), { status });
   };
 
+  // ── تحديث حالة السائق (أونلاين + موقع) ──
+  window._updateDriverStatus = async (docId, isOnline, lat, lng) => {
+    const data = {
+      online: isOnline,
+      lastSeen: new Date().toISOString(),
+    };
+    if(lat && lng) {
+      data.lat = lat;
+      data.lng = lng;
+    }
+    await updateDoc(doc(db, "drivers", docId), data);
+  };
+
+  // ── الاستماع لكل السائقين (للأدمن) ──
+  window._listenDrivers = (cb) => {
+    return onSnapshot(collection(db, "drivers"), snap => {
+      const drivers = snap.docs.map(d => ({ ...d.data(), _docId: d.id }));
+      cb(drivers);
+    });
+  };
+
   window._firebaseReady = true;
   window.dispatchEvent(new Event('firebaseReady'));
   console.log("✅ Driver Firebase Ready");
@@ -693,6 +714,10 @@ function callClient(phone) {
 // ══════════════════════════════════════════════
 //  ONLINE TOGGLE
 // ══════════════════════════════════════════════
+let _gpsInterval = null;
+let _currentLat = null;
+let _currentLng = null;
+
 function toggleOnline() {
   isOnline = !isOnline;
   const tog = document.getElementById('online-toggle');
@@ -701,10 +726,55 @@ function toggleOnline() {
     tog.classList.add('on');
     txt.textContent = 'متاح';
     showToast('🟢 أنت متاح الآن');
+    startGPS();
   } else {
     tog.classList.remove('on');
     txt.textContent = 'غير متاح';
     showToast('🔴 أنت غير متاح');
+    stopGPS();
+  }
+  // Update Firebase
+  if(currentDriver?._docId && window._updateDriverStatus) {
+    window._updateDriverStatus(currentDriver._docId, isOnline, _currentLat, _currentLng);
+  }
+}
+
+function startGPS() {
+  if(!navigator.geolocation) return;
+  // Get location immediately
+  navigator.geolocation.getCurrentPosition(pos => {
+    _currentLat = pos.coords.latitude;
+    _currentLng = pos.coords.longitude;
+    sendLocationToFirebase();
+  });
+  // Then every 30 seconds
+  _gpsInterval = setInterval(() => {
+    navigator.geolocation.getCurrentPosition(pos => {
+      _currentLat = pos.coords.latitude;
+      _currentLng = pos.coords.longitude;
+      sendLocationToFirebase();
+    }, err => console.log('GPS error:', err), { enableHighAccuracy: true });
+  }, 30000);
+}
+
+function stopGPS() {
+  if(_gpsInterval) { clearInterval(_gpsInterval); _gpsInterval = null; }
+  // Mark offline in Firebase
+  if(currentDriver?._docId && window._updateDriverStatus) {
+    window._updateDriverStatus(currentDriver._docId, false, null, null);
+  }
+}
+
+function sendLocationToFirebase() {
+  if(isOnline && currentDriver?._docId && window._updateDriverStatus) {
+    window._updateDriverStatus(currentDriver._docId, true, _currentLat, _currentLng);
+  }
+  // Also update active orders with driver location so client can see distance
+  if(_currentLat && _currentLng && window._fbUpdateOrder) {
+    const activeOrders = (myOrders||[]).filter(o => o.status === 'جاري التوصيل');
+    activeOrders.forEach(o => {
+      if(o._docId) window._fbUpdateOrder(o._docId, { driverLat: _currentLat, driverLng: _currentLng });
+    });
   }
 }
 
@@ -743,6 +813,7 @@ function nav(page) {
 //  LOGOUT
 // ══════════════════════════════════════════════
 function doLogout() {
+  stopGPS();
   if(unsubAvailable) unsubAvailable();
   if(unsubMy) unsubMy();
   sessionStorage.removeItem('drv_session');
