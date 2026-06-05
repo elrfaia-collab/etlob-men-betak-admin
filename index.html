@@ -23,7 +23,8 @@
     appId: "1:415855489057:web:d3526177d5a4353332f360",
     measurementId: "G-GWW8NG61FK"
   };
-
+  window.fbUpdateDoc = updateDoc;
+window.fbDoc = doc;
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
   window.db = db;
@@ -53,8 +54,7 @@
   window._fbQuery = query;
   window._fbWhere = where;
   console.log("✅ Firebase Client Ready");
-  window.fbUpdateDoc = updateDoc;
-window.fbDoc = doc;
+
 </script>
 
 <style>
