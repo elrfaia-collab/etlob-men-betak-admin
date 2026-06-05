@@ -2,6 +2,8 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>اطلب من بيتك</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet"/>
@@ -9,7 +11,7 @@
 <!-- Firebase -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-  import { getFirestore, collection, addDoc, serverTimestamp, doc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+  import { getFirestore, collection, addDoc, serverTimestamp, doc, updateDoc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCu31Gb8MLmvxAZCurGKTSQs4DTePSWw_I",
@@ -29,6 +31,21 @@
   window.fbAddDoc = addDoc;
   window.fbCollection = collection;
   window.fbTimestamp = serverTimestamp;
+
+  window._fbUpdateOrderStatus = async (docId, status) => {
+    await updateDoc(doc(db, "orders", docId), { status });
+  };
+
+  // ── الاستماع لموقع السائق من driver document (fallback) ──
+  window._listenDriverLocation = (driverUname, cb) => {
+    const q = query(collection(db, "drivers"), where("uname", "==", driverUname));
+    return onSnapshot(q, snap => {
+      if(!snap.empty){
+        const drv = snap.docs[0].data();
+        if(drv.lat && drv.lng) cb({ lat: drv.lat, lng: drv.lng, name: drv.fname + ' ' + drv.lname });
+      }
+    });
+  };
 
   window._firebaseReady = true;
   window._fbOnSnapshot = onSnapshot;
@@ -210,6 +227,33 @@ footer strong{color:var(--or);}
 .img-name{font-size:11px;color:var(--tm);margin-top:4px;}
 .img-uploading{font-size:12px;color:var(--or);margin-top:4px;display:none;}
 .img-uploading.show{display:block;}
+
+  /* ── Driver Live Map ── */
+  #driver-map-wrap {
+    display: none;
+    margin-top: 14px;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1.5px solid rgba(245,158,11,.3);
+    box-shadow: 0 4px 20px rgba(0,0,0,.25);
+  }
+  #driver-map-label {
+    background: rgba(245,158,11,.1);
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--or);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  #driver-map {
+    height: 220px;
+    width: 100%;
+  }
+  /* fix Leaflet z-index inside modals/pages */
+  .leaflet-pane { z-index: 1 !important; }
+  .leaflet-control { z-index: 2 !important; }
 </style>
 </head>
 <body>
@@ -334,6 +378,31 @@ footer strong{color:var(--or);}
           <div class="step"><div class="sico-w"><div class="sico" id="s2">🛵</div><div class="sline" id="sl2"></div></div><div class="stxt"><strong>جاري التوصيل</strong><span id="s2-sub">في الانتظار</span></div></div>
           <div class="step"><div class="sico-w"><div class="sico" id="s3">🏠</div></div><div class="stxt"><strong>تم التوصيل</strong><span id="s3-sub">قريبًا</span></div></div>
         </div>
+
+        <!-- خريطة موقع السائق -->
+        <div id="driver-map-wrap">
+          <div id="driver-map-label">🛵 موقع السائق الآن — مباشر</div>
+          <div id="driver-map"></div>
+        </div>
+
+        <!-- معلومات السائق -->
+        <div id="driver-info-box" style="display:none;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:12px;padding:12px 16px;margin-top:12px;text-align:center">
+          <div style="font-size:12px;color:var(--tm);margin-bottom:4px">🛵 سائقك</div>
+          <div style="font-weight:700;font-size:15px" id="driver-info-name"></div>
+          <div style="font-size:13px;color:var(--tm);margin-top:3px" id="driver-info-phone"></div>
+        </div>
+
+        <!-- تأكيد الاستلام -->
+        <div id="confirm-delivery-wrap" style="display:none;margin-top:14px">
+          <p style="font-size:13px;color:var(--tm);margin-bottom:8px;text-align:center">وصلك طلبك؟ أكد الاستلام</p>
+          <button id="confirm-delivery-btn" onclick="confirmDelivery()"
+            style="background:var(--green);color:#fff;border:none;border-radius:12px;padding:14px 0;
+            font-family:'Cairo',sans-serif;font-size:16px;font-weight:900;cursor:pointer;width:100%;
+            box-shadow:0 4px 16px rgba(34,197,94,.3);transition:all .2s">
+            ✅ تأكيد الاستلام
+          </button>
+        </div>
+
       </div>
     </div>
   </div>
@@ -485,7 +554,7 @@ function doTrack(){
         document.getElementById('ttime').textContent = '';
         return;
       }
-      const order = snapshot.docs[0].data();
+      const order = { ...snapshot.docs[0].data(), _docId: snapshot.docs[0].id };
       updateTrackUI(order);
     }, (err) => {
       document.getElementById('tstatus').textContent = '❌ خطأ: ' + err.message;
@@ -513,10 +582,11 @@ function doTrack(){
 }
 
 function updateTrackUI(order){
-  document.getElementById('tnum').textContent = order.id;
+  window._currentTrackDocId = order._docId || null;
+
+  document.getElementById('tnum').textContent  = order.id;
   document.getElementById('ttime').textContent = order.time || '';
 
-  // خريطة الحالات — متزامنة مع الأدمن بالظبط
   const STEP_ORDER = ['جديد','في انتظار التحضير','جاري التحضير','جاري التوصيل','تم التوصيل'];
   const statusText = {
     'جديد':              '🟡 تم استلام طلبك',
@@ -526,57 +596,55 @@ function updateTrackUI(order){
     'تم التوصيل':        '✅ تم التوصيل بنجاح',
     'ملغي':              '❌ الطلب ملغي',
   };
-
   document.getElementById('tstatus').textContent = statusText[order.status] || order.status;
 
   const curIdx = STEP_ORDER.indexOf(order.status);
-
-  // Steps: s1=جديد, s-prep=في انتظار/جاري التحضير, s2=جاري التوصيل, s3=تم التوصيل
-  // نحسب index كل step في STEP_ORDER
   const stepDefs = [
-    { ico: 's1',     line: null,     stepIdx: 0 },
-    { ico: 's-prep', line: 'sl-prep',stepIdx: 2 }, // done بعد جاري التحضير
-    { ico: 's2',     line: 'sl2',    stepIdx: 3 },
-    { ico: 's3',     line: null,     stepIdx: 4 },
+    { ico:'s1',     line:null,      stepIdx:0 },
+    { ico:'s-prep', line:'sl-prep', stepIdx:2 },
+    { ico:'s2',     line:'sl2',     stepIdx:3 },
+    { ico:'s3',     line:null,      stepIdx:4 },
   ];
-
-  stepDefs.forEach(({ico, line, stepIdx}) => {
+  stepDefs.forEach(({ico,line,stepIdx}) => {
     const el = document.getElementById(ico);
     const ln = line ? document.getElementById(line) : null;
     if(!el) return;
     el.classList.remove('done','act','prep');
-    if(order.status === 'ملغي'){
-      // لا تحديث للـ steps في حالة الإلغاء
-    } else if(curIdx > stepIdx){
-      el.classList.add('done');
-      el.textContent = '✓';
-      if(ln) ln.classList.add('done');
-    } else if(curIdx === stepIdx || (ico === 's-prep' && ['في انتظار التحضير','جاري التحضير'].includes(order.status))){
-      el.classList.add('act');
-      if(ln) ln.classList.remove('done');
-    } else {
-      if(ln) ln.classList.remove('done');
+    if(order.status !== 'ملغي'){
+      if(curIdx > stepIdx){ el.classList.add('done'); el.textContent='✓'; if(ln) ln.classList.add('done'); }
+      else if(curIdx===stepIdx || (ico==='s-prep' && ['في انتظار التحضير','جاري التحضير'].includes(order.status))){ el.classList.add('act'); if(ln) ln.classList.remove('done'); }
+      else { if(ln) ln.classList.remove('done'); }
     }
   });
 
-  // نصوص الـ sub-labels
+  // sub-labels
   const prepSub = document.getElementById('s-prep-sub');
   const s2sub   = document.getElementById('s2-sub');
   const s3sub   = document.getElementById('s3-sub');
+  if(prepSub){ prepSub.textContent = order.status==='جاري التحضير' ? 'جاري التحضير...' : (curIdx>2?'تم ✓':'في الانتظار'); }
+  if(s2sub)  { s2sub.textContent   = order.status==='جاري التوصيل' ? 'الكابتن في الطريق' : (order.status==='تم التوصيل'?'وصل ✓':'في الانتظار'); }
+  if(s3sub)  { s3sub.textContent   = order.status==='تم التوصيل' ? 'تم التوصيل ✅' : 'قريبًا'; }
 
-  if(prepSub){
-    if(order.status === 'في انتظار التحضير') prepSub.textContent = 'في الانتظار';
-    else if(order.status === 'جاري التحضير') prepSub.textContent = 'جاري التحضير...';
-    else if(STEP_ORDER.indexOf(order.status) > 2) prepSub.textContent = 'تم ✓';
-    else prepSub.textContent = 'في الانتظار';
+  // ── معلومات السائق ──
+  const driverBox = document.getElementById('driver-info-box');
+  if(driverBox){
+    if(order.driverName && !['جديد','ملغي'].includes(order.status)){
+      driverBox.style.display = 'block';
+      document.getElementById('driver-info-name').textContent = '👤 ' + order.driverName;
+      const ph = order.driverPhone || '';
+      document.getElementById('driver-info-phone').textContent = ph ? '📱 ' + ph : '';
+    } else { driverBox.style.display = 'none'; }
   }
-  if(s2sub){
-    if(order.status === 'جاري التوصيل') s2sub.textContent = 'الكابتن في الطريق إليك';
-    else if(order.status === 'تم التوصيل') s2sub.textContent = 'وصل بنجاح';
-    else s2sub.textContent = 'في الانتظار';
-  }
-  if(s3sub){
-    s3sub.textContent = order.status === 'تم التوصيل' ? 'تم التوصيل ✅' : 'قريبًا';
+
+  // ── خريطة موقع السائق ──
+  updateDriverMap(order);
+
+  // ── زرار تأكيد الاستلام ──
+  const confirmWrap = document.getElementById('confirm-delivery-wrap');
+  if(confirmWrap){
+    confirmWrap.style.display = order.status === 'جاري التوصيل' ? 'block' : 'none';
+    const btn = document.getElementById('confirm-delivery-btn');
+    if(btn && !btn.dataset.used){ btn.disabled=false; btn.textContent='✅ تأكيد الاستلام'; }
   }
 }
 
@@ -592,6 +660,92 @@ window.addEventListener('load', () => {
     setTimeout(()=>doTrack(), 900);
   }
 });
+
+// ══════════════════════════════════════════════
+//  DRIVER LIVE MAP
+// ══════════════════════════════════════════════
+let _driverMap      = null;
+let _driverMarker   = null;
+let _mapInitialized = false;
+let _driverLocUnsub = null;
+
+function updateDriverMap(order){
+  const wrap = document.getElementById('driver-map-wrap');
+  if(!wrap) return;
+
+  const isActive = order.status === 'جاري التوصيل';
+  if(!isActive){
+    wrap.style.display = 'none';
+    if(_driverLocUnsub){ _driverLocUnsub(); _driverLocUnsub = null; }
+    return;
+  }
+
+  wrap.style.display = 'block';
+
+  // استخدم اللوكيشن الموجود في الـ order فوراً
+  if(order.driverLat && order.driverLng){
+    _renderOnMap(parseFloat(order.driverLat), parseFloat(order.driverLng));
+  }
+
+  // كمان اعمل listener على driver document للتحديث الفوري
+  const uname = order.driverUname || order.assignedTo;
+  if(uname && !_driverLocUnsub && window._listenDriverLocation){
+    _driverLocUnsub = window._listenDriverLocation(uname, ({lat, lng}) => {
+      _renderOnMap(lat, lng);
+    });
+  }
+}
+
+function _renderOnMap(lat, lng){
+  const wrap = document.getElementById('driver-map-wrap');
+  if(!wrap || wrap.style.display === 'none') return;
+  if(typeof L === 'undefined') return; // Leaflet not loaded yet
+
+  if(!_mapInitialized){
+    _driverMap = L.map('driver-map', { zoomControl:true, attributionControl:false }).setView([lat, lng], 15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19 }).addTo(_driverMap);
+    const driverIcon = L.divIcon({
+      html: '<div style="font-size:30px;line-height:1;filter:drop-shadow(0 2px 6px rgba(0,0,0,.5))">🛵</div>',
+      iconSize:[36,36], iconAnchor:[18,18], className:''
+    });
+    _driverMarker = L.marker([lat, lng], { icon: driverIcon }).addTo(_driverMap);
+    _driverMarker.bindPopup('<b>🛵 السائق في طريقه إليك</b>').openPopup();
+    _mapInitialized = true;
+    setTimeout(() => { if(_driverMap) _driverMap.invalidateSize(); }, 300);
+  } else {
+    _driverMarker.setLatLng([lat, lng]);
+    _driverMap.panTo([lat, lng], { animate:true, duration:0.8 });
+  }
+}
+
+function resetMap(){
+  if(_driverLocUnsub){ _driverLocUnsub(); _driverLocUnsub = null; }
+  _mapInitialized = false;
+  _driverMap      = null;
+  _driverMarker   = null;
+}
+
+// ══════════════════════════════════════════════
+//  CONFIRM DELIVERY
+// ══════════════════════════════════════════════
+async function confirmDelivery(){
+  const docId = window._currentTrackDocId;
+  if(!docId){ alert('حصل خطأ، حاول تاني'); return; }
+  if(!window._fbUpdateOrderStatus){ alert('Firebase مش جاهز'); return; }
+  const btn = document.getElementById('confirm-delivery-btn');
+  if(btn){ btn.disabled=true; btn.textContent='⏳ جاري التأكيد...'; btn.dataset.used='1'; }
+  try{
+    await window._fbUpdateOrderStatus(docId, 'تم التوصيل');
+    document.getElementById('confirm-delivery-wrap').style.display='none';
+    document.getElementById('tstatus').textContent = '✅ تم التوصيل بنجاح — شكراً لك!';
+    resetMap();
+    const wrap = document.getElementById('driver-map-wrap');
+    if(wrap) wrap.style.display='none';
+  }catch(err){
+    if(btn){ btn.disabled=false; btn.textContent='✅ تأكيد الاستلام'; btn.dataset.used=''; }
+    alert('❌ خطأ: ' + err.message);
+  }
+}
 </script>
 
 <!-- WA CONTACT MODAL -->
