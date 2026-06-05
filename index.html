@@ -341,7 +341,29 @@ footer strong{color:var(--or);}
           <div class="fg"><label class="fl">رقم التليفون *</label><input id="ophone" type="tel" placeholder="01XXXXXXXXX"/></div>
         </div>
         <div class="fg"><label class="fl">ملاحظات إضافية</label><input id="onotes" type="text" placeholder="أي تفاصيل إضافية..."/></div>
-        <div class="price-row"><span>رسوم التوصيل داخل بورسعيد</span><strong>30 جنيه فقط</strong></div>
+        <div class="price-row">
+    <label for="delivery-area">اختر منطقة التوصيل:</label>
+
+    <select id="delivery-area" onchange="updateDeliveryPrice()">
+        <option value="30">داخل بورسعيد - 30 جنيه</option>
+        <option value="40">بورفؤاد - 40 جنيه</option>
+        <option value="180">بورتو سعيد - 180 جنيه</option>
+        <option value="40">الحي الإماراتي - 40 جنيه</option>
+<option value="45">حرفيين بورفؤاد - 45 جنيه</option>
+<option value="50">المنطقه الصناعيه- 50 جنيه</option>  
+      <option value="50">مشروع ال 9000 - 50 جنيه</option>
+      <option value="45">الفيروز - 45 جنيه</option>
+    </select>
+
+    <strong id="delivery-price">30 جنيه</strong>
+</div>
+
+<script>
+function updateDeliveryPrice() {
+    const price = document.getElementById('delivery-area').value;
+    document.getElementById('delivery-price').innerText = price + ' جنيه';
+}
+</script>
         <button class="sub-btn" id="submit-btn" onclick="submitOrder()">تأكيد الطلب ✅</button>
       </div>
 
