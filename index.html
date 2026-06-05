@@ -297,7 +297,15 @@ footer strong{color:var(--or);}
           <div class="fg"><label class="fl">رقم التليفون *</label><input id="ophone" type="tel" placeholder="01XXXXXXXXX"/></div>
         </div>
         <div class="fg"><label class="fl">ملاحظات إضافية</label><input id="onotes" type="text" placeholder="أي تفاصيل إضافية..."/></div>
-        <div class="price-row"><span>رسوم التوصيل داخل بورسعيد</span><strong>30 جنيه فقط</strong></div>
+        <select id="delivery-area" onchange="updateDeliveryPrice()">
+    <option value="30">داخل بورسعيد - 30 جنيه</option>
+    <option value="40">بورفؤاد - 40 جنيه</option>
+    <option value="50">بورتو سعيد - 50 جنيه</option>
+    <option value="35">الحي الإماراتي - 35 جنيه</option>
+    <option value="45">المنطقة الصناعية - 45 جنيه</option>
+    <option value="50">الفيروز - 50 جنيه</option>
+    <option value="50">حرفيين بورفؤاد - 50 جنيه</option>
+</select>
         <button class="sub-btn" id="submit-btn" onclick="submitOrder()">تأكيد الطلب ✅</button>
       </div>
 
