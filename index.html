@@ -9,7 +9,7 @@
 <!-- Firebase -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-  import { getFirestore, collection, addDoc, serverTimestamp, doc, updateDoc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+  import { getFirestore, collection, addDoc, serverTimestamp, doc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCu31Gb8MLmvxAZCurGKTSQs4DTePSWw_I",
@@ -30,10 +30,6 @@
   window.fbCollection = collection;
   window.fbTimestamp = serverTimestamp;
 
-  window._fbUpdateDoc = updateDoc;
-  window._fbUpdateOrderStatus = async (docId, status) => {
-    await updateDoc(doc(db, "orders", docId), { status });
-  };
   window._firebaseReady = true;
   window._fbOnSnapshot = onSnapshot;
   window._fbDoc = doc;
@@ -223,7 +219,7 @@ footer strong{color:var(--or);}
 <nav>
   <div class="brand" onclick="go('home')">
     <div class="brand-icon">🛵</div>
-    <div><div class="brand-name">اطلب من بيتك</div><div class="brand-tag">خليك في مكانك.. وطلباتك نجيبلك</div></div>
+    <div><div class="brand-name">اطلب من بيتك</div><div class="brand-tag">خليك في مكانك.. وطلبك يجيبلك</div></div>
   </div>
   <ul class="nav-links">
     <li><a id="nl-home" class="active" onclick="go('home')">الرئيسية</a></li>
@@ -239,8 +235,8 @@ footer strong{color:var(--or);}
   <div class="hero">
     <div class="hero-left">
       <div class="hero-pill">🛵 دليفري بورسعيد رقم 1</div>
-      <h1>خليك في مكانك…<br><em>وطلباتك إحنا نجيبلك!</em></h1>
-      <div class="hero-sub">مطاعم، سوبر ماركت، دواء، مشاوير — كل حاجة من بيتك في دقايق</div>
+      <h1>خليك في مكانك…<br><em>وطلباتك إحنا نجيبهالك!</em></h1>
+      <div class="hero-sub">مطاعم، سوبر ماركت، صيدليه، عطاره — كل حاجة من بيتك في دقايق</div>
       <div class="hero-btns">
         <button class="cta-main" onclick="go('order')">اطلب دلوقتي 🚀</button>
         <button class="cta-sec" onclick="go('track')">تتبع طلبك</button>
@@ -255,8 +251,8 @@ footer strong{color:var(--or);}
   <div class="statsbar">
     <div class="sitem"><div class="snum">+500</div><div class="slbl">طلب يومي</div></div>
     <div class="sitem"><div class="snum">30 دقيقة</div><div class="slbl">متوسط التوصيل</div></div>
-    <div class="sitem"><div class="snum">25 جم</div><div class="slbl">داخل بورسعيد</div></div>
-    <div class="sitem"><div class="snum">24/7</div><div class="slbl">خدمة مستمرة</div></div>
+    <div class="sitem"><div class="snum">30 جم</div><div class="slbl">داخل بورسعيد</div></div>
+    <div class="sitem"><div class="snum">24 h</div><div class="slbl">خدمة مستمرة</div></div>
   </div>
   <div class="srv-sec">
     <div class="sec-hd"><h2>إيه اللي تقدر تطلبه؟</h2><p>مش مطاعم بس — أي حاجة تخطر على بالك</p><div class="line"></div></div>
@@ -265,11 +261,11 @@ footer strong{color:var(--or);}
       <div class="scard" onclick="goOrder('🛒 سوبر ماركت')"><div class="scard-ico">🛒</div><div class="scard-nm">سوبر ماركت</div></div>
       <div class="scard" onclick="goOrder('💊 صيدلية')"><div class="scard-ico">💊</div><div class="scard-nm">دواء</div></div>
       <div class="scard" onclick="goOrder('📦 شحن طرود')"><div class="scard-ico">📦</div><div class="scard-nm">شحن طرود</div></div>
-      <div class="scard" onclick="goOrder('🚗 مشوار خاص')"><div class="scard-ico">🚗</div><div class="scard-nm">مشاوير</div></div>
-      <div class="scard" onclick="goOrder('✨ أي حاجة تانية')"><div class="scard-ico">✨</div><div class="scard-nm">أي حاجة</div></div>
+      <div class="scard" onclick="goOrder('🚗 مشوار خاص')"><div class="scard-ico">🚗</div><div class="scard-nm">مشوار خاص</div></div>
+      <div class="scard" onclick="goOrder('✨ خدمات اخرى')"><div class="scard-ico">✨</div><div class="scard-nm">خدمات اخرى</div></div>
     </div>
   </div>
-  <footer><strong>اطلب من بيتك</strong> — خليك في مكانك.. وطلباتك نجيبلك | بورسعيد<br>داخل بورسعيد: <strong>25 جنيه</strong> | مشاوير خاصة: حسب المسافة</footer>
+  <footer><strong>اطلب من بيتك</strong> — خليك في مكانك.. وطلباتك نجيبهالك | بورسعيد<br>داخل بورسعيد: <strong>30 جنيه</strong> | مشاوير خاصة: حسب المسافة</footer>
 </div>
 
 <!-- ORDER -->
@@ -278,7 +274,7 @@ footer strong{color:var(--or);}
     <div class="form-card">
       <div class="form-hd">
         <div class="form-ico">🛵</div>
-        <div><div style="font-size:17px;font-weight:800">اطلب من بيتك</div><div style="font-size:12px;color:var(--tm)">خليك في مكانك.. إحنا نجيبلك</div></div>
+        <div><div style="font-size:17px;font-weight:800">اطلب من بيتك</div><div style="font-size:12px;color:var(--tm)">خليك في مكانك.. إحنا نجيلك</div></div>
       </div>
 
       <!-- ERROR MSG -->
@@ -291,7 +287,7 @@ footer strong{color:var(--or);}
             <option value="">اختار نوع الطلب</option>
             <option>🍕 مطعم</option><option>🛒 سوبر ماركت</option>
             <option>💊 صيدلية</option><option>📦 شحن طرود</option>
-            <option>🚗 مشوار خاص</option><option>✨ أي حاجة تانية</option>
+            <option>🚗 مشوار خاص</option><option>✨ خدمات اخرى</option>
           </select>
         </div>
         <div class="fg"><label class="fl">اسم المحل أو المكان *</label><input id="oplace" type="text" placeholder="مثال: كنتاكي فرع الجامعة"/></div>
@@ -301,7 +297,7 @@ footer strong{color:var(--or);}
           <div class="fg"><label class="fl">رقم التليفون *</label><input id="ophone" type="tel" placeholder="01XXXXXXXXX"/></div>
         </div>
         <div class="fg"><label class="fl">ملاحظات إضافية</label><input id="onotes" type="text" placeholder="أي تفاصيل إضافية..."/></div>
-        <div class="price-row"><span>رسوم التوصيل داخل بورسعيد</span><strong>25 جنيه فقط</strong></div>
+        <div class="price-row"><span>رسوم التوصيل داخل بورسعيد</span><strong>30 جنيه فقط</strong></div>
         <button class="sub-btn" id="submit-btn" onclick="submitOrder()">تأكيد الطلب ✅</button>
       </div>
 
@@ -323,7 +319,7 @@ footer strong{color:var(--or);}
       <div style="font-size:17px;font-weight:800;margin-bottom:4px">تتبع طلبك</div>
       <div style="font-size:13px;color:var(--tm);margin-bottom:1.25rem">أدخل رقم الطلب عشان تعرف فين الكابتن</div>
       <div class="track-row">
-        <input id="tinput" type="text" placeholder="مثال: ORD-1234"/>
+        <input id="tinput" type="text" placeholder="مثال: 1234"/>
         <button class="tbtn" onclick="doTrack()">تتبع 🔍</button>
       </div>
       <div id="tres" class="tres">
@@ -331,31 +327,12 @@ footer strong{color:var(--or);}
           <div class="irow"><span>رقم الطلب</span><span id="tnum" style="color:var(--or);font-weight:900"></span></div>
           <div class="irow"><span>الحالة</span><span id="tstatus" style="font-weight:700"></span></div>
           <div class="irow"><span>الوقت</span><span id="ttime" style="color:var(--tm)"></span></div>
-          <div class="irow" id="distance-row" style="display:none"><span>الكابتن على بعد</span><span id="tdistance" style="color:var(--or);font-weight:900"></span></div>
         </div>
         <div class="steps">
           <div class="step"><div class="sico-w"><div class="sico done" id="s1">✓</div><div class="sline done"></div></div><div class="stxt"><strong>تم استلام الطلب</strong><span>تم بنجاح</span></div></div>
           <div class="step"><div class="sico-w"><div class="sico" id="s-prep">🍳</div><div class="sline" id="sl-prep"></div></div><div class="stxt"><strong>في انتظار التحضير</strong><span id="s-prep-sub">في الانتظار</span></div></div>
           <div class="step"><div class="sico-w"><div class="sico" id="s2">🛵</div><div class="sline" id="sl2"></div></div><div class="stxt"><strong>جاري التوصيل</strong><span id="s2-sub">في الانتظار</span></div></div>
           <div class="step"><div class="sico-w"><div class="sico" id="s3">🏠</div></div><div class="stxt"><strong>تم التوصيل</strong><span id="s3-sub">قريبًا</span></div></div>
-        </div>
-
-        <!-- معلومات السائق -->
-        <div id="driver-info-box" style="display:none;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:12px;padding:14px 16px;margin-top:14px;text-align:center">
-          <div style="font-size:12px;color:#94a3b8;margin-bottom:4px">🛵 سائقك</div>
-          <div style="font-weight:700;font-size:16px" id="driver-info-name"></div>
-          <div style="font-size:13px;color:#94a3b8;margin-top:4px" id="driver-info-phone"></div>
-        </div>
-
-        <!-- زرار تأكيد الاستلام -->
-        <div id="confirm-delivery-wrap" style="display:none;margin-top:16px;text-align:center">
-          <p style="font-size:13px;color:#94a3b8;margin-bottom:10px">وصلك طلبك؟ اضغط لتأكيد الاستلام</p>
-          <button id="confirm-delivery-btn" onclick="confirmDelivery()"
-            style="background:#10b981;color:#fff;border:none;border-radius:12px;padding:14px 0;
-            font-family:'Cairo',sans-serif;font-size:16px;font-weight:900;cursor:pointer;width:100%;
-            box-shadow:0 4px 16px rgba(16,185,129,.3);transition:all .2s">
-            ✅ تأكيد الاستلام
-          </button>
         </div>
       </div>
     </div>
@@ -365,18 +342,28 @@ footer strong{color:var(--or);}
 <!-- CONTACT -->
 <div id="pg-contact" class="pg">
   <div class="cont-pg">
-    <div class="sec-hd" style="margin-bottom:1.75rem"><h2>تواصل معنا</h2><p>إحنا هنا 24/7 لخدمتك</p><div class="line"></div></div>
+    <div class="sec-hd" style="margin-bottom:1.75rem"><h2>تواصل معنا</h2><p>إحنا هنا h24 لخدمتك</p><div class="line"></div></div>
     <div class="cont-grid">
-      <a class="cont-card" onclick="openWaModal()"><div class="cont-ico">💬</div><div class="cont-ttl">واتساب</div><div class="cont-sub">رد فوري</div></a>
-      <a class="cont-card" href="tel:01200452740"><div class="cont-ico">📞</div><div class="cont-ttl">اتصال مباشر</div><div class="cont-sub">01200452740</div></a>
+      <a class="cont-card"
+   href="https://whatsapp.com/channel/0029VbCZ9oNCBtxAsAnufw0e"
+   target="_blank">
+    <div class="cont-ico">💬</div>
+    <div class="cont-ttl">واتساب</div>
+    <div class="cont-sub">
+        تابع قناة اطلب من بيتك 🛒🏠 في واتساب
+    </div>
+</a>
+      <a class="cont-card" href="tel:01200452740"><div class="cont-ico">📞</div><div class="cont-ttl">اتصال مباشر</div><div class="cont-sub">01200452740</div> </a>
+      <a class="cont-card" href="tel:01228482080"><div class="cont-ico">📞</div><div class="cont-ttl">اتصال مباشر</div><div class="cont-sub">01228482080</div> </a>
+      <a class="cont-card" href="tel:01033225201"><div class="cont-ico">📞</div><div class="cont-ttl">اتصال مباشر</div><div class="cont-sub">01033225201</div> </a>
       <a class="cont-card" onclick="go('order')"><div class="cont-ico">🚀</div><div class="cont-ttl">اطلب الآن</div><div class="cont-sub">أسرع طريقة</div></a>
       <a class="cont-card" onclick="go('track')"><div class="cont-ico">🔍</div><div class="cont-ttl">تتبع طلب</div><div class="cont-sub">اعرف فين طلبك</div></a>
     </div>
     <div style="background:var(--gl);border-radius:16px;padding:1.5rem;text-align:center;">
       <div style="font-size:36px;margin-bottom:8px">🛵</div>
       <div style="font-weight:900;font-size:16px;color:var(--nv)">اطلب من بيتك</div>
-      <div style="font-size:13px;color:var(--tm);margin-top:4px">خليك في مكانك.. وطلباتك نجيبلك | بورسعيد</div>
-      <div style="font-size:13px;color:var(--or);font-weight:700;margin-top:8px">داخل بورسعيد: 25 جنيه | مشاوير خاصة: حسب المسافة</div>
+      <div style="font-size:13px;color:var(--tm);margin-top:4px">خليك في مكانك.. وطلباتك نجيبهالك | بورسعيد</div>
+      <div style="font-size:13px;color:var(--or);font-weight:700;margin-top:8px">داخل بورسعيد: 30 جنيه | مشاوير خاصة: حسب المسافة</div>
     </div>
   </div>
 </div>
@@ -476,150 +463,120 @@ let _trackUnsub = null;
 
 function doTrack(){
   const v = document.getElementById('tinput').value.trim().toUpperCase();
-  if(!v){ alert('أدخل رقم الطلب'); return; }
+  if(!v){alert('أدخل رقم الطلب');return;}
   sessionStorage.setItem('emb_track_id', v);
 
-  // Stop previous listener
+  // Unsubscribe from previous listener
   if(_trackUnsub){ _trackUnsub(); _trackUnsub = null; }
 
-  // Wait for Firebase if not ready yet
-  if(!window._firebaseReady || !window.db){
-    document.getElementById('tbtn') && (document.getElementById('tbtn').textContent = '⏳ جاري الاتصال...');
-    window.addEventListener('firebaseReady', function onReady(){
-      window.removeEventListener('firebaseReady', onReady);
-      document.getElementById('tbtn') && (document.getElementById('tbtn').textContent = 'تتبع 🔍');
-      startTracking(v);
-    });
-    return;
-  }
-  startTracking(v);
-}
-
-function startTracking(v){
-  try{
+  function _startListen(){
     const q = window._fbQuery(
       window._fbCollection(window.db, 'orders'),
       window._fbWhere('id', '==', v)
     );
 
+    document.getElementById('tnum').textContent = v;
+    document.getElementById('tstatus').textContent = '⏳ جاري البحث...';
+    document.getElementById('tres').classList.add('on');
+
     _trackUnsub = window._fbOnSnapshot(q, (snapshot) => {
       if(snapshot.empty){
-        document.getElementById('tres').classList.remove('on');
-        alert('❌ مش لاقيش رقم الطلب: ' + v);
+        document.getElementById('tstatus').textContent = '❌ مش لاقيش رقم الطلب ده';
+        document.getElementById('ttime').textContent = '';
         return;
       }
-      const order = { ...snapshot.docs[0].data(), _docId: snapshot.docs[0].id };
+      const order = snapshot.docs[0].data();
       updateTrackUI(order);
-      document.getElementById('tres').classList.add('on');
     }, (err) => {
-      console.error('Track error:', err);
-      alert('❌ خطأ في التتبع: ' + err.message);
+      document.getElementById('tstatus').textContent = '❌ خطأ: ' + err.message;
     });
-  } catch(err){
-    console.error('startTracking error:', err);
-    alert('❌ خطأ: ' + err.message);
+  }
+
+  // إذا Firebase جاهز ابدأ فوراً، لو لسه مش جاهز استنى
+  if(window._firebaseReady && window.db && window._fbQuery){
+    _startListen();
+  } else {
+    document.getElementById('tstatus').textContent = '⏳ جاري الاتصال...';
+    document.getElementById('tres').classList.add('on');
+    const maxWait = 5000;
+    const start = Date.now();
+    const poll = setInterval(() => {
+      if(window._firebaseReady && window.db && window._fbQuery){
+        clearInterval(poll);
+        _startListen();
+      } else if(Date.now() - start > maxWait){
+        clearInterval(poll);
+        document.getElementById('tstatus').textContent = '❌ تعذر الاتصال بـ Firebase، حاول تاني';
+      }
+    }, 100);
   }
 }
 
 function updateTrackUI(order){
-  document.getElementById('tnum').textContent = order.id || '';
+  document.getElementById('tnum').textContent = order.id;
   document.getElementById('ttime').textContent = order.time || '';
 
-  const status = order.status || 'جديد';
-
-  // Status text
+  // خريطة الحالات — متزامنة مع الأدمن بالظبط
+  const STEP_ORDER = ['جديد','في انتظار التحضير','جاري التحضير','جاري التوصيل','تم التوصيل'];
   const statusText = {
-    'جديد':                 '🟡 تم استلام طلبك',
-    'في انتظار التحضير':   '🟣 في انتظار التحضير',
-    'جاري التحضير':         '🔵 جاري التحضير الآن',
-    'جاري التوصيل':         '🟢 الكابتن في الطريق إليك 🛵',
-    'تم التوصيل':           '✅ تم التوصيل بنجاح',
-    'ملغي':                 '❌ الطلب ملغي'
+    'جديد':              '🟡 تم استلام طلبك',
+    'في انتظار التحضير': '🟣 في انتظار التحضير',
+    'جاري التحضير':      '🔵 جاري التحضير الآن',
+    'جاري التوصيل':      '🟢 الكابتن في الطريق إليك 🛵',
+    'تم التوصيل':        '✅ تم التوصيل بنجاح',
+    'ملغي':              '❌ الطلب ملغي',
   };
-  document.getElementById('tstatus').textContent = statusText[status] || status;
 
-  // Step elements
-  const sPrep  = document.getElementById('s-prep');
-  const slPrep = document.getElementById('sl-prep');
-  const s2     = document.getElementById('s2');
-  const sl2    = document.getElementById('sl2');
-  const s3     = document.getElementById('s3');
+  document.getElementById('tstatus').textContent = statusText[order.status] || order.status;
 
-  // Reset all steps
-  [sPrep, s2, s3].forEach(el => { if(el){ el.className = 'sico'; } });
-  [slPrep, sl2].forEach(el => { if(el){ el.className = 'sline'; } });
-  if(sPrep) sPrep.textContent = '🍳';
-  if(s2)    s2.textContent    = '🛵';
-  if(s3)    s3.textContent    = '🏠';
+  const curIdx = STEP_ORDER.indexOf(order.status);
 
-  // Set steps based on status
-  const stepOrder = ['جديد','في انتظار التحضير','جاري التحضير','جاري التوصيل','تم التوصيل'];
-  const idx = stepOrder.indexOf(status);
+  // Steps: s1=جديد, s-prep=في انتظار/جاري التحضير, s2=جاري التوصيل, s3=تم التوصيل
+  // نحسب index كل step في STEP_ORDER
+  const stepDefs = [
+    { ico: 's1',     line: null,     stepIdx: 0 },
+    { ico: 's-prep', line: 'sl-prep',stepIdx: 2 }, // done بعد جاري التحضير
+    { ico: 's2',     line: 'sl2',    stepIdx: 3 },
+    { ico: 's3',     line: null,     stepIdx: 4 },
+  ];
 
-  if(idx >= 1){ // في انتظار التحضير أو أكثر
-    if(sPrep){ sPrep.className = idx >= 2 ? 'sico done' : 'sico act'; if(idx>=2) sPrep.textContent='✓'; }
-    if(slPrep){ slPrep.className = idx >= 2 ? 'sline done' : 'sline'; }
-  }
-  if(idx >= 3){ // جاري التوصيل أو أكثر
-    if(s2){ s2.className = idx >= 4 ? 'sico done' : 'sico act'; if(idx>=4) s2.textContent='✓'; }
-    if(sl2){ sl2.className = idx >= 4 ? 'sline done' : 'sline'; }
-  }
-  if(idx >= 4){ // تم التوصيل
-    if(s3){ s3.className = 'sico done'; s3.textContent = '✓'; }
-  }
-
-  // ── معلومات السائق ──
-  const driverBox = document.getElementById('driver-info-box');
-  if(driverBox){
-    if(order.driverName && !['جديد','ملغي'].includes(status)){
-      driverBox.style.display = 'block';
-      document.getElementById('driver-info-name').textContent = '👤 ' + order.driverName;
-      const ph = order.driverPhone || '';
-      document.getElementById('driver-info-phone').textContent = ph ? '📱 ' + ph : '';
+  stepDefs.forEach(({ico, line, stepIdx}) => {
+    const el = document.getElementById(ico);
+    const ln = line ? document.getElementById(line) : null;
+    if(!el) return;
+    el.classList.remove('done','act','prep');
+    if(order.status === 'ملغي'){
+      // لا تحديث للـ steps في حالة الإلغاء
+    } else if(curIdx > stepIdx){
+      el.classList.add('done');
+      el.textContent = '✓';
+      if(ln) ln.classList.add('done');
+    } else if(curIdx === stepIdx || (ico === 's-prep' && ['في انتظار التحضير','جاري التحضير'].includes(order.status))){
+      el.classList.add('act');
+      if(ln) ln.classList.remove('done');
     } else {
-      driverBox.style.display = 'none';
+      if(ln) ln.classList.remove('done');
     }
-  }
+  });
 
-  // ── زرار تأكيد الاستلام — يظهر لما السائق يكون في الطريق ──
-  const confirmWrap = document.getElementById('confirm-delivery-wrap');
-  if(confirmWrap){
-    confirmWrap.style.display = status === 'جاري التوصيل' ? 'block' : 'none';
-    const btn = document.getElementById('confirm-delivery-btn');
-    if(btn && !btn.dataset.used){ btn.disabled = false; btn.textContent = '✅ تأكيد الاستلام'; }
-  }
+  // نصوص الـ sub-labels
+  const prepSub = document.getElementById('s-prep-sub');
+  const s2sub   = document.getElementById('s2-sub');
+  const s3sub   = document.getElementById('s3-sub');
 
-  // ── تخزين docId للاستخدام في confirmDelivery ──
-  window._currentTrackDocId = order._docId || null;
-
-  // Show driver distance if available
-  const distRow = document.getElementById('distance-row');
-  const distEl = document.getElementById('tdistance');
-  if(order.driverLat && order.driverLng && distRow && distEl){
-    // Get user location for distance calc
-    if(navigator.geolocation){
-      navigator.geolocation.getCurrentPosition(pos => {
-        const dist = calcDistance(pos.coords.latitude, pos.coords.longitude, order.driverLat, order.driverLng);
-        distEl.textContent = dist < 1 ? Math.round(dist*1000) + ' متر' : dist.toFixed(1) + ' كم';
-        distRow.style.display = 'flex';
-      }, ()=>{
-        distRow.style.display = 'none';
-      });
-    }
-  } else if(distRow){
-    distRow.style.display = 'none';
-  }
-
-  // Step subtexts
-  const s2sub  = document.getElementById('s2-sub');
-  const spSub  = document.getElementById('s-prep-sub');
-  if(spSub){
-    spSub.textContent = ['في انتظار التحضير','جاري التوصيل','تم التوصيل'].includes(status) ? 'تم' : 'في الانتظار';
+  if(prepSub){
+    if(order.status === 'في انتظار التحضير') prepSub.textContent = 'في الانتظار';
+    else if(order.status === 'جاري التحضير') prepSub.textContent = 'جاري التحضير...';
+    else if(STEP_ORDER.indexOf(order.status) > 2) prepSub.textContent = 'تم ✓';
+    else prepSub.textContent = 'في الانتظار';
   }
   if(s2sub){
-    if(status === 'جاري التوصيل')      s2sub.textContent = 'الكابتن في الطريق إليك 🛵';
-    else if(status === 'تم التوصيل')   s2sub.textContent = 'تم التوصيل بنجاح ✅';
-    else                                s2sub.textContent = 'في الانتظار';
+    if(order.status === 'جاري التوصيل') s2sub.textContent = 'الكابتن في الطريق إليك';
+    else if(order.status === 'تم التوصيل') s2sub.textContent = 'وصل بنجاح';
+    else s2sub.textContent = 'في الانتظار';
+  }
+  if(s3sub){
+    s3sub.textContent = order.status === 'تم التوصيل' ? 'تم التوصيل ✅' : 'قريبًا';
   }
 }
 
@@ -635,23 +592,6 @@ window.addEventListener('load', () => {
     setTimeout(()=>doTrack(), 900);
   }
 });
-
-// ── تأكيد الاستلام من العميل ──
-async function confirmDelivery(){
-  const docId = window._currentTrackDocId;
-  if(!docId){ alert('حصل خطأ، حاول تاني'); return; }
-  if(!window._fbUpdateOrderStatus){ alert('Firebase مش جاهز'); return; }
-  const btn = document.getElementById('confirm-delivery-btn');
-  if(btn){ btn.disabled = true; btn.textContent = '⏳ جاري التأكيد...'; btn.dataset.used = '1'; }
-  try{
-    await window._fbUpdateOrderStatus(docId, 'تم التوصيل');
-    document.getElementById('confirm-delivery-wrap').style.display = 'none';
-    document.getElementById('tstatus').textContent = '✅ تم التوصيل بنجاح — شكراً لك!';
-  }catch(err){
-    if(btn){ btn.disabled = false; btn.textContent = '✅ تأكيد الاستلام'; btn.dataset.used = ''; }
-    alert('❌ خطأ: ' + err.message);
-  }
-}
 </script>
 
 <!-- WA CONTACT MODAL -->
