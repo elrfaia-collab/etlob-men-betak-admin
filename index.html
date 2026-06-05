@@ -47,7 +47,29 @@ window.fbDoc = doc;
       }
     });
   };
-
+// ── الاستماع للعروض اليومية من Firestore وتحديث الواجهة تلقائياً ──
+  try {
+    const offerDocRef = doc(db, "offers", "daily_offer");
+    onSnapshot(offerDocRef, (docSnap) => {
+      const promoBar = document.getElementById('daily-promo-bar');
+      const promoText = document.getElementById('daily-promo-text');
+      
+      if (docSnap.exists()) {
+        const offerData = docSnap.data();
+        // إذا كان الأدمن مفعّل العرض وهناك نص مكتوب
+        if (offerData.show === true && offerData.text) {
+          promoText.textContent = offerData.text;
+          promoBar.style.display = 'block'; // إظهار شريط العروض
+        } else {
+          promoBar.style.display = 'none'; // إخفاء الشريط إذا ألغاه الأدمن
+        }
+      } else {
+        promoBar.style.display = 'none';
+      }
+    });
+  } catch (error) {
+    console.error("خطأ أثناء جلب العروض اليومية:", error);
+  }
   window._firebaseReady = true;
   window._fbOnSnapshot = onSnapshot;
   window._fbDoc = doc;
@@ -275,7 +297,13 @@ footer strong{color:var(--or);}
   </ul>
   <button class="nav-btn" onclick="go('order')">اطلب دلوقتي 🚀</button>
 </nav>
-
+<!-- شريط العروض اليومية الديناميكي -->
+<div id="daily-promo-bar" style="display: none; background: linear-gradient(90deg, var(--or2), var(--or)); color: #fff; padding: 8px 1rem; font-size: 13px; font-weight: 700; text-align: center; position: relative; z-index: 100; box-shadow: inset 0 -2px 5px rgba(0,0,0,0.1); overflow: hidden;">
+  <div style="display: inline-flex; align-items: center; gap: 8px; animation: pulse 1.5s infinite;">
+    <span>🎉 عرض اليوم:</span>
+    <span id="daily-promo-text">جاري تحميل أقوى عروض التوصيل...</span>
+  </div>
+</div>
 <!-- HOME -->
 <div id="pg-home" class="pg on">
   <div class="hero">
