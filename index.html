@@ -9,7 +9,7 @@
 <!-- Firebase -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-  import { getFirestore, collection, addDoc, serverTimestamp, doc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+  import { getFirestore, collection, addDoc, serverTimestamp, doc, updateDoc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCu31Gb8MLmvxAZCurGKTSQs4DTePSWw_I",
@@ -30,6 +30,10 @@
   window.fbCollection = collection;
   window.fbTimestamp = serverTimestamp;
 
+  window._fbUpdateDoc = updateDoc;
+  window._fbUpdateOrderStatus = async (docId, status) => {
+    await updateDoc(doc(db, "orders", docId), { status });
+  };
   window._firebaseReady = true;
   window._fbOnSnapshot = onSnapshot;
   window._fbDoc = doc;
@@ -297,16 +301,7 @@ footer strong{color:var(--or);}
           <div class="fg"><label class="fl">رقم التليفون *</label><input id="ophone" type="tel" placeholder="01XXXXXXXXX"/></div>
         </div>
         <div class="fg"><label class="fl">ملاحظات إضافية</label><input id="onotes" type="text" placeholder="أي تفاصيل إضافية..."/></div>
-         <select id="delivery-area" onchange="updateDeliveryPrice()">
-    <option value="30">داخل بورسعيد - 30 جنيه</option>
-    <option value="40">بورفؤاد - 40 جنيه</option>
-    <option value="180">بورتو سعيد - 180 جنيه</option>
-    <option value="40">الحي الإماراتي - 40 جنيه</option>
-    <option value="50">المنطقة الصناعية - 50 جنيه</option>
-    <option value="45">الفيروز - 45 جنيه</option>
-    <option value="45">حرفيين بورفؤاد - 45 جنيه</option>
-    <option value="50">مشروع ال9000 - 50 جنيه</option>
-</select>
+        <div class="price-row"><span>رسوم التوصيل داخل بورسعيد</span><strong>25 جنيه فقط</strong></div>
         <button class="sub-btn" id="submit-btn" onclick="submitOrder()">تأكيد الطلب ✅</button>
       </div>
 
@@ -344,6 +339,24 @@ footer strong{color:var(--or);}
           <div class="step"><div class="sico-w"><div class="sico" id="s2">🛵</div><div class="sline" id="sl2"></div></div><div class="stxt"><strong>جاري التوصيل</strong><span id="s2-sub">في الانتظار</span></div></div>
           <div class="step"><div class="sico-w"><div class="sico" id="s3">🏠</div></div><div class="stxt"><strong>تم التوصيل</strong><span id="s3-sub">قريبًا</span></div></div>
         </div>
+
+        <!-- معلومات السائق -->
+        <div id="driver-info-box" style="display:none;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:12px;padding:14px 16px;margin-top:14px;text-align:center">
+          <div style="font-size:12px;color:#94a3b8;margin-bottom:4px">🛵 سائقك</div>
+          <div style="font-weight:700;font-size:16px" id="driver-info-name"></div>
+          <div style="font-size:13px;color:#94a3b8;margin-top:4px" id="driver-info-phone"></div>
+        </div>
+
+        <!-- زرار تأكيد الاستلام -->
+        <div id="confirm-delivery-wrap" style="display:none;margin-top:16px;text-align:center">
+          <p style="font-size:13px;color:#94a3b8;margin-bottom:10px">وصلك طلبك؟ اضغط لتأكيد الاستلام</p>
+          <button id="confirm-delivery-btn" onclick="confirmDelivery()"
+            style="background:#10b981;color:#fff;border:none;border-radius:12px;padding:14px 0;
+            font-family:'Cairo',sans-serif;font-size:16px;font-weight:900;cursor:pointer;width:100%;
+            box-shadow:0 4px 16px rgba(16,185,129,.3);transition:all .2s">
+            ✅ تأكيد الاستلام
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -352,20 +365,10 @@ footer strong{color:var(--or);}
 <!-- CONTACT -->
 <div id="pg-contact" class="pg">
   <div class="cont-pg">
-    <div class="sec-hd" style="margin-bottom:1.75rem"><h2>تواصل معنا</h2><p>إحنا هنا h24 لخدمتك</p><div class="line"></div></div>
+    <div class="sec-hd" style="margin-bottom:1.75rem"><h2>تواصل معنا</h2><p>إحنا هنا 24/7 لخدمتك</p><div class="line"></div></div>
     <div class="cont-grid">
-      <a class="cont-card"
-   href="https://whatsapp.com/channel/0029VbCZ9oNCBtxAsAnufw0e"
-   target="_blank">
-    <div class="cont-ico">💬</div>
-    <div class="cont-ttl">واتساب</div>
-    <div class="cont-sub">
-        تابع قناة اطلب من بيتك 🛒🏠 في واتساب
-    </div>
-</a>
-      <a class="cont-card" href="tel:01200452740"><div class="cont-ico">📞</div><div class="cont-ttl">اتصال مباشر</div><div class="cont-sub">01200452740</div> </a>
-      <a class="cont-card" href="tel:01228482080"><div class="cont-ico">📞</div><div class="cont-ttl">اتصال مباشر</div><div class="cont-sub">01228482080</div> </a>
-      <a class="cont-card" href="tel:01033225201"><div class="cont-ico">📞</div><div class="cont-ttl">اتصال مباشر</div><div class="cont-sub">01033225201</div> </a>
+      <a class="cont-card" onclick="openWaModal()"><div class="cont-ico">💬</div><div class="cont-ttl">واتساب</div><div class="cont-sub">رد فوري</div></a>
+      <a class="cont-card" href="tel:01200452740"><div class="cont-ico">📞</div><div class="cont-ttl">اتصال مباشر</div><div class="cont-sub">01200452740</div></a>
       <a class="cont-card" onclick="go('order')"><div class="cont-ico">🚀</div><div class="cont-ttl">اطلب الآن</div><div class="cont-sub">أسرع طريقة</div></a>
       <a class="cont-card" onclick="go('track')"><div class="cont-ico">🔍</div><div class="cont-ttl">تتبع طلب</div><div class="cont-sub">اعرف فين طلبك</div></a>
     </div>
@@ -505,7 +508,7 @@ function startTracking(v){
         alert('❌ مش لاقيش رقم الطلب: ' + v);
         return;
       }
-      const order = snapshot.docs[0].data();
+      const order = { ...snapshot.docs[0].data(), _docId: snapshot.docs[0].id };
       updateTrackUI(order);
       document.getElementById('tres').classList.add('on');
     }, (err) => {
@@ -526,11 +529,12 @@ function updateTrackUI(order){
 
   // Status text
   const statusText = {
-    'جديد':                 'جديد 🟡',
-    'في انتظار التحضير':   'في انتظار التحضير 🟣',
-    'جاري التوصيل':         'جاري التوصيل 🟢',
-    'تم التوصيل':           'تم التوصيل ✅',
-    'ملغي':                 'ملغي ❌'
+    'جديد':                 '🟡 تم استلام طلبك',
+    'في انتظار التحضير':   '🟣 في انتظار التحضير',
+    'جاري التحضير':         '🔵 جاري التحضير الآن',
+    'جاري التوصيل':         '🟢 الكابتن في الطريق إليك 🛵',
+    'تم التوصيل':           '✅ تم التوصيل بنجاح',
+    'ملغي':                 '❌ الطلب ملغي'
   };
   document.getElementById('tstatus').textContent = statusText[status] || status;
 
@@ -549,24 +553,44 @@ function updateTrackUI(order){
   if(s3)    s3.textContent    = '🏠';
 
   // Set steps based on status
-  if(status === 'جديد'){
-    // Only step 1 done — nothing else active
+  const stepOrder = ['جديد','في انتظار التحضير','جاري التحضير','جاري التوصيل','تم التوصيل'];
+  const idx = stepOrder.indexOf(status);
+
+  if(idx >= 1){ // في انتظار التحضير أو أكثر
+    if(sPrep){ sPrep.className = idx >= 2 ? 'sico done' : 'sico act'; if(idx>=2) sPrep.textContent='✓'; }
+    if(slPrep){ slPrep.className = idx >= 2 ? 'sline done' : 'sline'; }
   }
-  else if(status === 'في انتظار التحضير'){
-    if(sPrep){ sPrep.className = 'sico act'; }
+  if(idx >= 3){ // جاري التوصيل أو أكثر
+    if(s2){ s2.className = idx >= 4 ? 'sico done' : 'sico act'; if(idx>=4) s2.textContent='✓'; }
+    if(sl2){ sl2.className = idx >= 4 ? 'sline done' : 'sline'; }
   }
-  else if(status === 'جاري التوصيل'){
-    if(sPrep){ sPrep.className = 'sico done'; sPrep.textContent = '✓'; }
-    if(slPrep){ slPrep.className = 'sline done'; }
-    if(s2){ s2.className = 'sico act'; }
-  }
-  else if(status === 'تم التوصيل'){
-    if(sPrep){ sPrep.className = 'sico done'; sPrep.textContent = '✓'; }
-    if(slPrep){ slPrep.className = 'sline done'; }
-    if(s2){ s2.className = 'sico done'; s2.textContent = '✓'; }
-    if(sl2){ sl2.className = 'sline done'; }
+  if(idx >= 4){ // تم التوصيل
     if(s3){ s3.className = 'sico done'; s3.textContent = '✓'; }
   }
+
+  // ── معلومات السائق ──
+  const driverBox = document.getElementById('driver-info-box');
+  if(driverBox){
+    if(order.driverName && !['جديد','ملغي'].includes(status)){
+      driverBox.style.display = 'block';
+      document.getElementById('driver-info-name').textContent = '👤 ' + order.driverName;
+      const ph = order.driverPhone || '';
+      document.getElementById('driver-info-phone').textContent = ph ? '📱 ' + ph : '';
+    } else {
+      driverBox.style.display = 'none';
+    }
+  }
+
+  // ── زرار تأكيد الاستلام — يظهر لما السائق يكون في الطريق ──
+  const confirmWrap = document.getElementById('confirm-delivery-wrap');
+  if(confirmWrap){
+    confirmWrap.style.display = status === 'جاري التوصيل' ? 'block' : 'none';
+    const btn = document.getElementById('confirm-delivery-btn');
+    if(btn && !btn.dataset.used){ btn.disabled = false; btn.textContent = '✅ تأكيد الاستلام'; }
+  }
+
+  // ── تخزين docId للاستخدام في confirmDelivery ──
+  window._currentTrackDocId = order._docId || null;
 
   // Show driver distance if available
   const distRow = document.getElementById('distance-row');
@@ -611,6 +635,23 @@ window.addEventListener('load', () => {
     setTimeout(()=>doTrack(), 900);
   }
 });
+
+// ── تأكيد الاستلام من العميل ──
+async function confirmDelivery(){
+  const docId = window._currentTrackDocId;
+  if(!docId){ alert('حصل خطأ، حاول تاني'); return; }
+  if(!window._fbUpdateOrderStatus){ alert('Firebase مش جاهز'); return; }
+  const btn = document.getElementById('confirm-delivery-btn');
+  if(btn){ btn.disabled = true; btn.textContent = '⏳ جاري التأكيد...'; btn.dataset.used = '1'; }
+  try{
+    await window._fbUpdateOrderStatus(docId, 'تم التوصيل');
+    document.getElementById('confirm-delivery-wrap').style.display = 'none';
+    document.getElementById('tstatus').textContent = '✅ تم التوصيل بنجاح — شكراً لك!';
+  }catch(err){
+    if(btn){ btn.disabled = false; btn.textContent = '✅ تأكيد الاستلام'; btn.dataset.used = ''; }
+    alert('❌ خطأ: ' + err.message);
+  }
+}
 </script>
 
 <!-- WA CONTACT MODAL -->
