@@ -76,7 +76,107 @@
 
   window._firebaseReady = true;
   console.log("✅ Firebase Admin connected!");
+// ===== إدارة المناطق في FIRESTORE =====
+import { collection as fbCollection, onSnapshot as fbOnSnapshot, doc as fbDoc, setDoc as fbSetDoc, updateDoc as fbUpdateDoc, deleteDoc as fbDeleteDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+
+let allAreas = [];
+
+// الاستماع اللحظي للمناطق
+if (window.db) {
+  fbOnSnapshot(fbCollection(window.db, "areas"), (snapshot) => {
+    allAreas = [];
+    snapshot.forEach((docSnap) => {
+      allAreas.push({ id: docSnap.id, ...docSnap.data() });
+    });
+    renderAreasTable();
+  }, (err) => { console.error("Areas listener error:", err); });
+}
+
+// عرض جدول المناطق في الإعدادات
+function renderAreasTable() {
+  const tbody = document.getElementById('areas-tbody');
+  if (!tbody) return;
+  
+  if (allAreas.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:15px; color:var(--tm)">لا توجد مناطق مضافة حالياً.</td></tr>`;
+    return;
+  }
+  
+  tbody.innerHTML = allAreas.map(area => `
+    <tr>
+      <td style="font-weight:600">${area.name}</td>
+      <td><strong>${area.price} جم</strong></td>
+      <td>
+        <span class="badge ${area.visible ? 'b-done' : 'b-cancel'}">
+          ${area.visible ? '🟢 ظاهر' : '❌ مخفي'}
+        </span>
+      </td>
+      <td>
+        <div class="action-btns">
+          <button class="abtn ${area.visible ? 'gray' : 'grn'}" onclick="toggleAreaVisibility('${area.id}', ${area.visible})">
+            ${area.visible ? 'إخفاء 👁️‍🗨️' : 'إظهار 👁️'}
+          </button>
+          <button class="abtn red" onclick="deleteArea('${area.id}')">حذف</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// إضافة منطقة جديدة
+async function addNewArea() {
+  const nameInput = document.getElementById('new-area-name');
+  const priceInput = document.getElementById('new-area-price');
+  const name = nameInput.value.trim();
+  const price = parseFloat(priceInput.value);
+
+  if (!name || isNaN(price)) {
+    showToast('⚠️ يرجى إدخال اسم المنطقة وسعر التوصيل بشكل صحيح');
+    return;
+  }
+
+  try {
+    const areaId = 'AREA-' + Date.now();
+    await fbSetDoc(fbDoc(window.db, "areas", areaId), {
+      name: name,
+      price: price,
+      visible: true
+    });
+    showToast('✅ تم إضافة المنطقة بنجاح');
+    nameInput.value = '';
+    priceInput.value = '';
+  } catch (err) {
+    showToast('❌ خطأ أثناء الإضافة: ' + err.message);
+  }
+}
+
+// تبديل حالة الظهور والإخفاء (تسمع تلقائياً عند العميل)
+async function toggleAreaVisibility(id, currentStatus) {
+  try {
+    await fbUpdateDoc(fbDoc(window.db, "areas", id), {
+      visible: !currentStatus
+    });
+    showToast('✅ تم تحديث حالة ظهور المنطقة');
+  } catch (err) {
+    showToast('❌ خطأ في التحديث: ' + err.message);
+  }
+}
+
+// حذف منطقة
+async function deleteArea(id) {
+  if (!confirm('هل أنت متأكد من حذف هذه المنطقة نهائياً؟')) return;
+  try {
+    await fbDeleteDoc(fbDoc(window.db, "areas", id));
+    showToast('🗑️ تم حذف المنطقة');
+  } catch (err) {
+    showToast('❌ خطأ في الحذف: ' + err.message);
+  }
+}
+
+  
 </script>
+
+  
 <style>
 
 *{margin:0;padding:0;box-sizing:border-box;}
@@ -518,16 +618,41 @@ tr:hover td{background:rgba(13,36,97,.02);}
       </div>
 
       <!-- ========== SETTINGS ========== -->
-      <div id="page-settings" class="page">
-        <div class="page-hd"><h2>الإعدادات</h2></div>
-        <div class="settings-grid">
-          <div class="setting-card">
-            <h3>⚙️ إعدادات التوصيل</h3>
-            <div class="sg"><label>رسوم التوصيل داخل بورسعيد (جم)</label><input type="number" value="25"/></div>
-            <div class="sg"><label>حد أقصى للمسافة (كم)</label><input type="number" value="15"/></div>
-            <div class="sg"><label>متوسط وقت التوصيل (دقيقة)</label><input type="number" value="30"/></div>
-            <button class="save-btn" onclick="showToast('✅ تم حفظ إعدادات التوصيل')">حفظ</button>
-          </div>
+     <div class="setting-card" style="grid-column: span 2;">
+  <h3>⚙️ إدارة المناطق وأسعار التوصيل</h3>
+  
+  <!-- نموذج إضافة منطقة جديدة -->
+  <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px; margin-bottom: 1.5rem; background: var(--gl); padding: 12px; border-radius: 10px;">
+    <div>
+      <label class="fl" style="font-size: 11px;">اسم المنطقة</label>
+      <input type="text" id="new-area-name" placeholder="مثال: الحي الثالث" style="background:#fff" />
+    </div>
+    <div>
+      <label class="fl" style="font-size: 11px;">سعر التوصيل (جم)</label>
+      <input type="number" id="new-area-price" placeholder="30" style="background:#fff" />
+    </div>
+    <div style="display: flex; align-items: flex-end;">
+      <button class="sub-btn" onclick="addNewArea()" style="padding: 10px; font-size: 13px; height: 43px;">➕ إضافة</button>
+    </div>
+  </div>
+
+  <!-- جدول عرض المناطق والتحكم بها -->
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>المنطقة</th>
+          <th>سعر التوصيل</th>
+          <th>الحالة في الكلاينت</th>
+          <th>إجراءات</th>
+        </tr>
+      </thead>
+      <tbody id="areas-tbody">
+        <tr><td colspan="4" style="text-align:center; padding:15px; color:var(--tm)">جاري تحميل المناطق...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
           <div class="setting-card">
             <h3>📱 بيانات التواصل</h3>
             <div class="sg"><label>رقم واتساب الخدمة</label><input type="tel" value="01XXXXXXXXX" dir="ltr" style="text-align:left"/></div>
