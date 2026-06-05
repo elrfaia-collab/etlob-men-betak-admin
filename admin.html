@@ -559,7 +559,22 @@ tr:hover td{background:rgba(13,36,97,.02);}
     </div><!-- content -->
   </div><!-- main -->
 </div><!-- app -->
-
+<!-- بطاقة التحكم في العرض اليومي للعملاء -->
+          <div class="setting-card">
+            <h3>📢 العرض اليومي للعملاء</h3>
+            <div style="background: var(--or-pale); border: 1px solid rgba(255,107,0,.2); border-radius: 10px; padding: 10px 14px; font-size: 12px; color: #92400E; margin-bottom: 1rem; line-height: 1.7;">
+              النص المكتوب هنا سيظهر متحركاً في أعلى تطبيق العميل فور تفعيله.
+            </div>
+            <div class="sg">
+              <label>نص العرض اليومي:</label>
+              <input id="admin-offer-text" type="text" placeholder="مثال: توصيل مجاني لبورفؤاد من الساعة 5 لـ 7 مساءً! 🛵🔥" style="background:#fff;" />
+            </div>
+            <div class="toggle-row" style="margin-top: 15px; border-bottom: none;">
+              <span class="toggle-lbl" style="font-size: 13px; font-weight: 700;">🟢 تفعيل وإظهار العرض الآن عند العميل</span>
+              <div id="admin-offer-toggle" class="toggle" onclick="this.classList.toggle('on')"></div>
+            </div>
+            <button class="save-btn" onclick="updateDailyOffer()">تحديث العرض الآن 🚀</button>
+          </div>
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
@@ -1031,11 +1046,13 @@ function startOrdersListener(){
   }, (err) => {
     console.error('Orders listener error:', err);
   });
+  
 }
 
 function refresh(){
   // Restart Firebase listener for fresh data
   startOrdersListener();
+  loadcurrantoffer(); //
   renderDash();
   if(document.getElementById('page-orders').classList.contains('on'))renderOrders();
   if(document.getElementById('page-drivers').classList.contains('on'))renderDrivers();
@@ -1104,7 +1121,52 @@ function initMap(drivers, mapEl){
   if(bounds.length > 1) _map.fitBounds(bounds, {padding:[30,30]});
   else _map.setView(bounds[0], 14);
 }
+// ── 📢 التحكم في العروض اليومية وتحديثها في Firestore ──
+async function updateDailyOffer() {
+  const text = document.getElementById('admin-offer-text').value.trim();
+  const show = document.getElementById('admin-offer-toggle').classList.contains('on');
 
+  if (!text && show) {
+    showToast("⚠️ برجاء كتابة نص العرض أولاً قبل تفعيله!");
+    return;
+  }
+
+  if (!window.db) {
+    showToast("⚠️ Firebase مش جاهز حالياً");
+    return;
+  }
+
+  try {
+    // استيراد دالة setDoc بشكل ديناميكي أو استخدامها مباشرة لأنها مستوردة بالفعل فوق في الملف
+    const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js");
+    
+    await setDoc(doc(window.db, "offers", "daily_offer"), {
+      text: text,
+      show: show,
+      updatedAt: new Date()
+    }, { merge: true });
+
+    showToast("✅ تم تحديث العرض بنجاح وسيظهر للعملاء فوراً!");
+  } catch (error) {
+    showToast("❌ حدث خطأ أثناء التحديث: " + error.message);
+  }
+}
+window.updateDailyOffer = updateDailyOffer;
+
+// دالة لجلب حالة العرض الحالية وعرضها في لوحة تحكم الأدمن تلقائياً
+async function loadCurrentOffer() {
+  if (!window.db) return;
+  try {
+    const { doc, getDoc } = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js");
+    const docSnap = await getDoc(doc(window.db, "offers", "daily_offer"));
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      if(data.text) document.getElementById('admin-offer-text').value = data.text;
+      if(data.show === true) document.getElementById('admin-offer-toggle').classList.add('on');
+      else document.getElementById('admin-offer-toggle').classList.remove('on');
+    }
+  } catch(e) { console.error("Error loading offer:", e); }
+}
 // ========= CHANGE PASSWORD (LOCAL ONLY) =========
 async function changePass(){
   const cur=document.getElementById('cur-pass').value;
@@ -1134,6 +1196,7 @@ window.addEventListener('load', () => {
     document.getElementById('login-screen').style.display='none';
     document.getElementById('app').classList.add('on');
     refresh();
+    loadcurrentoffer(); //
     setTimeout(()=>nav(lastPage), 100);
     setTimeout(startOrdersListener, 600);
   }
