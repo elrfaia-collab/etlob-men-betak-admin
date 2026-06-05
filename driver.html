@@ -47,9 +47,9 @@
     });
   };
 
-  // ── الاستماع لطلبات السائق الحالية ──
-  window._listenMyOrders = (driverName, cb) => {
-    const q = query(collection(db, "orders"), where("driverName", "==", driverName));
+  // ── الاستماع لطلبات السائق — بناءً على assignedTo = uname ──
+  window._listenMyOrders = (driverUname, cb) => {
+    const q = query(collection(db, "orders"), where("assignedTo", "==", driverUname));
     return onSnapshot(q, snap => {
       const orders = snap.docs.map(d => ({ ...d.data(), _docId: d.id }));
       cb(orders);
@@ -409,7 +409,7 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
   <!-- Tabs -->
   <div class="tabs">
     <button class="tab on" onclick="nav('available')" id="tab-available">
-      📋 طلبات جديدة
+      📋 كل الطلبات
       <span class="tab-badge" id="badge-available" style="display:none">0</span>
     </button>
     <button class="tab" onclick="nav('myorders')" id="tab-myorders">
@@ -426,7 +426,7 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
       <div class="stat-card"><div class="stat-num blue" id="st-active">0</div><div class="stat-lbl">جارية</div></div>
       <div class="stat-card"><div class="stat-num green" id="st-done">0</div><div class="stat-lbl">مكتملة</div></div>
     </div>
-    <div class="sec-title">الطلبات الجديدة المتاحة</div>
+    <div class="sec-title">الطلبات الجديدة (يعينها الأدمن)</div>
     <div id="available-list"></div>
   </div>
 
@@ -573,9 +573,8 @@ function listenOrders() {
     updateStats();
   });
 
-  // My orders
-  const fullName = currentDriver.fname + ' ' + currentDriver.lname;
-  unsubMy = window._listenMyOrders(fullName, orders => {
+  // My orders — بناءً على uname السائق
+  unsubMy = window._listenMyOrders(currentDriver.uname, orders => {
     // Sort by createdAt descending in JS
     myOrders = orders.sort((a,b) => {
       const ta = a.createdAt?.seconds || 0;
@@ -619,7 +618,6 @@ function renderAvailable() {
         ${o.details ? `<div class="oc-row"><span class="oc-ico">📝</span><div class="oc-info"><div class="oc-lbl">تفاصيل</div><div class="oc-val">${o.details}</div></div></div>` : ''}
       </div>
       <div class="oc-actions">
-        <button class="abtn accept" onclick="acceptOrder('${o._docId}','${o.id}')">✅ قبول</button>
         <button class="abtn wa" onclick="contactWA('${o.phone}')">💬 واتساب</button>
         <button class="abtn call" onclick="callClient('${o.phone}')">📞 اتصال</button>
       </div>
@@ -754,7 +752,7 @@ function startGPS() {
       _currentLng = pos.coords.longitude;
       sendLocationToFirebase();
     }, err => console.log('GPS error:', err), { enableHighAccuracy: true });
-  }, 30000);
+  }, 10000);
 }
 
 function stopGPS() {
@@ -766,14 +764,24 @@ function stopGPS() {
 }
 
 function sendLocationToFirebase() {
+  if(!_currentLat || !_currentLng) return;
+
+  // 1. حدّث driver document دايماً
   if(isOnline && currentDriver?._docId && window._updateDriverStatus) {
     window._updateDriverStatus(currentDriver._docId, true, _currentLat, _currentLng);
   }
-  // Also update active orders with driver location so client can see distance
-  if(_currentLat && _currentLng && window._fbUpdateOrder) {
-    const activeOrders = (myOrders||[]).filter(o => o.status === 'جاري التوصيل');
-    activeOrders.forEach(o => {
-      if(o._docId) window._fbUpdateOrder(o._docId, { driverLat: _currentLat, driverLng: _currentLng });
+
+  // 2. حدّث كل الطلبات المسندة للسائق ده بغض النظر عن الحالة
+  if(window._fbUpdateOrder) {
+    const assignedOrders = (myOrders||[]).filter(o =>
+      !['تم التوصيل','ملغي'].includes(o.status)
+    );
+    assignedOrders.forEach(o => {
+      if(o._docId) window._fbUpdateOrder(o._docId, {
+        driverLat: _currentLat,
+        driverLng: _currentLng,
+        driverUname: currentDriver.uname
+      });
     });
   }
 }
