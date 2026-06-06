@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title> المتميز</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet"/>
 
@@ -135,6 +135,10 @@ window.updateDeliveryPrice = function() {
   --wh:#fff;--gl:#F5F7FC;--gm:#E4E8F4;
   --tx:#0D2461;--tm:#5A6A85;--tl:#9AAAC0;
   --green:#22C55E;--red:#EF4444;
+}
+  html,body{
+  overflow-x:hidden;
+  width:100%;
 }
 body{font-family:'Cairo',sans-serif;direction:rtl;background:var(--wh);color:var(--tx);overflow-x:hidden;}
 nav{background:var(--nv);height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 2rem;position:sticky;top:0;z-index:200;box-shadow:0 2px 20px rgba(13,36,97,.25);}
