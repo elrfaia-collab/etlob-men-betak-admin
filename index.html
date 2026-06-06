@@ -589,35 +589,77 @@ function goOrder(type){
     const sel=document.getElementById('otype');
     for(let o of sel.options)if(o.text===type){sel.value=o.value||o.text;break;}
   },50);
-}
-
-// ===== SUBMIT ORDER — FIREBASE =====
-async function submitOrder(){
+}// ===== SUBMIT ORDER — FIREBASE =====
 async function sendOrder(){
-  // 1. جلب العناصر من الواجهة
-  const name = document.getElementById('order-name').value.trim();
-  const phone = document.getElementById('order-phone').value.trim();
+  // 1. جلب عناصر الإدخال من الواجهة
+  const nameEl = document.getElementById('order-name');
+  const phoneEl = document.getElementById('order-phone');
   const areaSelect = document.getElementById('order-area-select');
-  const addressDetails = document.getElementById('order-address').value.trim(); 
+  const addressDetailsEl = document.getElementById('order-address'); // تأكد أن حقل تفاصيل العنوان يحمل هذا الـ ID بالظبط في الـ HTML
 
-  // 2. التأكد من أن العميل اختار منطقة صحيحة وليس الخيار الافتراضي فارغ القيمة ""
-  if (!areaSelect || areaSelect.value === "") {
-    alert('⚠️ برجاء اختيار منطقة التوصيل أولاً قبل تأكيد الطلب!');
-    areaSelect.focus(); // يضع مؤشر الماوس أو التحديد على القائمة المنسدلة لتنبيه العميل
-    return; // يوقف الدالة تماماً ويمنع إرسال الطلب للفايربيز
+  // 2. حماية الكود: التأكد من وجود العناصر في الصفحة أولاً لمنع توقف الأزرار
+  if (!nameEl || !phoneEl || !areaSelect || !addressDetailsEl) {
+    console.error("⚠️ خطأ: بعض عناصر نموذج الطلب غير موجودة في الـ HTML");
+    return;
   }
 
-  // 3. التحقق من باقي الحقول الأساسية
+  const name = nameEl.value.trim();
+  const phone = phoneEl.value.trim();
+  const addressDetails = addressDetailsEl.value.trim();
+  const selectedAreaName = areaSelect.value;
+
+  // 3. التأكد من أن العميل اختار منطقة حقيقية وليس الخيار الافتراضي
+  if (selectedAreaName === "") {
+    alert('⚠️ برجاء اختيار منطقة التوصيل أولاً قبل تأكيد الطلب!');
+    areaSelect.focus(); 
+    return; // يوقف الدالة فوراً ويمنع الإرسال لقاعدة البيانات
+  }
+
+  // 4. التحقق من ملء باقي الحقول الأساسية
   if (!name || !phone || !addressDetails) {
     alert('⚠️ برجاء ملء جميع الحقول المطلوبة (الاسم، الهاتف، وتفاصيل العنوان)');
     return;
   }
 
-  // جلب البيانات الخاصة بالمنطقة والسعر المحددين
-  const selectedAreaName = areaSelect.value;
+  // 5. جلب سعر التوصيل الخاص بالمنطقة المحددة بأمان
   const selectedOption = areaSelect.options[areaSelect.selectedIndex];
   const deliveryCost = parseFloat(selectedOption ? selectedOption.dataset.price : 0) || 0;
 
+  // ── بداية كود الرفع الفعلي لـ Firebase المكتوب مسبقاً عندك ──
+  _showLoading(true);
+  try {
+    const desc = document.getElementById('order-desc').value.trim();
+    
+    // رفع الطلب إلى كولكشن orders
+    const docRef = await window.fbAddDoc(window.fbCollection(window.db, 'orders'), {
+      clientName: name,
+      clientPhone: phone,
+      // دمج اسم المنطقة مع تفاصيل الشارع والعمارة لكي يراها الأدمن بوضوح
+      addr: `المنطقة: ${selectedAreaName} - تفاصيل: ${addressDetails}`,
+      type: _orderType,
+      desc: desc,
+      status: 'جديد',
+      time: window.fbServerTimestamp(),
+      deliveryPrice: deliveryCost // إرسال السعر المتغير بحسب المنطقة
+    });
+
+    // بقية أكواد الدالة الأصلية عندك مثل الانتقال لصفحة التتبع ومسح الفورم...
+    window._currentTrackDocId = docRef.id;
+    localStorage.setItem('emb_track_id', docRef.id);
+    
+    document.getElementById('order-name').value = '';
+    document.getElementById('order-phone').value = '';
+    document.getElementById('order-address').value = '';
+    document.getElementById('order-desc').value = '';
+    
+    goTrack(docRef.id);
+    
+  } catch(err) {
+    alert('حدث خطأ أثناء إرسال الطلب: ' + err.message);
+  } finally {
+    _showLoading(false);
+  }
+}
   
   
   const type  = document.getElementById('otype').value.trim();
