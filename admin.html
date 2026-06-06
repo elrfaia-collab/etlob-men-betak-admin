@@ -771,6 +771,8 @@ async function doLogin(){
 
   const passHash = await sha256(p);
   
+  //  
+  // لتغيير كلمة السر: شغّل في console المتصفح: crypto.subtle.digest('SHA-256', new TextEncoder().encode('كلمة_سرك')).then(b=>console.log(Array.from(new 
   const validPass = passHash === await sha256('3042003');
 
   if(validUser && validPass){
