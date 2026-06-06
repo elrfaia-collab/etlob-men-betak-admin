@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title> المتميز</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet"/>
 
@@ -60,7 +60,7 @@ window.updateDeliveryPrice = function() {
 
 
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-  import { getFirestore, collection, addDoc, serverTimestamp, doc, updateDoc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+  import { getFirestore, collection, addDoc, serverTimestamp, doc, updateDoc, onSnapshot, query, where, getDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCu31Gb8MLmvxAZCurGKTSQs4DTePSWw_I",
@@ -136,17 +136,13 @@ window.updateDeliveryPrice = function() {
   --tx:#0D2461;--tm:#5A6A85;--tl:#9AAAC0;
   --green:#22C55E;--red:#EF4444;
 }
-  html,body{
-  overflow-x:hidden;
-  width:100%;
-}
 body{font-family:'Cairo',sans-serif;direction:rtl;background:var(--wh);color:var(--tx);overflow-x:hidden;}
 nav{background:var(--nv);height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 2rem;position:sticky;top:0;z-index:200;box-shadow:0 2px 20px rgba(13,36,97,.25);}
 .brand{display:flex;align-items:center;gap:10px;cursor:pointer;}
 .brand-icon{width:40px;height:40px;background:var(--or);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;}
 .brand-name{color:var(--or);font-size:19px;font-weight:900;line-height:1;}
 .brand-tag{color:rgba(255,255,255,.55);font-size:10px;font-weight:600;}
-.nav-links{display:flex;gap:1px;list-style:none;}
+.nav-links{display:flex;gap:2px;list-style:none;}
 .nav-links a{color:rgba(255,255,255,.7);text-decoration:none;padding:8px 13px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;transition:.2s;}
 .nav-links a:hover,.nav-links a.active{color:#fff;background:rgba(255,255,255,.1);}
 .nav-btn{background:var(--or);color:#fff;border:none;padding:9px 20px;border-radius:10px;font-family:'Cairo',sans-serif;font-weight:700;font-size:13px;cursor:pointer;transition:.2s;}
@@ -158,7 +154,7 @@ nav{background:var(--nv);height:64px;display:flex;align-items:center;justify-con
 .hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 60% 80% at 80% 50%,rgba(255,107,0,.13) 0%,transparent 70%);}
 .hero-left{max-width:500px;position:relative;z-index:2;}
 .hero-pill{display:inline-flex;align-items:center;gap:7px;background:rgba(255,107,0,.18);border:1px solid rgba(255,107,0,.35);color:#FF8C3A;padding:5px 14px;border-radius:20px;font-size:12px;font-weight:700;margin-bottom:1.4rem;}
-.hero h1{color:#fff;font-size:24px;font-weight:600;line-height:1.4;margin-bottom:1rem;}
+.hero h1{color:#fff;font-size:32px;font-weight:900;line-height:1.4;margin-bottom:1rem;}
 .hero h1 em{color:var(--or);font-style:normal;}
 .hero-sub{color:rgba(255,255,255,.72);font-size:15px;border-right:3px solid var(--or);padding-right:13px;margin-bottom:2rem;line-height:1.7;}
 .hero-btns{display:flex;gap:12px;flex-wrap:wrap;}
@@ -168,7 +164,7 @@ nav{background:var(--nv);height:64px;display:flex;align-items:center;justify-con
 .cta-sec:hover{background:rgba(255,255,255,.18);}
 .hero-right{flex:1;display:flex;justify-content:center;align-items:center;position:relative;z-index:2;}
 .hero-ring{width:220px;height:220px;border-radius:50%;border:2px dashed rgba(255,107,0,.3);display:flex;align-items:center;justify-content:center;animation:spin 18s linear infinite;position:relative;}
-.hero-ring-inner{width:140px;height:140px;border-radius:50%;background:linear-gradient(135deg,rgba(255,107,0,.18),rgba(26,53,128,.3));border:1px solid rgba(255,107,0,.2);display:flex;align-items:center;justify-content:center;font-size:52px;animation:spin 18s linear infinite reverse;}
+.hero-ring-inner{width:170px;height:170px;border-radius:50%;background:linear-gradient(135deg,rgba(255,107,0,.18),rgba(26,53,128,.3));border:1px solid rgba(255,107,0,.2);display:flex;align-items:center;justify-content:center;font-size:62px;animation:spin 18s linear infinite reverse;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .fcard{position:absolute;background:#fff;border-radius:12px;padding:9px 14px;display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--tx);box-shadow:0 8px 24px rgba(0,0,0,.18);}
 .fcard.a{top:10px;right:-10px;animation:bob 3.5s ease-in-out infinite;}
@@ -955,24 +951,44 @@ function setRating(num){
 }
 
 async function submitRating(){
-  if(!selectedRating){
-    alert('اختر عدد النجوم');
-    return;
-  }
+  if(!selectedRating){ alert('اختر عدد النجوم'); return; }
   const comment = document.getElementById('rating-comment').value;
   try{
+    // 1. احفظ التقييم في الـ order
     await window.fbUpdateDoc(
-      window.fbDoc(window.db,'orders',window._currentTrackDocId),
-      {
-        driverRating:selectedRating,
-        driverReview:comment
-      }
+      window.fbDoc(window.db, 'orders', window._currentTrackDocId),
+      { driverRating: selectedRating, driverReview: comment }
     );
-    alert('شكراً لتقييمك ❤️');
+    // 2. حدّث متوسط التقييم على السائق تلقائياً
+    await _recalcAndUpdateDriverRating();
+    alert('شكراً لتقييمك ❤️ رأيك هيساعدنا نحسّن الخدمة!');
     document.getElementById('driver-rating-wrap').style.display='none';
-  }catch(err){
+  } catch(err){
     alert(err.message);
   }
+}
+
+// ── حساب متوسط تقييم السائق وتحديثه تلقائياً في Firestore ──
+async function _recalcAndUpdateDriverRating(){
+  try {
+    const orderSnap = await window.fbGetDoc(window.fbDoc(window.db,'orders',window._currentTrackDocId));
+    if(!orderSnap.exists()) return;
+    const driverUname = orderSnap.data().driverUname;
+    if(!driverUname) return;
+    // جيب كل تقييمات السائق
+    const { getDocs, query, collection, where } = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js");
+    const ratingsSnap = await getDocs(query(collection(window.db,"orders"), where("driverUname","==",driverUname), where("driverRating",">",0)));
+    if(ratingsSnap.empty) return;
+    let total=0, count=0;
+    ratingsSnap.forEach(d=>{ const r=d.data().driverRating; if(r>0){total+=r;count++;} });
+    const avg = Math.round((total/count)*10)/10;
+    // حدّث السائق
+    const driverSnap = await getDocs(query(collection(window.db,"drivers"), where("uname","==",driverUname)));
+    if(!driverSnap.empty){
+      await window.fbUpdateDoc(window.fbDoc(window.db,'drivers',driverSnap.docs[0].id), { rating:avg, ratingCount:count });
+      console.log("✅ تقييم السائق اتحدث:", avg, "من", count, "تقييم");
+    }
+  } catch(e){ console.warn("rating recalc:", e); }
 }
 </script>
 
