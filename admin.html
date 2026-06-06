@@ -771,7 +771,7 @@ async function doLogin(){
     return;
   }
 
-  const passHash = await sha256(p);
+
   
   
   // التحقق: اسم المستخدم "admin" وكلمة السر "123456"
@@ -786,8 +786,9 @@ if(validUser && validPass){
     lockUntil = 0;
     document.getElementById('login-screen').style.display='none';
     document.getElementById('app').classList.add('on');
-    document.getElementById('sb-uname-txt').textContent = u;
-    sessionStorage.setItem('emb_auth', btoa(Date.now().toString()));
+} else {
+    document.getElementById('l-err').style.display='block';
+}
     // استرجاع آخر صفحة
     const lastPage = sessionStorage.getItem('emb_last_page') || 'dash';
     refresh();
