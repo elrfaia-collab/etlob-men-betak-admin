@@ -16,8 +16,9 @@
 import { initializeApp }       from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
 import {
   getFirestore, collection, addDoc, doc,
-  updateDoc, deleteDoc, setDoc, query,
-  orderBy, onSnapshot, serverTimestamp, getDoc
+  updateDoc, deleteDoc, setDoc, query, where,
+  orderBy, onSnapshot, serverTimestamp, getDoc,
+  increment, getDocs
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -43,7 +44,24 @@ window._firestoreDrivers = [];
 window._allAreas = [];
 
 // ── helpers ──
-window._fbUpdateOrder  = (docId, data) => updateDoc(doc(db,"orders",docId), data);
+window._fbUpdateOrder  = async (docId, data) => {
+    await updateDoc(doc(db,"orders",docId), data);
+    // لو الحالة "تم التوصيل" — زوّد عداد الطلبات على السائق
+    if(data.status === "تم التوصيل") {
+      try {
+        const orderSnap = await getDoc(doc(db,"orders",docId));
+        if(orderSnap.exists()){
+          const driverUname = orderSnap.data().driverUname;
+          if(driverUname){
+            const dSnap = await getDocs(query(collection(db,"drivers"), where("uname","==",driverUname)));
+            if(!dSnap.empty){
+              await updateDoc(dSnap.docs[0].ref, { orders: increment(1) });
+            }
+          }
+        }
+      } catch(e){ console.warn("orders increment (admin):", e); }
+    }
+  };
 window._fbDeleteOrder  = (docId)       => deleteDoc(doc(db,"orders",docId));
 window._fbAddDriver    = async (d) => { const r=doc(collection(db,"drivers")); await setDoc(r,{...d,_docId:r.id}); return r.id; };
 window._fbUpdateDriver = (docId, data) => updateDoc(doc(db,"drivers",docId), data);
@@ -522,6 +540,8 @@ tr:hover td{background:rgba(13,36,97,.02);}
           <div class="kpi"><div class="kpi-icon gr">✅</div><div><div class="kpi-num" id="k-done">0</div><div class="kpi-lbl">تم التوصيل</div><div class="kpi-sub">اليوم</div></div></div>
           <div class="kpi"><div class="kpi-icon bl">🛵</div><div><div class="kpi-num" id="k-active">0</div><div class="kpi-lbl">جاري التوصيل</div><div class="kpi-sub">الآن</div></div></div>
           <div class="kpi"><div class="kpi-icon yl">💰</div><div><div class="kpi-num" id="k-rev">0 جم</div><div class="kpi-lbl">إيرادات اليوم</div><div class="kpi-sub">حسب سعر المنطقة</div></div></div>
+          <div class="kpi"><div class="kpi-icon gr">⭐</div><div><div class="kpi-num" id="k-avg-rating">—</div><div class="kpi-lbl">متوسط تقييم السائقين</div><div class="kpi-sub" id="k-rating-lbl"></div></div></div>
+          <div class="kpi"><div class="kpi-icon or">📦</div><div><div class="kpi-num" id="k-total-done">0</div><div class="kpi-lbl">إجمالي توصيلات منجزة</div><div class="kpi-sub">كل السائقين</div></div></div>
         </div>
 
         <div class="dash-grid">
@@ -920,6 +940,34 @@ function getOrders(){ return window._firestoreOrders || []; }
 function getDrivers(){ return window._firestoreDrivers || []; }
 function saveOrders(list){ window._firestoreOrders = list; }
 
+// ── عرض نجوم التقييم ──
+function _starRating(rating){
+  const r = Math.round(parseFloat(rating||5)*2)/2;
+  let stars='';
+  for(let i=1;i<=5;i++){
+    if(r>=i) stars+='⭐';
+    else if(r>=i-0.5) stars+='🌟';
+  }
+  return stars||'⭐⭐⭐⭐⭐';
+}
+
+// ── إعادة حساب متوسط تقييم سائق من كل طلباته ──
+async function recalcDriverRating(driverDocId, driverUname){
+  if(!window.db) return;
+  try {
+    const { getDocs: gd, query: q2, collection: c2, where: w2 } =
+      await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js");
+    const snap = await gd(q2(c2(window.db,"orders"), w2("driverUname","==",driverUname), w2("driverRating",">",0)));
+    if(snap.empty){ showToast('ℹ️ لا يوجد تقييمات لهذا السائق'); return; }
+    let total=0, count=0;
+    snap.forEach(d=>{ const r=d.data().driverRating; if(r>0){total+=r;count++;} });
+    const avg=Math.round((total/count)*10)/10;
+    await window._fbUpdateDriver(driverDocId,{ rating:avg, ratingCount:count });
+    showToast('✅ تقييم '+driverUname+': '+avg+' ⭐ من '+count+' تقييم');
+  } catch(e){ showToast('❌ خطأ: '+e.message); }
+}
+window.recalcDriverRating = recalcDriverRating;
+
 // ========= LOGIN — SECURE =========
 // كلمة السر مخزنة كـ SHA-256 hash — مش plain text
 // الباسورد الحالي: 123456  — غيّره من إعدادات الأدمن
@@ -1070,6 +1118,20 @@ function renderDash(){
   const nd=document.getElementById('notif-dot');
   nd.style.display=newC?'block':'none';
 
+  // متوسط تقييم السائقين وإجمالي التوصيلات
+  const drivers=getDrivers();
+  const ratedDrivers=drivers.filter(d=>d.rating&&d.ratingCount>0);
+  if(ratedDrivers.length){
+    const avgRating=ratedDrivers.reduce((s,d)=>s+(d.rating||5),0)/ratedDrivers.length;
+    document.getElementById('k-avg-rating').textContent=avgRating.toFixed(1)+' ⭐';
+    document.getElementById('k-rating-lbl').textContent='من '+ratedDrivers.length+' سائق مقيّم';
+  } else {
+    document.getElementById('k-avg-rating').textContent='—';
+    document.getElementById('k-rating-lbl').textContent='لا يوجد تقييمات بعد';
+  }
+  const totalDone=drivers.reduce((s,d)=>s+(d.orders||0),0);
+  document.getElementById('k-total-done').textContent=totalDone;
+
   // orders list
   const ol=document.getElementById('dash-orders');
   if(!orders.length){ol.innerHTML='<div class="empty-state"><div>📭</div>لا يوجد طلبات<br><button class="abtn grn" style="margin-top:10px" onclick="addDemoOrder()">➕ أضف طلب تجريبي</button></div>';return;}
@@ -1091,7 +1153,7 @@ function renderDash(){
       <div class="dr-av">🛵</div>
       <div class="dr-info">
         <div class="dr-name">${d.fname} ${d.lname}</div>
-        <div class="dr-sub">${d.orders||0} طلب | ⭐ ${d.rating||5} ${d.online&&d.lat?'| 📍 مباشر':''}</div>
+        <div class="dr-sub">${d.orders||0} طلب | ${_starRating(d.rating)} ${(d.rating||5.0).toFixed(1)}${d.ratingCount?' ('+d.ratingCount+'تقييم)':''} ${d.online&&d.lat?'| 📍 مباشر':''}</div>
       </div>
       <div class="${d.online?'status-dot dot-on':'status-dot dot-off'}"></div>
     </div>`).join('');
@@ -1217,8 +1279,8 @@ function renderDrivers(){
         </div>
         <div class="d-stat"><span>المنطقة</span><span>${d.area}</span></div>
         <div class="d-stat"><span>المركبة</span><span>${d.vtype}</span></div>
-        <div class="d-stat"><span>إجمالي الطلبات</span><span>${d.orders||0}</span></div>
-        <div class="d-stat"><span>التقييم</span><span>⭐ ${d.rating||5}</span></div>
+        <div class="d-stat"><span>إجمالي الطلبات</span><span style="color:var(--or);font-weight:900">${d.orders||0} طلب</span></div>
+        <div class="d-stat"><span>التقييم</span><span>${_starRating(d.rating)} ${(d.rating||5.0).toFixed(1)} ${d.ratingCount?'<span style="font-size:11px;color:var(--tm)">(' + d.ratingCount + ' تقييم)</span>':''}</span></div>
         ${d.online && d.lat ? `<div class="d-stat"><span>آخر موقع</span><span style="color:var(--green)">🟢 مباشر</span></div>` : ''}
         <div class="dcard-btns">
           <button class="abtn bl" style="flex:1" onclick="viewDriver('${d._docId||d.id}')">عرض</button>
@@ -1237,8 +1299,8 @@ function renderDrivers(){
       <td dir="ltr">${d.phone}</td>
       <td style="color:var(--tm)">${d.area}</td>
       <td><span class="badge ${d.status==='مفعل'?'b-done':'b-new'}">${d.status}</span></td>
-      <td style="font-weight:700">${d.orders}</td>
-      <td>⭐ ${d.rating}</td>
+      <td style="font-weight:700;color:var(--or)">${d.orders||0}</td>
+      <td><span style="font-weight:700">${_starRating(d.rating)} ${(d.rating||5.0).toFixed(1)}</span> ${d.ratingCount?'<span style="font-size:11px;color:var(--tm)">(' + d.ratingCount + ')</span>':''}</td>
       <td><div class="action-btns">
         <button class="abtn bl" onclick="viewDriver('${d.id}')">عرض</button>
         <button class="abtn ${d.status==='مفعل'?'gray':'grn'}" onclick="toggleDriverStatus('${d.id}')">${d.status==='مفعل'?'تعليق':'تفعيل'}</button>
@@ -1259,14 +1321,15 @@ function viewDriver(id){
     <div class="detail-row"><span>المركبة</span><span>${d.vtype}</span></div>
     <div class="detail-row"><span>رقم اللوحة</span><span dir="ltr">${d.plate||'—'}</span></div>
     <div class="detail-row"><span>اسم المستخدم</span><span dir="ltr">${d.uname}</span></div>
-    <div class="detail-row"><span>إجمالي الطلبات</span><span>${d.orders}</span></div>
-    <div class="detail-row"><span>التقييم</span><span>⭐ ${d.rating}</span></div>
+    <div class="detail-row"><span>إجمالي الطلبات</span><span style="font-weight:900;color:var(--or)">${d.orders||0} طلب مكتمل</span></div>
+    <div class="detail-row"><span>التقييم</span><span>${_starRating(d.rating)} ${(d.rating||5.0).toFixed(1)} ${d.ratingCount ? '(' + d.ratingCount + ' تقييم)' : '(لا يوجد تقييم بعد)'}</span></div>
     <div class="detail-row"><span>الحالة</span><span><span class="badge ${d.status==='مفعل'?'b-done':'b-new'}">${d.status}</span></span></div>
     <div class="detail-row"><span>أونلاين</span><span>${d.online?'🟢 نعم':'🔴 لا'}</span></div>`;
   const ac=document.getElementById('modal-driver-actions');
   ac.innerHTML=`
-    <button class="abtn ${d.status==='مفعل'?'gray':'grn'}" onclick="toggleDriverStatus('${d.id}');closeModal('driver-modal')">${d.status==='مفعل'?'⏸ تعليق':'▶ تفعيل'}</button>
-    <button class="abtn red" onclick="deleteDriver('${d.id}');closeModal('driver-modal')">🗑 حذف السائق</button>`;
+    <button class="abtn ${d.status==='مفعل'?'gray':'grn'}" onclick="toggleDriverStatus('${d._docId||d.id}');closeModal('driver-modal')">${d.status==='مفعل'?'⏸ تعليق':'▶ تفعيل'}</button>
+    <button class="abtn bl" onclick="recalcDriverRating('${d._docId}','${d.uname}')">⭐ إعادة حساب التقييم</button>
+    <button class="abtn red" onclick="deleteDriver('${d._docId||d.id}');closeModal('driver-modal')">🗑 حذف السائق</button>`;
   openModal('driver-modal');
 }
 
