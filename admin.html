@@ -171,9 +171,24 @@ onSnapshot(collection(db,"areas"), snap => {
   window._allAreas = [];
   snap.forEach(d => window._allAreas.push({id:d.id,...d.data()}));
   renderAreasTable();
-  // also update revenue calc
   if(typeof renderDash === 'function') renderDash();
 }, e => console.error("Areas:",e));
+
+// ── Admin Users CRUD ──
+window._allAdmins = [];
+onSnapshot(collection(db,"admins"), snap => {
+  window._allAdmins = [];
+  snap.forEach(d => window._allAdmins.push({_docId:d.id,...d.data()}));
+  if(typeof renderAdminsTable === 'function') renderAdminsTable();
+}, e => console.error("Admins:",e));
+
+window._fbAddAdmin = async (data) => {
+  const ref = doc(collection(db,"admins"));
+  await setDoc(ref, {...data, _docId:ref.id, createdAt: serverTimestamp()});
+  return ref.id;
+};
+window._fbUpdateAdmin = (docId, data) => updateDoc(doc(db,"admins",docId), data);
+window._fbDeleteAdmin = (docId)       => deleteDoc(doc(db,"admins",docId));
 
 window._firebaseReady = true;
 console.log("✅ Firebase Admin Ready");
@@ -409,6 +424,36 @@ tr:hover td{background:rgba(13,36,97,.02);}
 .pill-off{background:var(--gl);color:var(--tm);}
 .driver-location{font-size:11px;color:var(--tm);margin-top:3px;}
 
+/* ===== ADMINS PAGE ===== */
+.admins-page-wrap{max-width:900px;}
+.perm-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
+.perm-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1.5px solid var(--gm);border-radius:10px;cursor:pointer;transition:.2s;background:#fff;}
+.perm-item:hover{border-color:var(--or);background:var(--or-pale);}
+.perm-item input[type=checkbox]{width:16px;height:16px;accent-color:var(--or);cursor:pointer;flex-shrink:0;}
+.perm-item label{font-size:13px;font-weight:600;cursor:pointer;flex:1;}
+.perm-item .perm-desc{font-size:11px;color:var(--tm);margin-top:2px;}
+.admin-card{background:#fff;border:1.5px solid var(--gm);border-radius:14px;padding:1.25rem;position:relative;transition:.2s;}
+.admin-card:hover{border-color:var(--or);box-shadow:0 4px 16px rgba(255,107,0,.1);}
+.admin-card-top{display:flex;align-items:center;gap:12px;margin-bottom:1rem;}
+.admin-avatar{width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,var(--or),var(--or2));display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;font-weight:900;flex-shrink:0;}
+.admin-name{font-size:15px;font-weight:800;color:var(--tx);}
+.admin-role{font-size:12px;color:var(--tm);margin-top:2px;}
+.admin-perms{display:flex;flex-wrap:wrap;gap:5px;margin-top:.75rem;}
+.perm-tag{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:8px;font-size:11px;font-weight:700;background:var(--or-pale);color:var(--or);}
+.admin-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-top:1.25rem;}
+.admin-super-badge{position:absolute;top:12px;left:12px;background:linear-gradient(135deg,#7C3AED,#A78BFA);color:#fff;font-size:10px;font-weight:800;padding:3px 9px;border-radius:8px;letter-spacing:.3px;}
+.role-select-wrap{margin-bottom:1rem;}
+.role-select-wrap label{display:block;font-size:12px;font-weight:700;color:var(--tm);margin-bottom:5px;}
+.add-admin-form{background:var(--gl);border-radius:14px;padding:1.25rem;margin-bottom:1.5rem;border:1.5px solid var(--gm);}
+.add-admin-form h4{font-size:14px;font-weight:800;margin-bottom:1rem;color:var(--tx);}
+.perms-section{background:#fff;border-radius:12px;padding:1rem;border:1.5px solid var(--gm);}
+.perms-section h5{font-size:12px;font-weight:700;color:var(--tm);margin-bottom:.75rem;text-transform:uppercase;letter-spacing:.4px;}
+.perm-all-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1.5px solid var(--gm);margin-bottom:8px;}
+.perm-all-row label{font-size:13px;font-weight:700;color:var(--tx);}
+.role-preset-btns{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1rem;}
+.rp-btn{background:#fff;border:1.5px solid var(--gm);color:var(--tm);padding:6px 12px;border-radius:9px;font-family:'Cairo',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:.2s;}
+.rp-btn:hover{border-color:var(--or);color:var(--or);}
+.rp-btn.active{background:var(--or);border-color:var(--or);color:#fff;}
 </style>
 
 </head>
@@ -442,6 +487,8 @@ tr:hover td{background:rgba(13,36,97,.02);}
       <div class="sb-sec">الإدارة</div>
       <a onclick="nav('drivers')"><span class="ico">🛵</span>السائقين</a>
       <a onclick="nav('add-driver')"><span class="ico">➕</span>إضافة سائق</a>
+      <div class="sb-sec">النظام</div>
+      <a onclick="nav('admins')" id="nav-admins"><span class="ico">👥</span>المستخدمين والصلاحيات</a>
       <a onclick="nav('settings')"><span class="ico">⚙️</span>الإعدادات</a>
     </nav>
     <div class="sb-footer">
@@ -620,7 +667,149 @@ tr:hover td{background:rgba(13,36,97,.02);}
         </div>
       </div>
 
+      <!-- ========== ADMINS PAGE ========== -->
+      <div id="page-admins" class="page">
+        <div class="admins-page-wrap">
+          <div class="page-hd">
+            <h2>👥 المستخدمين والصلاحيات</h2>
+          </div>
+
+          <!-- ── نموذج إضافة أدمن جديد ── -->
+          <div class="add-admin-form">
+            <h4>➕ إضافة مستخدم أدمن جديد</h4>
+            <div class="fr2" style="margin-bottom:.85rem;">
+              <div class="fg">
+                <label class="fl">الاسم الكامل *</label>
+                <input class="fi" id="adm-name" type="text" placeholder="مثال: محمود أحمد"/>
+              </div>
+              <div class="fg">
+                <label class="fl">اسم المستخدم *</label>
+                <input class="fi" id="adm-uname" type="text" placeholder="mahmoud_admin" dir="ltr" style="text-align:left"/>
+              </div>
+            </div>
+            <div class="fr2" style="margin-bottom:1rem;">
+              <div class="fg">
+                <label class="fl">كلمة السر *</label>
+                <input class="fi" id="adm-pass" type="password" placeholder="8 أحرف على الأقل"/>
+              </div>
+              <div class="fg">
+                <label class="fl">رقم التليفون</label>
+                <input class="fi" id="adm-phone" type="tel" placeholder="01XXXXXXXXX"/>
+              </div>
+            </div>
+
+            <!-- Role Presets -->
+            <div class="role-select-wrap">
+              <label>اختر دور جاهز (اختياري):</label>
+              <div class="role-preset-btns">
+                <button class="rp-btn" onclick="applyPreset('super')">👑 سوبر أدمن</button>
+                <button class="rp-btn" onclick="applyPreset('orders')">📋 مشرف طلبات</button>
+                <button class="rp-btn" onclick="applyPreset('drivers')">🛵 مشرف سائقين</button>
+                <button class="rp-btn" onclick="applyPreset('viewer')">👁 مشاهدة فقط</button>
+              </div>
+            </div>
+
+            <!-- Permissions -->
+            <div class="perms-section" style="margin-bottom:1rem;">
+              <h5>الصلاحيات</h5>
+              <div class="perm-all-row">
+                <label for="perm-all">تحديد الكل / إلغاء الكل</label>
+                <input type="checkbox" id="perm-all" onchange="toggleAllPerms(this.checked)"
+                  style="width:18px;height:18px;accent-color:var(--or);cursor:pointer"/>
+              </div>
+              <div class="perm-grid">
+                <div class="perm-item">
+                  <input type="checkbox" id="p-dash" value="dash"/>
+                  <label for="p-dash">
+                    <div>📊 عرض الداشبورد</div>
+                    <div class="perm-desc">إحصائيات وأرقام عامة</div>
+                  </label>
+                </div>
+                <div class="perm-item">
+                  <input type="checkbox" id="p-orders-view" value="orders_view"/>
+                  <label for="p-orders-view">
+                    <div>📋 عرض الطلبات</div>
+                    <div class="perm-desc">رؤية قائمة الطلبات</div>
+                  </label>
+                </div>
+                <div class="perm-item">
+                  <input type="checkbox" id="p-orders-edit" value="orders_edit"/>
+                  <label for="p-orders-edit">
+                    <div>✏️ تعديل الطلبات</div>
+                    <div class="perm-desc">قبول / رفض / تغيير الحالة</div>
+                  </label>
+                </div>
+                <div class="perm-item">
+                  <input type="checkbox" id="p-orders-delete" value="orders_delete"/>
+                  <label for="p-orders-delete">
+                    <div>🗑️ حذف الطلبات</div>
+                    <div class="perm-desc">حذف أي طلب من النظام</div>
+                  </label>
+                </div>
+                <div class="perm-item">
+                  <input type="checkbox" id="p-drivers-view" value="drivers_view"/>
+                  <label for="p-drivers-view">
+                    <div>🛵 عرض السائقين</div>
+                    <div class="perm-desc">رؤية بيانات السائقين</div>
+                  </label>
+                </div>
+                <div class="perm-item">
+                  <input type="checkbox" id="p-drivers-edit" value="drivers_edit"/>
+                  <label for="p-drivers-edit">
+                    <div>⚙️ إدارة السائقين</div>
+                    <div class="perm-desc">إضافة / تعديل / حذف</div>
+                  </label>
+                </div>
+                <div class="perm-item">
+                  <input type="checkbox" id="p-areas" value="areas"/>
+                  <label for="p-areas">
+                    <div>🗺️ إدارة المناطق</div>
+                    <div class="perm-desc">أسعار التوصيل والمناطق</div>
+                  </label>
+                </div>
+                <div class="perm-item">
+                  <input type="checkbox" id="p-offers" value="offers"/>
+                  <label for="p-offers">
+                    <div>📢 إدارة العروض</div>
+                    <div class="perm-desc">العروض اليومية للعملاء</div>
+                  </label>
+                </div>
+                <div class="perm-item">
+                  <input type="checkbox" id="p-admins" value="admins"/>
+                  <label for="p-admins">
+                    <div>👥 إدارة الأدمنز</div>
+                    <div class="perm-desc">إضافة / حذف مستخدمين</div>
+                  </label>
+                </div>
+                <div class="perm-item">
+                  <input type="checkbox" id="p-settings" value="settings"/>
+                  <label for="p-settings">
+                    <div>🔧 الإعدادات</div>
+                    <div class="perm-desc">إعدادات النظام العامة</div>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <button class="submit-driver-btn" onclick="saveAdmin()">💾 حفظ المستخدم</button>
+          </div>
+
+          <!-- ── قائمة الأدمنز ── -->
+          <div class="card">
+            <div class="card-hd">
+              <h3>المستخدمين المسجلين (<span id="admins-count">0</span>)</h3>
+            </div>
+            <div class="admin-grid" id="admins-grid">
+              <div class="empty-state"><div>👥</div>لا يوجد مستخدمين مضافين</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- ========== SETTINGS ========== -->
+      <div id="page-settings" class="page">
+       <div class="page-hd"><h2>⚙️ الإعدادات</h2></div>
+       <div class="settings-grid">
      <div class="setting-card" style="grid-column: span 2;">
   <h3>⚙️ إدارة المناطق وأسعار التوصيل</h3>
   
@@ -681,13 +870,6 @@ tr:hover td{background:rgba(13,36,97,.02);}
             <div class="toggle-row"><span class="toggle-lbl">📦 شحن طرود</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
             <div class="toggle-row"><span class="toggle-lbl">🚗 مشاوير خاصة</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
           </div>
-        </div>
-      </div>
-
-    </div><!-- content -->
-  </div><!-- main -->
-</div><!-- app -->
-<!-- بطاقة التحكم في العرض اليومي للعملاء -->
           <div class="setting-card">
             <h3>📢 العرض اليومي للعملاء</h3>
             <div style="background: var(--or-pale); border: 1px solid rgba(255,107,0,.2); border-radius: 10px; padding: 10px 14px; font-size: 12px; color: #92400E; margin-bottom: 1rem; line-height: 1.7;">
@@ -703,6 +885,12 @@ tr:hover td{background:rgba(13,36,97,.02);}
             </div>
             <button class="save-btn" onclick="updateDailyOffer()">تحديث العرض الآن 🚀</button>
           </div>
+        </div><!-- settings-grid -->
+      </div><!-- page-settings -->
+
+    </div><!-- content -->
+  </div><!-- main -->
+</div><!-- app -->
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
@@ -816,7 +1004,7 @@ function doLogout(){
 }
 
 // ========= NAV =========
-const PAGE_NAMES={dash:'الرئيسية',orders:'إدارة الطلبات',drivers:'السائقين','add-driver':'إضافة سائق جديد',settings:'الإعدادات'};
+const PAGE_NAMES={dash:'الرئيسية',orders:'إدارة الطلبات',drivers:'السائقين','add-driver':'إضافة سائق جديد',admins:'المستخدمين والصلاحيات',settings:'الإعدادات'};
 function nav(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.sb-nav a').forEach(a=>a.classList.remove('act'));
@@ -1323,6 +1511,191 @@ async function changePass(){
   showToast('✅ تم التحديث — حدّث الكود بالـ hash الجديد: '+newHash.slice(0,16)+'...');
   console.log('New password hash (copy to code):', newHash);
 }
+
+// ════════════════════════════════════════════
+//  ADMINS MANAGEMENT
+// ════════════════════════════════════════════
+const ALL_PERMS = [
+  {id:'dash',        label:'📊 الداشبورد',        desc:'إحصائيات وأرقام'},
+  {id:'orders_view', label:'📋 عرض الطلبات',      desc:'رؤية قائمة الطلبات'},
+  {id:'orders_edit', label:'✏️ تعديل الطلبات',    desc:'قبول / رفض / تغيير'},
+  {id:'orders_delete',label:'🗑️ حذف الطلبات',    desc:'حذف من النظام'},
+  {id:'drivers_view',label:'🛵 عرض السائقين',     desc:'بيانات السائقين'},
+  {id:'drivers_edit',label:'⚙️ إدارة السائقين',  desc:'إضافة / تعديل / حذف'},
+  {id:'areas',       label:'🗺️ المناطق',           desc:'أسعار التوصيل'},
+  {id:'offers',      label:'📢 العروض',            desc:'العروض اليومية'},
+  {id:'admins',      label:'👥 إدارة الأدمنز',    desc:'إضافة / حذف مستخدمين'},
+  {id:'settings',    label:'🔧 الإعدادات',         desc:'إعدادات النظام'},
+];
+
+const ROLE_PRESETS = {
+  super:   ALL_PERMS.map(p=>p.id),
+  orders:  ['dash','orders_view','orders_edit'],
+  drivers: ['dash','drivers_view','drivers_edit'],
+  viewer:  ['dash','orders_view','drivers_view'],
+};
+
+function getCheckedPerms(){
+  return ALL_PERMS.map(p=>p.id).filter(id=>{
+    const el=document.getElementById('p-'+id); return el&&el.checked;
+  });
+}
+function setCheckedPerms(perms){
+  ALL_PERMS.forEach(p=>{
+    const el=document.getElementById('p-'+p.id);
+    if(el) el.checked=perms.includes(p.id);
+  });
+  const all=document.getElementById('perm-all');
+  if(all) all.checked=perms.length===ALL_PERMS.length;
+}
+function toggleAllPerms(v){
+  ALL_PERMS.forEach(p=>{
+    const el=document.getElementById('p-'+p.id); if(el) el.checked=v;
+  });
+}
+function applyPreset(role){
+  document.querySelectorAll('.rp-btn').forEach(b=>b.classList.remove('active'));
+  event.target.classList.add('active');
+  setCheckedPerms(ROLE_PRESETS[role]||[]);
+}
+
+async function saveAdmin(){
+  const name  = document.getElementById('adm-name').value.trim();
+  const uname = document.getElementById('adm-uname').value.trim();
+  const pass  = document.getElementById('adm-pass').value.trim();
+  const phone = document.getElementById('adm-phone').value.trim();
+  const perms = getCheckedPerms();
+
+  if(!name||!uname||!pass){showToast('⚠️ اكمل الاسم واسم المستخدم وكلمة السر');return;}
+  if(pass.length<6){showToast('⚠️ كلمة السر 6 أحرف على الأقل');return;}
+  if(!perms.length){showToast('⚠️ اختر صلاحية واحدة على الأقل');return;}
+
+  // تحقق من عدم تكرار اسم المستخدم
+  const exists=(window._allAdmins||[]).find(a=>a.uname===uname);
+  if(exists){showToast('⚠️ اسم المستخدم مسجل بالفعل');return;}
+
+  const isSuper=perms.length===ALL_PERMS.length;
+  const newAdmin={
+    name, uname, pass, phone,
+    permissions: perms,
+    role: isSuper?'سوبر أدمن':perms.length<=2?'مشاهد':perms.includes('orders_edit')?'مشرف طلبات':'مشرف',
+    isSuper,
+    active: true,
+  };
+
+  if(!window._fbAddAdmin){showToast('⚠️ Firebase مش جاهز');return;}
+  try{
+    await window._fbAddAdmin(newAdmin);
+    // مسح الفورم
+    ['adm-name','adm-uname','adm-pass','adm-phone'].forEach(id=>document.getElementById(id).value='');
+    setCheckedPerms([]);
+    document.getElementById('perm-all').checked=false;
+    document.querySelectorAll('.rp-btn').forEach(b=>b.classList.remove('active'));
+    showToast('✅ تم إضافة المستخدم '+name+' بنجاح!');
+  }catch(e){showToast('❌ خطأ: '+e.message);}
+}
+
+function renderAdminsTable(){
+  const admins=window._allAdmins||[];
+  const grid=document.getElementById('admins-grid');
+  const cnt=document.getElementById('admins-count');
+  if(cnt) cnt.textContent=admins.length;
+  if(!grid) return;
+  if(!admins.length){
+    grid.innerHTML='<div class="empty-state" style="grid-column:span 3"><div>👥</div>لا يوجد مستخدمين مضافين<br><small style="color:var(--tl);margin-top:6px;display:block">أضف مستخدم جديد من الفورم بالأعلى</small></div>';
+    return;
+  }
+  grid.innerHTML=admins.map(a=>`
+    <div class="admin-card">
+      ${a.isSuper?'<div class="admin-super-badge">👑 سوبر أدمن</div>':''}
+      <div class="admin-card-top">
+        <div class="admin-avatar">${a.name?a.name[0]:'A'}</div>
+        <div style="flex:1;min-width:0">
+          <div class="admin-name">${a.name}</div>
+          <div class="admin-role">@${a.uname} · ${a.role||'أدمن'}</div>
+        </div>
+        <span class="badge ${a.active?'b-done':'b-cancel'}">${a.active?'✅ فعال':'⏸ موقوف'}</span>
+      </div>
+      <div class="admin-perms">
+        ${(a.permissions||[]).map(pid=>{
+          const p=ALL_PERMS.find(x=>x.id===pid);
+          return p?`<span class="perm-tag">${p.label}</span>`:'';
+        }).join('')}
+      </div>
+      <div class="dcard-btns" style="margin-top:.85rem;padding-top:.85rem;border-top:1px solid var(--gm);">
+        <button class="abtn bl" style="flex:1" onclick="editAdminPerms('${a._docId}')">✏️ تعديل</button>
+        <button class="abtn ${a.active?'gray':'grn'}" style="flex:1" onclick="toggleAdmin('${a._docId}',${a.active})">${a.active?'⏸ إيقاف':'▶ تفعيل'}</button>
+        <button class="abtn red" style="flex:1" onclick="deleteAdmin('${a._docId}','${a.name}')">🗑</button>
+      </div>
+    </div>`).join('');
+}
+window.renderAdminsTable = renderAdminsTable;
+
+async function toggleAdmin(docId, cur){
+  try{
+    await window._fbUpdateAdmin(docId,{active:!cur});
+    showToast(cur?'⏸ تم إيقاف المستخدم':'▶ تم تفعيل المستخدم');
+  }catch(e){showToast('❌ خطأ: '+e.message);}
+}
+
+async function deleteAdmin(docId, name){
+  if(!confirm('تأكيد حذف المستخدم: '+name+'؟'))return;
+  try{
+    await window._fbDeleteAdmin(docId);
+    showToast('🗑️ تم حذف '+name);
+  }catch(e){showToast('❌ خطأ: '+e.message);}
+}
+
+function editAdminPerms(docId){
+  const a=(window._allAdmins||[]).find(x=>x._docId===docId);
+  if(!a) return;
+  // ملء الفورم ببياناته
+  document.getElementById('adm-name').value  = a.name;
+  document.getElementById('adm-uname').value = a.uname;
+  document.getElementById('adm-pass').value  = '';
+  document.getElementById('adm-phone').value = a.phone||'';
+  setCheckedPerms(a.permissions||[]);
+  // تغيير زر الحفظ ليتحول لتحديث
+  const btn=document.querySelector('.add-admin-form .submit-driver-btn');
+  if(btn){
+    btn.textContent='💾 تحديث الصلاحيات';
+    btn.onclick=()=>updateAdminPerms(docId);
+  }
+  document.querySelector('.add-admin-form h4').textContent='✏️ تعديل: '+a.name;
+  document.querySelector('.add-admin-form').scrollIntoView({behavior:'smooth'});
+}
+
+async function updateAdminPerms(docId){
+  const perms=getCheckedPerms();
+  const pass=document.getElementById('adm-pass').value.trim();
+  const phone=document.getElementById('adm-phone').value.trim();
+  const isSuper=perms.length===ALL_PERMS.length;
+  const update={
+    permissions:perms, isSuper,
+    role:isSuper?'سوبر أدمن':perms.length<=2?'مشاهد':perms.includes('orders_edit')?'مشرف طلبات':'مشرف',
+  };
+  if(pass&&pass.length>=6) update.pass=pass;
+  if(phone) update.phone=phone;
+  try{
+    await window._fbUpdateAdmin(docId,update);
+    showToast('✅ تم تحديث الصلاحيات');
+    // إعادة الفورم لحالته الأصلية
+    ['adm-name','adm-uname','adm-pass','adm-phone'].forEach(id=>document.getElementById(id).value='');
+    setCheckedPerms([]);
+    const btn=document.querySelector('.add-admin-form .submit-driver-btn');
+    if(btn){btn.textContent='💾 حفظ المستخدم';btn.onclick=saveAdmin;}
+    document.querySelector('.add-admin-form h4').textContent='➕ إضافة مستخدم أدمن جديد';
+  }catch(e){showToast('❌ خطأ: '+e.message);}
+}
+
+// expose to window
+window.saveAdmin=saveAdmin;
+window.deleteAdmin=deleteAdmin;
+window.toggleAdmin=toggleAdmin;
+window.editAdminPerms=editAdminPerms;
+window.applyPreset=applyPreset;
+window.toggleAllPerms=toggleAllPerms;
+window.renderAdminsTable=renderAdminsTable;
 
 // Auto refresh every 30s
 setInterval(()=>{
