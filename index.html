@@ -593,17 +593,32 @@ function goOrder(type){
 
 // ===== SUBMIT ORDER — FIREBASE =====
 async function submitOrder(){
-// مثال لتعديل كائن الطلب قبل عمل addDoc أو السيف في الكلاينت:
-const areaSelect = document.getElementById('order-area-select').value;
-const addressDetails = document.getElementById('order-address-details').value;
-const selectedOption = document.getElementById('order-area-select').options[document.getElementById('order-area-select').selectedIndex];
-const deliveryCost = parseFloat(selectedOption.dataset.price || 0);
+async function sendOrder(){
+  // 1. جلب العناصر من الواجهة
+  const name = document.getElementById('order-name').value.trim();
+  const phone = document.getElementById('order-phone').value.trim();
+  const areaSelect = document.getElementById('order-area-select');
+  const addressDetails = document.getElementById('order-address').value.trim(); 
 
-const orderData = {
- 
-};
+  // 2. التأكد من أن العميل اختار منطقة صحيحة وليس الخيار الافتراضي فارغ القيمة ""
+  if (!areaSelect || areaSelect.value === "") {
+    alert('⚠️ برجاء اختيار منطقة التوصيل أولاً قبل تأكيد الطلب!');
+    areaSelect.focus(); // يضع مؤشر الماوس أو التحديد على القائمة المنسدلة لتنبيه العميل
+    return; // يوقف الدالة تماماً ويمنع إرسال الطلب للفايربيز
+  }
 
+  // 3. التحقق من باقي الحقول الأساسية
+  if (!name || !phone || !addressDetails) {
+    alert('⚠️ برجاء ملء جميع الحقول المطلوبة (الاسم، الهاتف، وتفاصيل العنوان)');
+    return;
+  }
 
+  // جلب البيانات الخاصة بالمنطقة والسعر المحددين
+  const selectedAreaName = areaSelect.value;
+  const selectedOption = areaSelect.options[areaSelect.selectedIndex];
+  const deliveryCost = parseFloat(selectedOption ? selectedOption.dataset.price : 0) || 0;
+
+  
   
   const type  = document.getElementById('otype').value.trim();
   const place = document.getElementById('oplace').value.trim();
