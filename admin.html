@@ -105,7 +105,7 @@ function renderAreasTable() {
   tbody.innerHTML = allAreas.map(area => `
     <tr>
       <td style="font-weight:600">${area.name}</td>
-      <td><strong>${area.price} جم</strong></td>
+      <td><strong style="color:var(--or)">${area.price} جم</strong></td>
       <td>
         <span class="badge ${area.visible ? 'b-done' : 'b-cancel'}">
           ${area.visible ? '🟢 ظاهر' : '❌ مخفي'}
@@ -113,8 +113,9 @@ function renderAreasTable() {
       </td>
       <td>
         <div class="action-btns">
+          <button class="abtn bl" onclick="openEditArea('${area.id}','${area.name}',${area.price})">✏️ تعديل</button>
           <button class="abtn ${area.visible ? 'gray' : 'grn'}" onclick="toggleAreaVisibility('${area.id}', ${area.visible})">
-            ${area.visible ? 'إخفاء 👁️‍عو' : 'إظهار 👁️'}
+            ${area.visible ? 'إخفاء' : 'إظهار'}
           </button>
           <button class="abtn red" onclick="deleteArea('${area.id}')">حذف</button>
         </div>
@@ -423,10 +424,10 @@ tr:hover td{background:rgba(13,36,97,.02);}
     <div class="login-title">المتميز</div>
     <div class="login-sub">لوحة تحكم الأدمن</div>
     <input type="text" id="l-user" placeholder="اسم المستخدم"/>
-    <input type="password" id="l-pass" placeholder="كلمة السر"/>
+    <div style="position:relative;"><input type="password" id="l-pass" placeholder="كلمة السر" style="padding-left:44px;"/><button type="button" id="eye-btn" onclick="togglePass()" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;color:#9AAAC0;padding:0;">👁</button></div>
     <button class="login-btn" onclick="doLogin()">دخول ➜</button>
     <div id="l-err" class="login-err">❌ بيانات غلط، حاول تاني</div>
-    <div class="login-hint">اسم المستخدم: admin &nbsp;|&nbsp; كلمة السر: 123456</div>
+    
   </div>
 </div>
 
@@ -476,7 +477,7 @@ tr:hover td{background:rgba(13,36,97,.02);}
           <div class="kpi"><div class="kpi-icon or">📋</div><div><div class="kpi-num" id="k-total">0</div><div class="kpi-lbl">إجمالي الطلبات</div><div class="kpi-sub" id="k-new-lbl"></div></div></div>
           <div class="kpi"><div class="kpi-icon gr">✅</div><div><div class="kpi-num" id="k-done">0</div><div class="kpi-lbl">تم التوصيل</div><div class="kpi-sub">اليوم</div></div></div>
           <div class="kpi"><div class="kpi-icon bl">🛵</div><div><div class="kpi-num" id="k-active">0</div><div class="kpi-lbl">جاري التوصيل</div><div class="kpi-sub">الآن</div></div></div>
-          <div class="kpi"><div class="kpi-icon yl">💰</div><div><div class="kpi-num" id="k-rev">0 جم</div><div class="kpi-lbl">إيرادات اليوم</div><div class="kpi-sub">25 جم / طلب</div></div></div>
+          <div class="kpi"><div class="kpi-icon yl">💰</div><div><div class="kpi-num" id="k-rev">0 جم</div><div class="kpi-lbl">إيرادات اليوم</div><div class="kpi-sub">حسب سعر المنطقة</div></div></div>
         </div>
 
         <div class="dash-grid">
@@ -751,6 +752,7 @@ async function sha256(str){
   return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 
+function togglePass(){const i=document.getElementById('l-pass'),b=document.getElementById('eye-btn');if(!i||!b)return;if(i.type==='password'){i.type='text';b.textContent='🙈';}else{i.type='password';b.textContent='👁';}}
 async function doLogin(){
   const now = Date.now();
   if(now < lockUntil){
@@ -774,7 +776,7 @@ async function doLogin(){
   
   // التحقق: اسم المستخدم "admin" وكلمة السر "123456"
   // لتغيير كلمة السر: شغّل في console المتصفح: crypto.subtle.digest('SHA-256', new TextEncoder().encode('كلمة_سرك')).then(b=>console.log(Array.from(new 
-  const validPass = passHash === await sha256('123456');
+  const validPass = passHash === await sha256('3042003');
 
   if(validUser && validPass){
     loginAttempts = 0;
@@ -866,7 +868,17 @@ function renderDash(){
   document.getElementById('k-total').textContent=orders.length;
   document.getElementById('k-done').textContent=done;
   document.getElementById('k-active').textContent=active;
-  document.getElementById('k-rev').textContent=(done*25)+' جم';
+  document.getElementById('k-rev').textContent=(()=>{
+    const orders=getOrders();
+    const todayDone=orders.filter(o=>o.status==='تم التوصيل');
+    let total=0;
+    todayDone.forEach(o=>{
+      // Try to get price from area, fallback to 25
+      const area=allAreas&&allAreas.find(a=>o.addr&&o.addr.includes(a.name));
+      total+=(area?parseFloat(area.price):25);
+    });
+    return total;
+  })()+' جم';
   document.getElementById('k-new-lbl').textContent=newC?newC+' طلب جديد ⬆':'';
   document.getElementById('new-count').textContent=newC;
   const nd=document.getElementById('notif-dot');
@@ -1305,7 +1317,7 @@ async function changePass(){
   const cf=document.getElementById('conf-pass').value;
   if(!cur||!nw||!cf){showToast('⚠️ اكمل كل الحقول');return;}
   const curHash=await sha256(cur);
-  const correctHash=await sha256('EMB@2025!port');
+  const correctHash=await sha256('3042003');
   if(curHash!==correctHash){showToast('❌ كلمة السر الحالية غلط');return;}
   if(nw!==cf){showToast('⚠️ كلمة السر الجديدة مش متطابقة');return;}
   if(nw.length<8){showToast('⚠️ كلمة السر لازم 8 أحرف على الأقل');return;}
@@ -1333,6 +1345,32 @@ window.addEventListener('load', () => {
   }
 });
 </script>
+
+<!-- EDIT AREA MODAL -->
+<div class="modal-bg" id="edit-area-modal" onclick="if(event.target===this)closeModal('edit-area-modal')">
+  <div class="modal">
+    <div class="modal-hd">
+      <h3>✏️ تعديل المنطقة</h3>
+      <button class="modal-close" onclick="closeModal('edit-area-modal')">✕</button>
+    </div>
+    <div class="fg" style="margin-bottom:1rem;">
+      <label class="fl">اسم المنطقة</label>
+      <input type="text" id="edit-area-name" class="fi" readonly
+        style="background:var(--gl);color:var(--tm);cursor:not-allowed;"/>
+    </div>
+    <div class="fg" style="margin-bottom:1.5rem;">
+      <label class="fl">سعر التوصيل (جم) *</label>
+      <input type="number" id="edit-area-price" class="fi" 
+        placeholder="أدخل السعر الجديد" min="1" max="500"
+        style="font-size:18px;font-weight:700;text-align:center;"/>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="save-btn" style="flex:1;padding:12px;" onclick="saveEditArea()">💾 حفظ التعديل</button>
+      <button class="cancel-btn" style="flex:1;padding:12px;" onclick="closeModal('edit-area-modal')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
 
