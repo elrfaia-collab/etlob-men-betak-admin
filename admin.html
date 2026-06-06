@@ -770,10 +770,8 @@ async function doLogin(){
   }
 
   const passHash = await sha256(p);
-  // التحقق: اسم المستخدم "admin" وكلمة السر "123456"
-  // لتغيير كلمة السر: شغّل في console المتصفح: crypto.subtle.digest('SHA-256', new TextEncoder().encode('كلمة_سرك')).then(b=>console.log(Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('')))
-  const validUser = u === 'admin';
-  const validPass = passHash === await sha256('123456');
+  
+  const validPass = passHash === await sha256('3042003');
 
   if(validUser && validPass){
     loginAttempts = 0;
