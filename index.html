@@ -75,6 +75,7 @@ window.updateDeliveryPrice = function() {
   };
   window.fbUpdateDoc = updateDoc;
   window.fbDoc = doc;
+  window.fbGetDoc = getDoc;
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
   window.db = db;
@@ -267,6 +268,8 @@ textarea{resize:vertical;min-height:90px;}
 .success-num{font-size:22px;font-weight:900;color:var(--or);margin-bottom:.5rem;}
 .success-msg{font-size:14px;color:var(--tm);margin-bottom:1.5rem;line-height:1.7;}
 .back-btn{background:var(--nv);color:#fff;border:none;padding:12px 28px;border-radius:12px;font-family:'Cairo',sans-serif;font-weight:700;font-size:14px;cursor:pointer;}
+.direct-track-btn{background:var(--or);color:#fff;border:none;padding:14px 28px;border-radius:12px;font-family:'Cairo',sans-serif;font-weight:700;font-size:15px;cursor:pointer;box-shadow:0 4px 15px rgba(255,107,0,0.3);margin-left:8px;}
+.direct-track-btn:hover{background:var(--or2);}
 
 /* TRACK */
 .track-pg{padding:1.5rem 1rem;max-width:580px;margin:0 auto;}
@@ -426,6 +429,14 @@ footer strong{color:var(--or);}
   }
   .fr {
     grid-template-columns: 1fr;
+  }
+  .direct-track-btn {
+    width: 100%;
+    margin-left: 0;
+    margin-top: 10px;
+  }
+  .back-btn {
+    width: 100%;
   }
 }
 
@@ -589,7 +600,10 @@ footer strong{color:var(--or);}
         <div class="success-ico">✅</div>
         <div class="success-num" id="success-order-num"></div>
         <div class="success-msg">تم استلام طلبك بنجاح!<br>هنتواصل معك على التليفون في أقرب وقت 🛵</div>
-        <button class="back-btn" onclick="resetForm()">اطلب تاني</button>
+        <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;">
+          <button class="direct-track-btn" id="direct-track-btn" onclick="redirectToTrack()">تتبع طلبك الآن مباشر 🔍</button>
+          <button class="back-btn" onclick="resetForm()">اطلب تاني</button>
+        </div>
       </div>
     </div>
   </div>
@@ -788,7 +802,7 @@ async function submitOrder(){
     document.getElementById('success-order-num').textContent = 'رقم طلبك: ' + orderNum;
     document.getElementById('order-success').classList.add('show');
 
-    // حفظ رقم الطلب للتتبع التلقائي
+    // حفظ رقم الطلب للتتبع التلقائي عند التوجيه
     sessionStorage.setItem('emb_track_id', orderNum);
 
   } catch(err) {
@@ -802,6 +816,17 @@ async function submitOrder(){
       btn.textContent = 'تأكيد الطلب ✅';
       btn.classList.remove('loading');
     }
+  }
+}
+
+// دالة التوجيه والتتبع التلقائي الفوري للعميل دون الحاجة لنسخ الكود
+function redirectToTrack() {
+  const currentTrackId = sessionStorage.getItem('emb_track_id');
+  if (currentTrackId) {
+    go('track');
+    const tInput = document.getElementById('tinput');
+    if (tInput) tInput.value = currentTrackId;
+    doTrack();
   }
 }
 
@@ -1088,6 +1113,7 @@ async function submitRating(){
 // ── حساب متوسط تقييم السائق وتحديثه تلقائياً في Firestore ──
 async function _recalcAndUpdateDriverRating(){
   try {
+    if(!window.fbGetDoc) return;
     const orderSnap = await window.fbGetDoc(window.fbDoc(window.db,'orders',window._currentTrackDocId));
     if(!orderSnap.exists()) return;
     const driverUname = orderSnap.data().driverUname;
