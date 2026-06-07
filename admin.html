@@ -484,7 +484,7 @@ tr:hover td{background:rgba(13,36,97,.02);}
     <div class="login-title">المتميز</div>
     <div class="login-sub">لوحة تحكم الأدمن</div>
     <input type="text" id="l-user" placeholder="اسم المستخدم"/>
-    <div style="position:relative;"><input type="password" id="l-pass" placeholder="كلمة السر" style="padding-left:44px;"/><button type="button" id="eye-btn" onclick="togglePass()" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;color:#9AAAC0;padding:0;">👁</button></div>
+    <div style="position:relative;"><input type="password" id="l-pass" placeholder="كلمة السر" style="padding-left:44px;"/><button type="button" id="eye-btn" onclick="togglePass()" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;color:#9AAAC0;padding:4px;line-height:1;outline:none;">👁</button></div>
     <button class="login-btn" onclick="doLogin()">دخول ➜</button>
     <div id="l-err" class="login-err">❌ بيانات غلط، حاول تاني</div>
     
@@ -986,7 +986,18 @@ async function sha256(str){
   return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 
-function togglePass(){const i=document.getElementById('l-pass'),b=document.getElementById('eye-btn');if(!i||!b)return;if(i.type==='password'){i.type='text';b.textContent='🙈';}else{i.type='password';b.textContent='👁';}}
+function togglePass(){
+  const i = document.getElementById('l-pass');
+  const b = document.getElementById('eye-btn');
+  if(!i || !b) return;
+  if(i.type === 'password'){
+    i.type = 'text';
+    b.textContent = '🙈';
+  } else {
+    i.type = 'password';
+    b.textContent = '👁';
+  }
+}
 async function doLogin(){
   const now = Date.now();
   if(now < lockUntil){
@@ -1008,9 +1019,7 @@ async function doLogin(){
 
   
   
-  // التحقق: اسم المستخدم "admin" وكلمة السر "123456"
-  // لتغيير كلمة السر: شغّل في console المتصفح: crypto.subtle.digest('SHA-256', new TextEncoder().encode('كلمة_سرك')).then(b=>console.log(Array.from(new 
-const passHash = await sha256(p);
+    const passHash = await sha256(p);
   const validUser = u === 'admin';
   const validPass = passHash === await sha256('3042003');
 
