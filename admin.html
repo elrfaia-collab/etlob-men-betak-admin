@@ -190,6 +190,30 @@ window._fbAddAdmin = async (data) => {
 window._fbUpdateAdmin = (docId, data) => updateDoc(doc(db,"admins",docId), data);
 window._fbDeleteAdmin = (docId)       => deleteDoc(doc(db,"admins",docId));
 
+// ── Shops & Menu Categories ──
+window._allShops = [];
+window._allMenuCategories = [];
+
+onSnapshot(query(collection(db,"menu_categories"), orderBy("order","asc")), snap => {
+  window._allMenuCategories = [];
+  snap.forEach(d => window._allMenuCategories.push({id:d.id,...d.data()}));
+  if(typeof renderCatsTable==='function') renderCatsTable();
+  if(typeof renderShopsTable==='function') renderShopsTable();
+}, e => console.error("categories:",e));
+
+onSnapshot(collection(db,"shops"), snap => {
+  window._allShops = [];
+  snap.forEach(d => window._allShops.push({id:d.id,...d.data()}));
+  if(typeof renderShopsTable==='function') renderShopsTable();
+}, e => console.error("shops:",e));
+
+window._fbAddCat    = async (d)       => { const r=doc(collection(db,"menu_categories")); await setDoc(r,{...d,id:r.id}); return r.id; };
+window._fbUpdateCat = (id,d)          => updateDoc(doc(db,"menu_categories",id),d);
+window._fbDeleteCat = (id)            => deleteDoc(doc(db,"menu_categories",id));
+window._fbAddShop   = async (d)       => { const r=doc(collection(db,"shops")); await setDoc(r,{...d,id:r.id,offers:[]}); return r.id; };
+window._fbUpdateShop= (id,d)          => updateDoc(doc(db,"shops",id),d);
+window._fbDeleteShop= (id)            => deleteDoc(doc(db,"shops",id));
+
 window._firebaseReady = true;
 console.log("✅ Firebase Admin Ready");
 </script>
@@ -424,6 +448,51 @@ tr:hover td{background:rgba(13,36,97,.02);}
 .pill-off{background:var(--gl);color:var(--tm);}
 .driver-location{font-size:11px;color:var(--tm);margin-top:3px;}
 
+/* ===== OFFERS SETTINGS ===== */
+.offers-settings-wrap{max-width:1000px;}
+.os-tabs{display:flex;gap:8px;margin-bottom:1.5rem;border-bottom:2px solid var(--gm);padding-bottom:1px;}
+.os-tab{padding:10px 18px;border-radius:10px 10px 0 0;font-size:13px;font-weight:700;cursor:pointer;color:var(--tm);transition:.2s;border:2px solid transparent;border-bottom:none;margin-bottom:-2px;}
+.os-tab:hover{color:var(--tx);background:var(--gl);}
+.os-tab.active{color:var(--or);border-color:var(--or);border-bottom-color:#fff;background:#fff;}
+.os-panel{display:none;}.os-panel.on{display:block;}
+.shops-admin-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-top:1rem;}
+.shop-admin-card{background:#fff;border:1.5px solid var(--gm);border-radius:16px;overflow:hidden;transition:.2s;}
+.shop-admin-card:hover{border-color:var(--or);box-shadow:0 4px 16px rgba(255,107,0,.1);}
+.shop-admin-card-top{
+  background:linear-gradient(135deg,var(--or-pale),#fff);
+  padding:1rem 1.25rem;
+  display:flex;align-items:center;gap:12px;
+  border-bottom:1.5px solid var(--gm);
+}
+.shop-admin-ico{width:48px;height:48px;border-radius:13px;background:rgba(255,107,0,.12);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;}
+.shop-admin-name{font-size:15px;font-weight:800;color:var(--tx);}
+.shop-admin-cat{font-size:11px;color:var(--tm);margin-top:2px;}
+.shop-admin-body{padding:1rem 1.25rem;}
+.shop-offers-count{display:inline-flex;align-items:center;gap:5px;background:var(--or-pale);color:var(--or);font-size:12px;font-weight:700;padding:3px 10px;border-radius:50px;margin-bottom:.85rem;}
+.shop-admin-btns{display:flex;gap:7px;}
+.add-shop-form,.add-cat-form{background:var(--gl);border-radius:14px;padding:1.25rem;margin-bottom:1.5rem;border:1.5px solid var(--gm);}
+.add-shop-form h4,.add-cat-form h4{font-size:14px;font-weight:800;margin-bottom:1rem;color:var(--tx);}
+.emoji-picker-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
+.ep-btn{width:34px;height:34px;border-radius:8px;border:1.5px solid var(--gm);background:#fff;font-size:18px;cursor:pointer;transition:.2s;display:flex;align-items:center;justify-content:center;}
+.ep-btn:hover{border-color:var(--or);background:var(--or-pale);}
+.ep-btn.sel{border-color:var(--or);background:var(--or-pale);}
+.offers-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:3000;display:none;align-items:center;justify-content:center;padding:1rem;}
+.offers-modal-overlay.on{display:flex;}
+.offers-modal{background:#fff;border-radius:20px;padding:1.75rem;width:100%;max-width:580px;max-height:90vh;overflow-y:auto;}
+.offers-modal-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1.5px solid var(--gm);}
+.offers-modal-hd h3{font-size:16px;font-weight:800;}
+.offer-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--gl);border-radius:12px;margin-bottom:8px;}
+.offer-row-ico{width:36px;height:36px;border-radius:10px;background:var(--or-pale);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.offer-row-info{flex:1;min-width:0;}
+.offer-row-name{font-size:13px;font-weight:700;color:var(--tx);}
+.offer-row-price{font-size:12px;color:var(--tm);margin-top:1px;}
+.offer-row-btns{display:flex;gap:5px;flex-shrink:0;}
+.cat-list{display:flex;flex-direction:column;gap:8px;}
+.cat-row{display:flex;align-items:center;gap:12px;padding:10px 14px;background:#fff;border:1.5px solid var(--gm);border-radius:12px;transition:.2s;}
+.cat-row:hover{border-color:var(--or);}
+.cat-row-ico{font-size:22px;width:36px;text-align:center;}
+.cat-row-name{flex:1;font-size:14px;font-weight:700;color:var(--tx);}
+.cat-row-btns{display:flex;gap:6px;}
 /* ===== ADMINS PAGE ===== */
 .admins-page-wrap{max-width:900px;}
 .perm-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
@@ -488,6 +557,7 @@ tr:hover td{background:rgba(13,36,97,.02);}
       <a onclick="nav('drivers')"><span class="ico">🛵</span>السائقين</a>
       <a onclick="nav('add-driver')"><span class="ico">➕</span>إضافة سائق</a>
       <div class="sb-sec">النظام</div>
+      <a onclick="nav('offers-settings')" id="nav-offers-settings"><span class="ico">🍽️</span>إعدادات العروض</a>
       <a onclick="nav('admins')" id="nav-admins"><span class="ico">👥</span>المستخدمين والصلاحيات</a>
       <a onclick="nav('settings')"><span class="ico">⚙️</span>الإعدادات</a>
     </nav>
@@ -664,6 +734,159 @@ tr:hover td{background:rgba(13,36,97,.02);}
             <button class="submit-driver-btn" onclick="saveDriver()">💾 حفظ السائق</button>
             <button class="cancel-btn" onclick="nav('drivers')">إلغاء</button>
           </div>
+        </div>
+      </div>
+
+      <!-- ========== OFFERS SETTINGS PAGE ========== -->
+      <div id="page-offers-settings" class="page">
+        <div class="offers-settings-wrap">
+          <div class="page-hd"><h2>🍽️ إعدادات العروض والقوائم</h2></div>
+
+          <!-- تابز -->
+          <div class="os-tabs">
+            <div class="os-tab active" onclick="switchOsTab('cats')">📂 التصنيفات</div>
+            <div class="os-tab" onclick="switchOsTab('shops')">🏪 المحلات</div>
+          </div>
+
+          <!-- ═══ تاب التصنيفات ═══ -->
+          <div class="os-panel on" id="os-panel-cats">
+            <div class="add-cat-form">
+              <h4>➕ إضافة تصنيف جديد</h4>
+              <div class="fr2" style="margin-bottom:.85rem">
+                <div class="fg">
+                  <label class="fl">اسم التصنيف *</label>
+                  <input class="fi" id="cat-name" type="text" placeholder="مثال: مطاعم، حلويات..."/>
+                </div>
+                <div class="fg">
+                  <label class="fl">الترتيب</label>
+                  <input class="fi" id="cat-order" type="number" placeholder="1" value="1"/>
+                </div>
+              </div>
+              <div class="fg" style="margin-bottom:.85rem">
+                <label class="fl">أيقونة التصنيف</label>
+                <input class="fi" id="cat-icon" type="text" placeholder="🍕" style="width:80px;display:inline-block;margin-left:10px"/>
+                <div class="emoji-picker-row" id="cat-emoji-picker">
+                  <button class="ep-btn" onclick="pickCatEmoji('🍕')">🍕</button>
+                  <button class="ep-btn" onclick="pickCatEmoji('🍔')">🍔</button>
+                  <button class="ep-btn" onclick="pickCatEmoji('🌯')">🌯</button>
+                  <button class="ep-btn" onclick="pickCatEmoji('🍗')">🍗</button>
+                  <button class="ep-btn" onclick="pickCatEmoji('🥗')">🥗</button>
+                  <button class="ep-btn" onclick="pickCatEmoji('🍰')">🍰</button>
+                  <button class="ep-btn" onclick="pickCatEmoji('🧁')">🧁</button>
+                  <button class="ep-btn" onclick="pickCatEmoji('☕')">☕</button>
+                  <button class="ep-btn" onclick="pickCatEmoji('🧃')">🧃</button>
+                  <button class="ep-btn" onclick="pickCatEmoji('💊')">💊</button>
+                  <button class="ep-btn" onclick="pickCatEmoji('🛒')">🛒</button>
+                  <button class="ep-btn" onclick="pickCatEmoji('🏪')">🏪</button>
+                </div>
+              </div>
+              <button class="sub-btn" onclick="addCategory()" style="padding:10px 24px;font-size:13px;width:auto">➕ إضافة</button>
+            </div>
+
+            <div class="card">
+              <div class="card-hd"><h3>التصنيفات الحالية (<span id="cats-count">0</span>)</h3></div>
+              <div class="cat-list" id="cats-list">
+                <div class="empty-state"><div>📂</div>لا توجد تصنيفات بعد</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ═══ تاب المحلات ═══ -->
+          <div class="os-panel" id="os-panel-shops">
+            <div class="add-shop-form">
+              <h4>➕ إضافة محل جديد</h4>
+              <div class="fr2" style="margin-bottom:.85rem">
+                <div class="fg">
+                  <label class="fl">اسم المحل *</label>
+                  <input class="fi" id="shop-name" type="text" placeholder="مثال: كنتاكي فرع الجامعة"/>
+                </div>
+                <div class="fg">
+                  <label class="fl">التصنيف</label>
+                  <select class="fi" id="shop-cat">
+                    <option value="">— بدون تصنيف —</option>
+                  </select>
+                </div>
+              </div>
+              <div class="fr2" style="margin-bottom:.85rem">
+                <div class="fg">
+                  <label class="fl">وصف المحل</label>
+                  <input class="fi" id="shop-desc" type="text" placeholder="وصف مختصر للمحل"/>
+                </div>
+                <div class="fg">
+                  <label class="fl">تاج (اختياري)</label>
+                  <input class="fi" id="shop-tag" type="text" placeholder="مثال: الأكثر طلباً"/>
+                </div>
+              </div>
+              <div class="fg" style="margin-bottom:1rem">
+                <label class="fl">أيقونة المحل</label>
+                <input class="fi" id="shop-icon" type="text" placeholder="🏪" style="width:80px;display:inline-block;margin-left:10px"/>
+                <div class="emoji-picker-row">
+                  <button class="ep-btn" onclick="pickShopEmoji('🍕')">🍕</button>
+                  <button class="ep-btn" onclick="pickShopEmoji('🍔')">🍔</button>
+                  <button class="ep-btn" onclick="pickShopEmoji('🌯')">🌯</button>
+                  <button class="ep-btn" onclick="pickShopEmoji('🍗')">🍗</button>
+                  <button class="ep-btn" onclick="pickShopEmoji('🥗')">🥗</button>
+                  <button class="ep-btn" onclick="pickShopEmoji('🍰')">🍰</button>
+                  <button class="ep-btn" onclick="pickShopEmoji('🧁')">🧁</button>
+                  <button class="ep-btn" onclick="pickShopEmoji('☕')">☕</button>
+                  <button class="ep-btn" onclick="pickShopEmoji('💊')">💊</button>
+                  <button class="ep-btn" onclick="pickShopEmoji('🛒')">🛒</button>
+                  <button class="ep-btn" onclick="pickShopEmoji('🏪')">🏪</button>
+                  <button class="ep-btn" onclick="pickShopEmoji('🍩')">🍩</button>
+                </div>
+              </div>
+              <button class="sub-btn" onclick="addShop()" style="padding:10px 24px;font-size:13px;width:auto">➕ إضافة المحل</button>
+            </div>
+
+            <div class="card">
+              <div class="card-hd"><h3>المحلات الحالية (<span id="shops-count">0</span>)</h3></div>
+              <div class="shops-admin-grid" id="shops-admin-grid">
+                <div class="empty-state"><div>🏪</div>لا توجد محلات بعد</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Offers Modal -->
+      <div class="offers-modal-overlay" id="offers-modal">
+        <div class="offers-modal">
+          <div class="offers-modal-hd">
+            <h3>🎁 عروض: <span id="offers-modal-shop-name"></span></h3>
+            <button class="modal-close" onclick="closeOffersModal()">✕</button>
+          </div>
+          <!-- إضافة عرض جديد -->
+          <div style="background:var(--gl);border-radius:12px;padding:1rem;margin-bottom:1.25rem;border:1.5px solid var(--gm)">
+            <div style="font-size:13px;font-weight:800;margin-bottom:.85rem;color:var(--tx)">➕ إضافة عرض جديد</div>
+            <div class="fr2" style="margin-bottom:.75rem">
+              <div class="fg">
+                <label class="fl">اسم العرض *</label>
+                <input class="fi" id="offer-name" type="text" placeholder="مثال: وجبة عائلية خاصة"/>
+              </div>
+              <div class="fg">
+                <label class="fl">أيقونة</label>
+                <input class="fi" id="offer-icon" type="text" placeholder="🎁" style="width:70px"/>
+              </div>
+            </div>
+            <div class="fg" style="margin-bottom:.75rem">
+              <label class="fl">وصف العرض</label>
+              <input class="fi" id="offer-desc" type="text" placeholder="تفاصيل العرض..."/>
+            </div>
+            <div class="fr2" style="margin-bottom:.75rem">
+              <div class="fg">
+                <label class="fl">السعر القديم (جم)</label>
+                <input class="fi" id="offer-old-price" type="number" placeholder="100"/>
+              </div>
+              <div class="fg">
+                <label class="fl">السعر الجديد (جم) *</label>
+                <input class="fi" id="offer-new-price" type="number" placeholder="75"/>
+              </div>
+            </div>
+            <button class="sub-btn" onclick="addOffer()" style="padding:9px 20px;font-size:13px;width:auto">➕ إضافة العرض</button>
+          </div>
+          <!-- قائمة العروض الحالية -->
+          <div style="font-size:13px;font-weight:700;color:var(--tm);margin-bottom:.75rem">العروض الحالية:</div>
+          <div id="offers-list"></div>
         </div>
       </div>
 
@@ -1004,7 +1227,7 @@ function doLogout(){
 }
 
 // ========= NAV =========
-const PAGE_NAMES={dash:'الرئيسية',orders:'إدارة الطلبات',drivers:'السائقين','add-driver':'إضافة سائق جديد',admins:'المستخدمين والصلاحيات',settings:'الإعدادات'};
+const PAGE_NAMES={dash:'الرئيسية',orders:'إدارة الطلبات',drivers:'السائقين','add-driver':'إضافة سائق جديد','offers-settings':'إعدادات العروض',admins:'المستخدمين والصلاحيات',settings:'الإعدادات'};
 function nav(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.sb-nav a').forEach(a=>a.classList.remove('act'));
@@ -1696,6 +1919,240 @@ window.editAdminPerms=editAdminPerms;
 window.applyPreset=applyPreset;
 window.toggleAllPerms=toggleAllPerms;
 window.renderAdminsTable=renderAdminsTable;
+
+// ════════════════════════════════════════════════════════
+//  OFFERS SETTINGS — Categories & Shops Management
+// ════════════════════════════════════════════════════════
+let _editingShopId = null;
+
+// ── تبديل التابز ──
+function switchOsTab(tab){
+  document.querySelectorAll('.os-tab').forEach((t,i)=>t.classList.toggle('active', (i===0&&tab==='cats')||(i===1&&tab==='shops')));
+  document.getElementById('os-panel-cats').classList.toggle('on', tab==='cats');
+  document.getElementById('os-panel-shops').classList.toggle('on', tab==='shops');
+  if(tab==='shops') populateShopCatSelect();
+}
+window.switchOsTab = switchOsTab;
+
+// ── اختيار إيموجي ──
+function pickCatEmoji(e){ document.getElementById('cat-icon').value=e; document.querySelectorAll('#cat-emoji-picker .ep-btn').forEach(b=>{b.classList.toggle('sel',b.textContent===e);}); }
+function pickShopEmoji(e){ document.getElementById('shop-icon').value=e; }
+window.pickCatEmoji  = pickCatEmoji;
+window.pickShopEmoji = pickShopEmoji;
+
+// ── ملء سيلكت تصنيف المحل ──
+function populateShopCatSelect(){
+  const sel = document.getElementById('shop-cat');
+  if(!sel) return;
+  const cats = window._allMenuCategories||[];
+  sel.innerHTML = '<option value="">— بدون تصنيف —</option>' +
+    cats.map(c=>`<option value="${c.id}">${c.icon||''} ${c.name}</option>`).join('');
+}
+
+// ════ CATEGORIES ════
+async function addCategory(){
+  const name  = document.getElementById('cat-name').value.trim();
+  const icon  = document.getElementById('cat-icon').value.trim() || '🏪';
+  const order = parseInt(document.getElementById('cat-order').value)||1;
+  if(!name){ showToast('⚠️ اكتب اسم التصنيف'); return; }
+  if(!window._fbAddCat){ showToast('⚠️ Firebase مش جاهز'); return; }
+  try{
+    await window._fbAddCat({ name, icon, order, visible:true });
+    showToast('✅ تم إضافة التصنيف: '+name);
+    document.getElementById('cat-name').value='';
+    document.getElementById('cat-icon').value='';
+  }catch(e){ showToast('❌ خطأ: '+e.message); }
+}
+window.addCategory = addCategory;
+
+async function toggleCatVisibility(id, cur){
+  try{ await window._fbUpdateCat(id,{visible:!cur}); showToast('✅ تم تحديث الحالة'); }
+  catch(e){ showToast('❌ خطأ: '+e.message); }
+}
+window.toggleCatVisibility = toggleCatVisibility;
+
+async function deleteCat(id){
+  if(!confirm('حذف التصنيف؟')) return;
+  try{ await window._fbDeleteCat(id); showToast('🗑️ تم الحذف'); }
+  catch(e){ showToast('❌ خطأ: '+e.message); }
+}
+window.deleteCat = deleteCat;
+
+function renderCatsTable(){
+  const list = document.getElementById('cats-list');
+  const cnt  = document.getElementById('cats-count');
+  const cats = window._allMenuCategories||[];
+  if(cnt) cnt.textContent = cats.length;
+  if(!list) return;
+  if(!cats.length){
+    list.innerHTML='<div class="empty-state"><div>📂</div>لا توجد تصنيفات</div>'; return;
+  }
+  list.innerHTML = cats.map(c=>`
+    <div class="cat-row">
+      <span class="cat-row-ico">${c.icon||'🏪'}</span>
+      <span class="cat-row-name">${c.name}</span>
+      <span class="badge ${c.visible!==false?'b-done':'b-cancel'}">${c.visible!==false?'ظاهر':'مخفي'}</span>
+      <div class="cat-row-btns">
+        <button class="abtn ${c.visible!==false?'gray':'grn'}" onclick="toggleCatVisibility('${c.id}',${c.visible!==false})">${c.visible!==false?'إخفاء':'إظهار'}</button>
+        <button class="abtn red" onclick="deleteCat('${c.id}')">🗑</button>
+      </div>
+    </div>`).join('');
+  populateShopCatSelect();
+}
+window.renderCatsTable = renderCatsTable;
+
+// ════ SHOPS ════
+async function addShop(){
+  const name = document.getElementById('shop-name').value.trim();
+  const cat  = document.getElementById('shop-cat').value;
+  const desc = document.getElementById('shop-desc').value.trim();
+  const tag  = document.getElementById('shop-tag').value.trim();
+  const icon = document.getElementById('shop-icon').value.trim()||'🏪';
+  if(!name){ showToast('⚠️ اكتب اسم المحل'); return; }
+  if(!window._fbAddShop){ showToast('⚠️ Firebase مش جاهز'); return; }
+  try{
+    await window._fbAddShop({ name, categoryId:cat||'', description:desc, tag, icon, visible:true, offers:[] });
+    showToast('✅ تم إضافة المحل: '+name);
+    ['shop-name','shop-desc','shop-tag','shop-icon'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  }catch(e){ showToast('❌ خطأ: '+e.message); }
+}
+window.addShop = addShop;
+
+async function toggleShopVisibility(id, cur){
+  try{ await window._fbUpdateShop(id,{visible:!cur}); showToast('✅ تم تحديث حالة المحل'); }
+  catch(e){ showToast('❌ خطأ: '+e.message); }
+}
+window.toggleShopVisibility = toggleShopVisibility;
+
+async function deleteShop(id){
+  if(!confirm('حذف المحل وكل عروضه؟')) return;
+  try{ await window._fbDeleteShop(id); showToast('🗑️ تم الحذف'); }
+  catch(e){ showToast('❌ خطأ: '+e.message); }
+}
+window.deleteShop = deleteShop;
+
+function renderShopsTable(){
+  const grid = document.getElementById('shops-admin-grid');
+  const cnt  = document.getElementById('shops-count');
+  const shops= window._allShops||[];
+  const cats = window._allMenuCategories||[];
+  if(cnt) cnt.textContent = shops.length;
+  if(!grid) return;
+  if(!shops.length){
+    grid.innerHTML='<div class="empty-state" style="grid-column:span 3"><div>🏪</div>لا توجد محلات بعد</div>'; return;
+  }
+  grid.innerHTML = shops.map(s=>{
+    const cat = cats.find(c=>c.id===s.categoryId);
+    const offersCount = (s.offers||[]).length;
+    const activeOffers = (s.offers||[]).filter(o=>o.active!==false).length;
+    return `<div class="shop-admin-card">
+      <div class="shop-admin-card-top">
+        <div class="shop-admin-ico">${s.icon||'🏪'}</div>
+        <div style="flex:1;min-width:0">
+          <div class="shop-admin-name">${s.name}</div>
+          <div class="shop-admin-cat">${cat?cat.icon+' '+cat.name:'بدون تصنيف'}</div>
+        </div>
+        <span class="badge ${s.visible!==false?'b-done':'b-cancel'}">${s.visible!==false?'ظاهر':'مخفي'}</span>
+      </div>
+      <div class="shop-admin-body">
+        <div style="font-size:12px;color:var(--tm);margin-bottom:.75rem">${s.description||'—'}</div>
+        <div class="shop-offers-count">🎁 ${activeOffers} عرض نشط من ${offersCount}</div>
+        <div class="shop-admin-btns">
+          <button class="abtn bl" style="flex:1" onclick="openOffersModal('${s.id}')">✏️ العروض</button>
+          <button class="abtn ${s.visible!==false?'gray':'grn'}" onclick="toggleShopVisibility('${s.id}',${s.visible!==false})">${s.visible!==false?'إخفاء':'إظهار'}</button>
+          <button class="abtn red" onclick="deleteShop('${s.id}')">🗑</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+window.renderShopsTable = renderShopsTable;
+
+// ════ OFFERS MODAL ════
+function openOffersModal(shopId){
+  _editingShopId = shopId;
+  const shop = (window._allShops||[]).find(s=>s.id===shopId);
+  if(!shop) return;
+  document.getElementById('offers-modal-shop-name').textContent = shop.name;
+  renderOffersList(shop.offers||[]);
+  document.getElementById('offers-modal').classList.add('on');
+}
+window.openOffersModal = openOffersModal;
+
+function closeOffersModal(){
+  document.getElementById('offers-modal').classList.remove('on');
+  _editingShopId = null;
+  ['offer-name','offer-icon','offer-desc','offer-old-price','offer-new-price'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+}
+window.closeOffersModal = closeOffersModal;
+
+function renderOffersList(offers){
+  const list = document.getElementById('offers-list');
+  if(!list) return;
+  if(!offers.length){
+    list.innerHTML='<div style="text-align:center;padding:1.5rem;color:var(--tm);font-size:13px">لا توجد عروض بعد — أضف أول عرض!</div>'; return;
+  }
+  list.innerHTML = offers.map((o,i)=>`
+    <div class="offer-row">
+      <div class="offer-row-ico">${o.icon||'🎁'}</div>
+      <div class="offer-row-info">
+        <div class="offer-row-name">${o.name}</div>
+        <div class="offer-row-price">${o.newPrice?o.newPrice+' جم':'بدون سعر'}${o.oldPrice?' (كان '+o.oldPrice+' جم)':''}</div>
+      </div>
+      <div class="offer-row-btns">
+        <button class="abtn ${o.active!==false?'gray':'grn'}" onclick="toggleOffer(${i})">${o.active!==false?'إخفاء':'إظهار'}</button>
+        <button class="abtn red" onclick="deleteOffer(${i})">🗑</button>
+      </div>
+    </div>`).join('');
+}
+
+async function addOffer(){
+  if(!_editingShopId){ showToast('⚠️ خطأ'); return; }
+  const name     = document.getElementById('offer-name').value.trim();
+  const icon     = document.getElementById('offer-icon').value.trim()||'🎁';
+  const desc     = document.getElementById('offer-desc').value.trim();
+  const oldPrice = parseFloat(document.getElementById('offer-old-price').value)||0;
+  const newPrice = parseFloat(document.getElementById('offer-new-price').value)||0;
+  if(!name){ showToast('⚠️ اكتب اسم العرض'); return; }
+  if(!newPrice){ showToast('⚠️ اكتب السعر الجديد'); return; }
+  const shop = (window._allShops||[]).find(s=>s.id===_editingShopId);
+  if(!shop) return;
+  const newOffer = { name, icon, description:desc, oldPrice:oldPrice||null, newPrice, active:true, id:'offer_'+Date.now() };
+  const offers = [...(shop.offers||[]), newOffer];
+  try{
+    await window._fbUpdateShop(_editingShopId, { offers });
+    showToast('✅ تم إضافة العرض: '+name);
+    renderOffersList(offers);
+    ['offer-name','offer-icon','offer-desc','offer-old-price','offer-new-price'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  }catch(e){ showToast('❌ خطأ: '+e.message); }
+}
+window.addOffer = addOffer;
+
+async function toggleOffer(index){
+  const shop = (window._allShops||[]).find(s=>s.id===_editingShopId);
+  if(!shop) return;
+  const offers = [...(shop.offers||[])];
+  offers[index] = {...offers[index], active: offers[index].active===false ? true : false};
+  try{
+    await window._fbUpdateShop(_editingShopId,{offers});
+    renderOffersList(offers);
+    showToast('✅ تم تحديث حالة العرض');
+  }catch(e){ showToast('❌ خطأ: '+e.message); }
+}
+window.toggleOffer = toggleOffer;
+
+async function deleteOffer(index){
+  if(!confirm('حذف العرض؟')) return;
+  const shop = (window._allShops||[]).find(s=>s.id===_editingShopId);
+  if(!shop) return;
+  const offers = (shop.offers||[]).filter((_,i)=>i!==index);
+  try{
+    await window._fbUpdateShop(_editingShopId,{offers});
+    renderOffersList(offers);
+    showToast('🗑️ تم حذف العرض');
+  }catch(e){ showToast('❌ خطأ: '+e.message); }
+}
+window.deleteOffer = deleteOffer;
 
 // Auto refresh every 30s
 setInterval(()=>{
