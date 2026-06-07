@@ -21,7 +21,7 @@ window.addEventListener('load', () => {
     if (!window.db) return;
     
     // جلب المناطق المحددة كـ visible فقط من قبل الأدمن
-    const q = fbQuery(fbCollection(window.db, "areas"), fbWhere("visible", "==", true));
+   const qCats = fbCollection(db, "menu_categories");
     
     fbOnSnapshot(q, (snapshot) => {
       clientAreas = [];
