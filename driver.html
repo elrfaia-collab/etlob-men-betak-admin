@@ -43,21 +43,18 @@
       cb(orders);
     }, err => {
       console.error('Available orders error:', err);
-      const el = document.getElementById('available-list');
-      if(el) el.innerHTML = `<div class="empty"><div class="big">⚠️</div><p style="color:#ef4444">خطأ في تحميل الطلبات<br><small>${err.message}</small></p></div>`;
+      alert('خطأ في تحميل الطلبات: ' + err.message + '\nافتح Firebase Console وأنشئ الـ Index المطلوب');
     });
   };
 
-  // ── الاستماع لطلبات السائق — بناءً على assignedTo = uname ──
-  window._listenMyOrders = (driverUname, cb) => {
-    const q = query(collection(db, "orders"), where("assignedTo", "==", driverUname));
+  // ── الاستماع لطلبات السائق الحالية ──
+  window._listenMyOrders = (driverName, cb) => {
+    const q = query(collection(db, "orders"), where("driverName", "==", driverName));
     return onSnapshot(q, snap => {
       const orders = snap.docs.map(d => ({ ...d.data(), _docId: d.id }));
       cb(orders);
     }, err => {
       console.error('My orders error:', err);
-      const el = document.getElementById('myorders-list');
-      if(el) el.innerHTML = `<div class="empty"><div class="big">⚠️</div><p style="color:#ef4444">خطأ في تحميل طلباتي<br><small>${err.message}</small></p></div>`;
     });
   };
 
@@ -72,44 +69,9 @@
     });
   };
 
-  // ── تحديث حالة طلب + زيادة عداد السائق عند الإتمام ──
-  window._updateOrderStatus = async (docId, status, driverDocId) => {
+  // ── تحديث حالة طلب ──
+  window._updateOrderStatus = async (docId, status) => {
     await updateDoc(doc(db, "orders", docId), { status });
-    // لما الطلب يتم التوصيل → زوّد عداد الطلبات على السائق
-    if(status === "تم التوصيل" && driverDocId) {
-      try {
-        const { increment } = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js");
-        await updateDoc(doc(db, "drivers", driverDocId), {
-          orders: increment(1)
-        });
-      } catch(e) { console.warn("orders increment failed:", e); }
-    }
-  };
-
-  // ── حساب متوسط تقييم السائق من كل الطلبات اللي عنده تقييم ──
-  window._recalcDriverRating = async (driverUname, driverDocId) => {
-    try {
-      const { getDocs, query: q2, collection: col2, where: w2 } =
-        await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js");
-      const snap = await getDocs(
-        q2(col2(db,"orders"),
-           w2("driverUname","==",driverUname),
-           w2("driverRating",">",0))
-      );
-      if(snap.empty) return;
-      let total = 0, count = 0;
-      snap.forEach(d => {
-        const r = d.data().driverRating;
-        if(r && r > 0){ total += r; count++; }
-      });
-      if(count === 0) return;
-      const avg = Math.round((total / count) * 10) / 10;
-      await updateDoc(doc(db, "drivers", driverDocId), {
-        rating: avg,
-        ratingCount: count
-      });
-      console.log("✅ تقييم السائق اتحدث:", avg, "من", count, "تقييم");
-    } catch(e){ console.warn("rating recalc failed:", e); }
   };
 
   // ── تحديث حالة السائق (أونلاين + موقع) ──
@@ -130,18 +92,6 @@
     return onSnapshot(collection(db, "drivers"), snap => {
       const drivers = snap.docs.map(d => ({ ...d.data(), _docId: d.id }));
       cb(drivers);
-    });
-  };
-
-  // ── تحديث order (للوكيشن) ──
-  window._fbUpdateOrder = async (docId, data) => {
-    await updateDoc(doc(db, "orders", docId), data);
-  };
-
-  // ── Listener على بيانات السائق نفسه لتحديث التقييم والطلبات فوراً ──
-  window._listenMyDriverData = (driverDocId, cb) => {
-    return onSnapshot(doc(db, "drivers", driverDocId), snap => {
-      if(snap.exists()) cb({ _docId: snap.id, ...snap.data() });
     });
   };
 
@@ -456,15 +406,10 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
     </div>
   </div>
 
-  <!-- Connection status -->
-  <div id="conn-bar" style="display:none;background:#dc2626;color:#fff;text-align:center;padding:6px;font-size:12px;font-weight:700">
-    ⚠️ جاري الاتصال بـ Firebase...
-  </div>
-
   <!-- Tabs -->
   <div class="tabs">
     <button class="tab on" onclick="nav('available')" id="tab-available">
-      📋 كل الطلبات
+      📋 طلبات جديدة
       <span class="tab-badge" id="badge-available" style="display:none">0</span>
     </button>
     <button class="tab" onclick="nav('myorders')" id="tab-myorders">
@@ -481,7 +426,7 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
       <div class="stat-card"><div class="stat-num blue" id="st-active">0</div><div class="stat-lbl">جارية</div></div>
       <div class="stat-card"><div class="stat-num green" id="st-done">0</div><div class="stat-lbl">مكتملة</div></div>
     </div>
-    <div class="sec-title">الطلبات الجديدة (يعينها الأدمن)</div>
+    <div class="sec-title">الطلبات الجديدة المتاحة</div>
     <div id="available-list"></div>
   </div>
 
@@ -602,16 +547,11 @@ function startApp() {
   document.getElementById('p-area').textContent = currentDriver.area || '—';
   document.getElementById('p-vtype').textContent = currentDriver.vtype || '—';
   document.getElementById('p-plate').textContent = currentDriver.plate || '—';
-  const rating = currentDriver.rating || 5.0;
-  const rCount = currentDriver.ratingCount || 0;
-  document.getElementById('p-rating').textContent = rating.toFixed(1) + ' ⭐' + (rCount ? ' (' + rCount + ' تقييم)' : '');
-  document.getElementById('p-orders').textContent = (currentDriver.orders || 0) + ' طلب مكتمل';
+  document.getElementById('p-rating').textContent = (currentDriver.rating || 5.0) + ' ⭐';
+  document.getElementById('p-orders').textContent = (currentDriver.orders || 0) + ' طلب';
 
   // Subscribe listeners
   listenOrders();
-
-  // Start GPS automatically so location is always fresh
-  if(isOnline) startGPS();
 }
 
 // ══════════════════════════════════════════════
@@ -633,34 +573,9 @@ function listenOrders() {
     updateStats();
   });
 
-  // ── Listener على بيانات السائق نفسه لتحديث التقييم والطلبات في real-time ──
-  if(window._listenMyDriverData && currentDriver._docId) {
-    window._listenMyDriverData(currentDriver._docId, freshData => {
-      // تحديث currentDriver بأحدث البيانات
-      Object.assign(currentDriver, freshData);
-      // تحديث الـ UI
-      const rating  = freshData.rating || 5.0;
-      const rCount  = freshData.ratingCount || 0;
-      const ordersN = freshData.orders || 0;
-      const rEl = document.getElementById('p-rating');
-      const oEl = document.getElementById('p-orders');
-      if(rEl) rEl.textContent = rating.toFixed(1) + ' ⭐' + (rCount ? ' (' + rCount + ' تقييم)' : '');
-      if(oEl) oEl.textContent = ordersN + ' طلب مكتمل';
-      // تحديث header stats لو موجودة
-      const statRating = document.getElementById('stat-rating');
-      const statOrders = document.getElementById('stat-orders');
-      if(statRating) statRating.textContent = rating.toFixed(1) + ' ⭐';
-      if(statOrders) statOrders.textContent = ordersN + ' طلب';
-    });
-  }
-
-  // My orders — بناءً على uname السائق
-  unsubMy = window._listenMyOrders(currentDriver.uname, orders => {
-    // كلما اتغير طلب — نفحص لو فيه تقييم جديد ونعيد حساب متوسط التقييم
-    const ratedOrders = orders.filter(o => o.driverRating && o.driverRating > 0);
-    if(ratedOrders.length > 0 && window._recalcDriverRating) {
-      window._recalcDriverRating(currentDriver.uname, currentDriver._docId);
-    }
+  // My orders
+  const fullName = currentDriver.fname + ' ' + currentDriver.lname;
+  unsubMy = window._listenMyOrders(fullName, orders => {
     // Sort by createdAt descending in JS
     myOrders = orders.sort((a,b) => {
       const ta = a.createdAt?.seconds || 0;
@@ -704,6 +619,7 @@ function renderAvailable() {
         ${o.details ? `<div class="oc-row"><span class="oc-ico">📝</span><div class="oc-info"><div class="oc-lbl">تفاصيل</div><div class="oc-val">${o.details}</div></div></div>` : ''}
       </div>
       <div class="oc-actions">
+        <button class="abtn accept" onclick="acceptOrder('${o._docId}','${o.id}')">✅ قبول</button>
         <button class="abtn wa" onclick="contactWA('${o.phone}')">💬 واتساب</button>
         <button class="abtn call" onclick="callClient('${o.phone}')">📞 اتصال</button>
       </div>
@@ -761,25 +677,6 @@ function renderMyOrders() {
 // ══════════════════════════════════════════════
 //  ACTIONS
 // ══════════════════════════════════════════════
-async function updateStatus(docId, orderId, status) {
-  if(!window._updateOrderStatus) { showToast('⚠️ Firebase مش جاهز'); return; }
-  try {
-    // مرر driverDocId عشان يتعمل increment لما الطلب يتم
-    const dDocId = currentDriver ? currentDriver._docId : null;
-    await window._updateOrderStatus(docId, status, dDocId);
-    showToast('✅ ' + orderId + ' → ' + status);
-
-    // لو الطلب اتم — حدّث الـ badge وإحسب التقييم من جديد
-    if(status === 'تم التوصيل') {
-      updateBadges();
-      // انتظر ثانية عشان الكلاينت يقدر يقيّم أول
-      // التقييم بيتحسب أوتوماتيك من listener على الـ orders
-    }
-  } catch(e) {
-    showToast('❌ خطأ: ' + e.message);
-  }
-}
-
 async function acceptOrder(docId, orderId) {
   if(!isOnline) { showToast('⚠️ أنت غير متاح دلوقتي'); return; }
   if(!window._acceptOrder) { showToast('⚠️ Firebase مش جاهز'); return; }
@@ -792,7 +689,15 @@ async function acceptOrder(docId, orderId) {
   }
 }
 
-async 
+async function updateStatus(docId, orderId, status) {
+  if(!window._updateOrderStatus) { showToast('⚠️ Firebase مش جاهز'); return; }
+  try {
+    await window._updateOrderStatus(docId, status);
+    showToast('✅ ' + orderId + ' → ' + status);
+  } catch(e) {
+    showToast('❌ خطأ: ' + e.message);
+  }
+}
 
 function contactWA(phone) {
   if(!phone) { showToast('⚠️ مفيش رقم'); return; }
@@ -849,7 +754,7 @@ function startGPS() {
       _currentLng = pos.coords.longitude;
       sendLocationToFirebase();
     }, err => console.log('GPS error:', err), { enableHighAccuracy: true });
-  }, 10000);
+  }, 30000);
 }
 
 function stopGPS() {
@@ -861,24 +766,14 @@ function stopGPS() {
 }
 
 function sendLocationToFirebase() {
-  if(!_currentLat || !_currentLng) return;
-
-  // 1. حدّث driver document دايماً
   if(isOnline && currentDriver?._docId && window._updateDriverStatus) {
     window._updateDriverStatus(currentDriver._docId, true, _currentLat, _currentLng);
   }
-
-  // 2. حدّث كل الطلبات المسندة للسائق ده بغض النظر عن الحالة
-  if(window._fbUpdateOrder) {
-    const assignedOrders = (myOrders||[]).filter(o =>
-      !['تم التوصيل','ملغي'].includes(o.status)
-    );
-    assignedOrders.forEach(o => {
-      if(o._docId) window._fbUpdateOrder(o._docId, {
-        driverLat: _currentLat,
-        driverLng: _currentLng,
-        driverUname: currentDriver.uname
-      });
+  // Also update active orders with driver location so client can see distance
+  if(_currentLat && _currentLng && window._fbUpdateOrder) {
+    const activeOrders = (myOrders||[]).filter(o => o.status === 'جاري التوصيل');
+    activeOrders.forEach(o => {
+      if(o._docId) window._fbUpdateOrder(o._docId, { driverLat: _currentLat, driverLng: _currentLng });
     });
   }
 }
