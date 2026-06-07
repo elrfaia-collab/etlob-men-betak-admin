@@ -21,7 +21,7 @@ window.addEventListener('load', () => {
     if (!window.db) return;
     
     // جلب المناطق المحددة كـ visible فقط من قبل الأدمن
-   const qCats = fbCollection(db, "menu_categories");
+    const q = fbQuery(fbCollection(window.db, "areas"), fbWhere("visible", "==", true));
     
     fbOnSnapshot(q, (snapshot) => {
       clientAreas = [];
@@ -99,8 +99,6 @@ window.updateDeliveryPrice = function() {
     });
   };
 // ── الاستماع للعروض اليومية من Firestore وتحديث الواجهة تلقائياً ──
-
-  console.log("Firestore Sync Started");
   try {
     const offerDocRef = doc(db, "offers", "daily_offer");
     onSnapshot(offerDocRef, (docSnap) => {
@@ -128,40 +126,7 @@ window.updateDeliveryPrice = function() {
   window._fbQuery = query;
   window._fbWhere = where;
   console.log("✅ Firebase Client Ready");
-// ── جلب أقسام المنيو والمحلات ديناميكياً من Firestore لتسمع من الأدمن ──
-try {
-  // 1. الاستماع للأقسام وتصنيفها بحسب الترتيب
-  const qCats = fbQuery(fbCollection(db, "menu_categories"), fbWhere("visible", "!=", false));
-  fbOnSnapshot(qCats, (snapshot) => {
-    window._allMenuCategories = [];
-    snapshot.forEach((docSnap) => {
-      window._allMenuCategories.push({ id: docSnap.id, ...docSnap.data() });
-    });
-    // إعادة ترتيب الأقسام بحسب حقل الترتيب order إن وجد
-    window._allMenuCategories.sort((a, b) => (a.order || 0) - (b.order || 0));
-    
-    // تحديث الواجهة إذا كان العميل واقف في صفحة المنيو
-    if (typeof renderMenuPage === 'function') renderMenuPage();
-  });
 
-  // 2. الاستماع للمحلات والعروض الخاصة بها
-  const qShops = fbCollection(db, "shops");
-  fbOnSnapshot(qShops, (snapshot) => {
-    window._allShops = [];
-    snapshot.forEach((docSnap) => {
-      const shopData = docSnap.data();
-      // جلب المحلات الظاهرة فقط
-      if (shopData.visible !== false) {
-        window._allShops.push({ id: docSnap.id, ...shopData });
-      }
-    });
-    
-    // تحديث واجهة المحلات فوراً عند حدوث أي تغيير في الأدمن
-    if (typeof renderMenuPage === 'function') renderMenuPage();
-  });
-} catch (error) {
-  console.error("خطأ أثناء مزامنة المحلات والعروض من قاعدة البيانات:", error);
-}
 </script>
 
 <style>
@@ -342,166 +307,6 @@ textarea{resize:vertical;min-height:90px;}
 .cont-sub{font-size:12px;color:var(--tm);margin-top:3px;word-break: break-all;}
 footer{background:var(--nv);padding:2rem 1rem;text-align:center;color:rgba(255,255,255,.6);font-size:13px;line-height:1.6;}
 footer strong{color:var(--or);}
-
-/* ═══════════════════ MENU / SHOPS PAGE ═══════════════════ */
-.menu-pg{padding:0 0 3rem;}
-
-/* شريط التصنيفات */
-.cat-tabs{
-  display:flex;gap:10px;overflow-x:auto;
-  padding:1.2rem 1.25rem;
-  background:#fff;
-  border-bottom:1.5px solid var(--gm);
-  position:sticky;top:64px;z-index:100;
-  scrollbar-width:none;
-}
-.cat-tabs::-webkit-scrollbar{display:none;}
-.cat-tab{
-  display:flex;flex-direction:column;align-items:center;gap:5px;
-  min-width:68px;padding:10px 12px;
-  background:var(--gl);
-  border:1.5px solid var(--gm);
-  border-radius:14px;cursor:pointer;transition:.2s;
-  flex-shrink:0;text-align:center;
-}
-.cat-tab:hover{border-color:var(--or);background:var(--or-pale);}
-.cat-tab.active{background:var(--or);border-color:var(--or);color:#fff;}
-.cat-tab.active .cat-tab-ico{filter:none;}
-.cat-tab-ico{font-size:26px;line-height:1;}
-.cat-tab-nm{font-size:11px;font-weight:700;white-space:nowrap;color:inherit;}
-.cat-tab:not(.active) .cat-tab-nm{color:var(--tm);}
-
-/* محتوى القائمة */
-.menu-content{padding:1.25rem;}
-.menu-sec-title{
-  font-size:17px;font-weight:900;color:var(--tx);
-  margin-bottom:1rem;padding-bottom:.6rem;
-  border-bottom:2px solid var(--or);
-  display:flex;align-items:center;gap:8px;
-}
-.shops-grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
-  gap:12px;margin-bottom:2rem;
-}
-.shop-card{
-  background:#fff;border:1.5px solid var(--gm);
-  border-radius:16px;overflow:hidden;
-  cursor:pointer;transition:.25s;
-  box-shadow:0 2px 8px rgba(0,0,0,.06);
-}
-.shop-card:hover{border-color:var(--or);transform:translateY(-3px);box-shadow:0 8px 24px rgba(255,107,0,.12);}
-.shop-card-img{
-  width:100%;height:90px;
-  background:linear-gradient(135deg,var(--or-pale),#fff);
-  display:flex;align-items:center;justify-content:center;
-  font-size:40px;
-  position:relative;overflow:hidden;
-}
-.shop-card-badge{
-  position:absolute;top:7px;right:7px;
-  background:var(--or);color:#fff;
-  font-size:9px;font-weight:800;
-  padding:2px 7px;border-radius:50px;
-  white-space:nowrap;
-}
-.shop-card-body{padding:10px 12px 12px;}
-.shop-card-name{font-size:13px;font-weight:800;color:var(--tx);margin-bottom:3px;}
-.shop-card-sub{font-size:11px;color:var(--tm);}
-.shop-card-tag{
-  display:inline-block;
-  background:var(--or-pale);color:var(--or);
-  font-size:10px;font-weight:700;
-  padding:2px 8px;border-radius:50px;margin-top:5px;
-}
-
-/* صفحة المحل الداخلية */
-.shop-pg{padding:0 0 3rem;}
-.shop-hero{
-  background:linear-gradient(135deg,var(--nv),var(--nv2));
-  padding:1.5rem 1.25rem 1rem;
-  position:relative;overflow:hidden;
-}
-.shop-hero::after{
-  content:'';position:absolute;top:-30px;left:-30px;
-  width:150px;height:150px;border-radius:50%;
-  background:rgba(255,107,0,.1);
-}
-.shop-back{
-  display:inline-flex;align-items:center;gap:6px;
-  color:rgba(255,255,255,.7);font-size:13px;font-weight:700;
-  cursor:pointer;margin-bottom:1rem;transition:.2s;
-}
-.shop-back:hover{color:#fff;}
-.shop-hero-main{display:flex;align-items:center;gap:14px;}
-.shop-hero-ico{
-  width:64px;height:64px;border-radius:16px;
-  background:rgba(255,255,255,.1);
-  display:flex;align-items:center;justify-content:center;
-  font-size:34px;flex-shrink:0;border:1.5px solid rgba(255,255,255,.15);
-}
-.shop-hero-info h2{color:#fff;font-size:18px;font-weight:900;margin-bottom:4px;}
-.shop-hero-desc{color:rgba(255,255,255,.65);font-size:13px;line-height:1.6;}
-.shop-offers-section{padding:1.25rem;}
-.offer-sec-hd{
-  font-size:15px;font-weight:800;color:var(--tx);
-  margin-bottom:1rem;
-  display:flex;align-items:center;justify-content:space-between;
-}
-.offer-count{
-  background:var(--or);color:#fff;
-  font-size:11px;font-weight:800;
-  padding:2px 9px;border-radius:50px;
-}
-.offer-list{display:flex;flex-direction:column;gap:10px;}
-.offer-item{
-  background:#fff;border:1.5px solid var(--gm);
-  border-radius:14px;padding:13px 14px;
-  display:flex;align-items:center;gap:13px;
-  transition:.2s;
-}
-.offer-item:hover{border-color:var(--or);box-shadow:0 4px 14px rgba(255,107,0,.1);}
-.offer-item-ico{
-  width:44px;height:44px;border-radius:12px;
-  background:var(--or-pale);
-  display:flex;align-items:center;justify-content:center;
-  font-size:22px;flex-shrink:0;
-}
-.offer-item-info{flex:1;min-width:0;}
-.offer-item-name{font-size:14px;font-weight:800;color:var(--tx);margin-bottom:2px;}
-.offer-item-desc{font-size:12px;color:var(--tm);line-height:1.5;}
-.offer-item-price{
-  text-align:left;flex-shrink:0;
-}
-.offer-old-price{font-size:11px;color:var(--tm);text-decoration:line-through;}
-.offer-new-price{font-size:15px;font-weight:900;color:var(--or);}
-.offer-discount-tag{
-  background:var(--or);color:#fff;
-  font-size:10px;font-weight:800;
-  padding:2px 7px;border-radius:50px;margin-top:3px;
-  display:inline-block;
-}
-.order-from-shop-btn{
-  display:block;width:calc(100% - 2.5rem);margin:1rem 1.25rem 0;
-  background:var(--or);color:#fff;border:none;
-  padding:14px;border-radius:13px;
-  font-family:'Cairo',sans-serif;font-weight:800;font-size:15px;
-  cursor:pointer;transition:.2s;text-align:center;
-  box-shadow:0 4px 16px rgba(255,107,0,.3);
-}
-.order-from-shop-btn:hover{background:var(--or2);transform:translateY(-1px);}
-
-/* empty state */
-.menu-empty{
-  text-align:center;padding:3rem 1.5rem;color:var(--tm);
-}
-.menu-empty-ico{font-size:54px;margin-bottom:1rem;}
-.menu-empty-txt{font-size:14px;line-height:1.7;}
-@media(max-width:480px){
-  .shops-grid{grid-template-columns:1fr 1fr;gap:10px;}
-  .cat-tab{min-width:60px;padding:8px 10px;}
-  .cat-tab-ico{font-size:22px;}
-}
 .wa{position:fixed;bottom:24px;left:24px;width:54px;height:54px;background:#25D366;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;cursor:pointer;box-shadow:0 4px 18px rgba(37,211,102,.45);z-index:999;animation:bob 3s ease-in-out infinite;text-decoration:none;}
 .err-msg{color:var(--red);font-size:13px;padding:10px 12px;background:#FEE2E2;border-radius:8px;margin-bottom:10px;display:none;line-height:1.5;}
 .err-msg.show{display:block;}
@@ -720,28 +525,6 @@ footer strong{color:var(--or);}
 </div>
 
 <!-- ORDER PAGE -->
-<!-- ══════════ MENU / SHOPS PAGE ══════════ -->
-<div id="pg-menu" class="pg">
-  <div class="menu-pg">
-    <!-- شريط التصنيفات -->
-    <div class="cat-tabs" id="cat-tabs-bar">
-      <div class="cat-tab active" data-cat="all" onclick="filterCat('all')">
-        <span class="cat-tab-ico">🏪</span>
-        <span class="cat-tab-nm">الكل</span>
-      </div>
-      <!-- باقي التصنيفات تتضاف ديناميكي -->
-    </div>
-    <!-- محتوى (قوايم أو صفحة محل) -->
-    <div id="menu-main-content">
-      <div class="menu-content" id="shops-list-view">
-        <div id="shops-container"></div>
-      </div>
-      <!-- صفحة المحل الداخلية -->
-      <div id="shop-detail-view" style="display:none"></div>
-    </div>
-  </div>
-</div>
-
 <div id="pg-order" class="pg">
   <div class="order-pg">
     <div class="form-card">
@@ -1186,166 +969,6 @@ function updateTrackUI(order){
     if(btn && !btn.dataset.used){ btn.disabled=false; btn.textContent='✅ تأكيد الاستلام'; }
   }
 }
-
-
-// ════════════════════════════════════════════════════════
-//  MENU & SHOPS LOGIC
-// ════════════════════════════════════════════════════════
-let _activeCat = 'all';
-let _activeShopId = null;
-
-function renderMenuPage(){
-  renderCatTabs();
-  showShopsList();
-}
-window.renderMenuPage = renderMenuPage;
-
-function renderCatTabs(){
-  const bar = document.getElementById('cat-tabs-bar');
-  if(!bar) return;
-  const cats = window._allMenuCategories || [];
-  let html = `<div class="cat-tab ${_activeCat==='all'?'active':''}" data-cat="all" onclick="filterCat('all')">
-    <span class="cat-tab-ico">🏪</span><span class="cat-tab-nm">الكل</span></div>`;
-  cats.forEach(c => {
-    if(c.visible === false) return;
-    html += `<div class="cat-tab ${_activeCat===c.id?'active':''}" data-cat="${c.id}" onclick="filterCat('${c.id}')">
-      <span class="cat-tab-ico">${c.icon||'🍽️'}</span>
-      <span class="cat-tab-nm">${c.name}</span></div>`;
-  });
-  bar.innerHTML = html;
-}
-
-function filterCat(catId){
-  _activeCat = catId;
-  renderCatTabs();
-  showShopsList();
-}
-window.filterCat = filterCat;
-
-function showShopsList(){
-  const detailEl = document.getElementById('shop-detail-view');
-  const listEl   = document.getElementById('shops-list-view');
-  if(detailEl) detailEl.style.display='none';
-  if(listEl)   listEl.style.display='block';
-  _activeShopId = null;
-  const shops = (window._allShops||[]).filter(s => s.visible !== false);
-  const cats  = window._allMenuCategories||[];
-  const container = document.getElementById('shops-container');
-  if(!container) return;
-
-  if(!shops.length){
-    container.innerHTML=`<div class="menu-empty"><div class="menu-empty-ico">🏪</div><div class="menu-empty-txt">القوائم هتكون جاهزة قريباً!<br>ابعتلنا على واتساب تطلب أي حاجة</div></div>`;
-    return;
-  }
-
-  if(_activeCat === 'all'){
-    let html = '';
-    const uncategorized = shops.filter(s => !s.categoryId);
-    const categorized   = cats.filter(c=>c.visible!==false).map(c=>({
-      cat:c, shops: shops.filter(s=>s.categoryId===c.id)
-    })).filter(g=>g.shops.length);
-
-    if(!categorized.length){
-      html = `<div class="menu-sec-title">🏪 جميع المحلات</div><div class="shops-grid">${shops.map(shopCardHtml).join('')}</div>`;
-    } else {
-      categorized.forEach(g=>{
-        html += `<div class="menu-sec-title"><span>${g.cat.icon||'🍽️'}</span>${g.cat.name}</div>
-                 <div class="shops-grid">${g.shops.map(shopCardHtml).join('')}</div>`;
-      });
-      if(uncategorized.length){
-        html += `<div class="menu-sec-title">🏪 أخرى</div><div class="shops-grid">${uncategorized.map(shopCardHtml).join('')}</div>`;
-      }
-    }
-    container.innerHTML = html;
-  } else {
-    const filtered = shops.filter(s=>s.categoryId===_activeCat);
-    const cat = cats.find(c=>c.id===_activeCat);
-    if(!filtered.length){
-      container.innerHTML=`<div class="menu-empty"><div class="menu-empty-ico">${cat?cat.icon:'🏪'}</div><div class="menu-empty-txt">لا يوجد محلات في هذه القائمة حالياً</div></div>`;
-    } else {
-      container.innerHTML = `<div class="menu-sec-title"><span>${cat?cat.icon:''}</span>${cat?cat.name:'المحلات'}</div><div class="shops-grid">${filtered.map(shopCardHtml).join('')}</div>`;
-    }
-  }
-}
-window.showShopsList = showShopsList;
-
-function shopCardHtml(s){
-  const activeOffers = (s.offers||[]).filter(o=>o.active!==false);
-  return `<div class="shop-card" onclick="openShop('${s.id}')">
-    <div class="shop-card-img">
-      <span>${s.icon||'🏪'}</span>
-      ${activeOffers.length?`<span class="shop-card-badge">عروض ${activeOffers.length} 🔥</span>`:''}
-    </div>
-    <div class="shop-card-body">
-      <div class="shop-card-name">${s.name}</div>
-      <div class="shop-card-sub">${s.description||''}</div>
-      ${s.tag?`<span class="shop-card-tag">${s.tag}</span>`:''}
-    </div>
-  </div>`;
-}
-
-function openShop(shopId){
-  _activeShopId = shopId;
-  const shop = (window._allShops||[]).find(s=>s.id===shopId);
-  if(!shop) return;
-  const listEl   = document.getElementById('shops-list-view');
-  const detailEl = document.getElementById('shop-detail-view');
-  if(listEl)   listEl.style.display='none';
-  if(detailEl) detailEl.style.display='block';
-  const activeOffers = (shop.offers||[]).filter(o=>o.active!==false);
-  detailEl.innerHTML = `
-    <div class="shop-pg">
-      <div class="shop-hero">
-        <div class="shop-back" onclick="showShopsList()">← رجوع للقائمة</div>
-        <div class="shop-hero-main">
-          <div class="shop-hero-ico">${shop.icon||'🏪'}</div>
-          <div class="shop-hero-info">
-            <h2>${shop.name}</h2>
-            <div class="shop-hero-desc">${shop.description||'اطلب من المتميز وهيجيلك'}</div>
-          </div>
-        </div>
-      </div>
-      <div class="shop-offers-section">
-        <div class="offer-sec-hd">
-          العروض الحصرية
-          <span class="offer-count">${activeOffers.length} عرض</span>
-        </div>
-        ${activeOffers.length
-          ? `<div class="offer-list">${activeOffers.map(offerItemHtml).join('')}</div>`
-          : `<div class="menu-empty"><div class="menu-empty-ico">🎁</div><div class="menu-empty-txt">مفيش عروض دلوقتي<br>بس تقدر تطلب من المحل عادي!</div></div>`}
-      </div>
-      <button class="order-from-shop-btn" onclick="orderFromShop('${shop.name}')">
-        🛵 اطلب من ${shop.name} دلوقتي
-      </button>
-    </div>`;
-}
-window.openShop = openShop;
-
-function offerItemHtml(o){
-  const hasDiscount = o.oldPrice && o.newPrice && parseFloat(o.oldPrice) > parseFloat(o.newPrice);
-  const discount = hasDiscount ? Math.round((1-(o.newPrice/o.oldPrice))*100) : 0;
-  return `<div class="offer-item">
-    <div class="offer-item-ico">${o.icon||'🎁'}</div>
-    <div class="offer-item-info">
-      <div class="offer-item-name">${o.name}</div>
-      <div class="offer-item-desc">${o.description||''}</div>
-    </div>
-    ${o.newPrice ? `<div class="offer-item-price">
-      ${hasDiscount?`<div class="offer-old-price">${o.oldPrice} جم</div>`:''}
-      <div class="offer-new-price">${o.newPrice} جم</div>
-      ${discount>0?`<span class="offer-discount-tag">خصم ${discount}%</span>`:''}
-    </div>` : ''}
-  </div>`;
-}
-
-function orderFromShop(shopName){
-  go('order');
-  setTimeout(()=>{
-    const pl = document.getElementById('oplace');
-    if(pl) pl.value = shopName;
-  }, 100);
-}
-window.orderFromShop = orderFromShop;
 
 window.addEventListener('load', () => {
   const lastPage = sessionStorage.getItem('emb_client_page');
