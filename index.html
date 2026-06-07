@@ -99,6 +99,8 @@ window.updateDeliveryPrice = function() {
     });
   };
 // ── الاستماع للعروض اليومية من Firestore وتحديث الواجهة تلقائياً ──
+
+  console.log("Firestore Sync Started");
   try {
     const offerDocRef = doc(db, "offers", "daily_offer");
     onSnapshot(offerDocRef, (docSnap) => {
