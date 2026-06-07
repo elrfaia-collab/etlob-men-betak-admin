@@ -126,7 +126,40 @@ window.updateDeliveryPrice = function() {
   window._fbQuery = query;
   window._fbWhere = where;
   console.log("✅ Firebase Client Ready");
+// ── جلب أقسام المنيو والمحلات ديناميكياً من Firestore لتسمع من الأدمن ──
+try {
+  // 1. الاستماع للأقسام وتصنيفها بحسب الترتيب
+  const qCats = fbQuery(fbCollection(db, "menu_categories"), fbWhere("visible", "!=", false));
+  fbOnSnapshot(qCats, (snapshot) => {
+    window._allMenuCategories = [];
+    snapshot.forEach((docSnap) => {
+      window._allMenuCategories.push({ id: docSnap.id, ...docSnap.data() });
+    });
+    // إعادة ترتيب الأقسام بحسب حقل الترتيب order إن وجد
+    window._allMenuCategories.sort((a, b) => (a.order || 0) - (b.order || 0));
+    
+    // تحديث الواجهة إذا كان العميل واقف في صفحة المنيو
+    if (typeof renderMenuPage === 'function') renderMenuPage();
+  });
 
+  // 2. الاستماع للمحلات والعروض الخاصة بها
+  const qShops = fbCollection(db, "shops");
+  fbOnSnapshot(qShops, (snapshot) => {
+    window._allShops = [];
+    snapshot.forEach((docSnap) => {
+      const shopData = docSnap.data();
+      // جلب المحلات الظاهرة فقط
+      if (shopData.visible !== false) {
+        window._allShops.push({ id: docSnap.id, ...shopData });
+      }
+    });
+    
+    // تحديث واجهة المحلات فوراً عند حدوث أي تغيير في الأدمن
+    if (typeof renderMenuPage === 'function') renderMenuPage();
+  });
+} catch (error) {
+  console.error("خطأ أثناء مزامنة المحلات والعروض من قاعدة البيانات:", error);
+}
 </script>
 
 <style>
