@@ -484,7 +484,7 @@ tr:hover td{background:rgba(13,36,97,.02);}
     <div class="login-title">المتميز</div>
     <div class="login-sub">لوحة تحكم الأدمن</div>
     <input type="text" id="l-user" placeholder="اسم المستخدم"/>
-    <div style="position:relative;"><input type="password" id="l-pass" placeholder="كلمة السر" style="padding-left:44px;"/><button type="button" id="eye-btn" onclick="togglePass()" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;color:#9AAAC0;padding:4px;line-height:1;outline:none;">👁</button></div>
+    <div style="position:relative;"><input type="password" id="l-pass" placeholder="كلمة السر" style="padding-left:44px;"/><button type="button" id="eye-btn" onclick="togglePass()" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;color:#9AAAC0;padding:0;">👁</button></div>
     <button class="login-btn" onclick="doLogin()">دخول ➜</button>
     <div id="l-err" class="login-err">❌ بيانات غلط، حاول تاني</div>
     
@@ -987,42 +987,30 @@ async function sha256(str){
 }
 
 function togglePass(){
-  const i = document.getElementById('l-pass');
-  const b = document.getElementById('eye-btn');
-  if(!i || !b) return;
-  if(i.type === 'password'){
-    i.type = 'text';
-    b.textContent = '🙈';
-  } else {
-    i.type = 'password';
-    b.textContent = '👁';
-  }
+  var i=document.getElementById('l-pass');
+  var b=document.getElementById('eye-btn');
+  if(!i||!b)return;
+  if(i.type==='password'){i.type='text';b.innerHTML='🙈';}
+  else{i.type='password';b.innerHTML='👁';}
 }
 async function doLogin(){
   const now = Date.now();
   if(now < lockUntil){
     const secs = Math.ceil((lockUntil - now)/1000);
-    document.getElementById('l-err').textContent = `⏳ كثير من المحاولات — انتظر ${secs} ثانية`;
+    document.getElementById('l-err').textContent = '⏳ انتظر ' + secs + ' ثانية';
     document.getElementById('l-err').style.display='block';
     return;
   }
-
   const u = document.getElementById('l-user').value.trim();
   const p = document.getElementById('l-pass').value.trim();
-
   if(!u || !p){
     document.getElementById('l-err').textContent='⚠️ ادخل اسم المستخدم وكلمة السر';
     document.getElementById('l-err').style.display='block';
     return;
   }
-
-
-  
-  
-    const passHash = await sha256(p);
-  const validUser = u === 'admin';
-  const validPass = passHash === await sha256('3042003');
-
+  const passHash = await sha256(p);
+  const validUser = (u === 'admin');
+  const validPass = (passHash === await sha256('3042003'));
   if(validUser && validPass){
     loginAttempts = 0;
     lockUntil = 0;
@@ -1031,7 +1019,7 @@ async function doLogin(){
     document.getElementById('app').classList.add('on');
     const lastPage = sessionStorage.getItem('emb_last_page') || 'dash';
     refresh();
-    loadCurrentOffer();
+    if(typeof loadCurrentOffer === 'function') loadCurrentOffer();
     nav(lastPage);
     setTimeout(startOrdersListener, 500);
   } else {
@@ -1039,9 +1027,9 @@ async function doLogin(){
     if(loginAttempts >= 6){
       lockUntil = Date.now() + 60000;
       loginAttempts = 0;
-      document.getElementById('l-err').textContent='🔒 6 محاولات فاشلة — محظور لمدة 60 ثانية';
+      document.getElementById('l-err').textContent='🔒 محظور 60 ثانية بعد 6 محاولات';
     } else {
-      document.getElementById('l-err').textContent=`❌ بيانات غلط (${loginAttempts}/6)`;
+      document.getElementById('l-err').textContent='❌ بيانات غلط (' + loginAttempts + '/6)';
     }
     document.getElementById('l-err').style.display='block';
     document.getElementById('l-pass').value='';
