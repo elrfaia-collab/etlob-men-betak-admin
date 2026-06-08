@@ -190,30 +190,6 @@ window._fbAddAdmin = async (data) => {
 window._fbUpdateAdmin = (docId, data) => updateDoc(doc(db,"admins",docId), data);
 window._fbDeleteAdmin = (docId)       => deleteDoc(doc(db,"admins",docId));
 
-// ── Shops & Menu Categories ──
-window._allShops = [];
-window._allMenuCategories = [];
-
-onSnapshot(query(collection(db,"menu_categories"), orderBy("order","asc")), snap => {
-  window._allMenuCategories = [];
-  snap.forEach(d => window._allMenuCategories.push({id:d.id,...d.data()}));
-  if(typeof renderCatsTable==='function') renderCatsTable();
-  if(typeof renderShopsTable==='function') renderShopsTable();
-}, e => console.error("categories:",e));
-
-onSnapshot(collection(db,"shops"), snap => {
-  window._allShops = [];
-  snap.forEach(d => window._allShops.push({id:d.id,...d.data()}));
-  if(typeof renderShopsTable==='function') renderShopsTable();
-}, e => console.error("shops:",e));
-
-window._fbAddCat    = async (d)       => { const r=doc(collection(db,"menu_categories")); await setDoc(r,{...d,id:r.id}); return r.id; };
-window._fbUpdateCat = (id,d)          => updateDoc(doc(db,"menu_categories",id),d);
-window._fbDeleteCat = (id)            => deleteDoc(doc(db,"menu_categories",id));
-window._fbAddShop   = async (d)       => { const r=doc(collection(db,"shops")); await setDoc(r,{...d,id:r.id,offers:[]}); return r.id; };
-window._fbUpdateShop= (id,d)          => updateDoc(doc(db,"shops",id),d);
-window._fbDeleteShop= (id)            => deleteDoc(doc(db,"shops",id));
-
 window._firebaseReady = true;
 console.log("✅ Firebase Admin Ready");
 </script>
@@ -448,51 +424,66 @@ tr:hover td{background:rgba(13,36,97,.02);}
 .pill-off{background:var(--gl);color:var(--tm);}
 .driver-location{font-size:11px;color:var(--tm);margin-top:3px;}
 
-/* ===== OFFERS SETTINGS ===== */
-.offers-settings-wrap{max-width:1000px;}
-.os-tabs{display:flex;gap:8px;margin-bottom:1.5rem;border-bottom:2px solid var(--gm);padding-bottom:1px;}
-.os-tab{padding:10px 18px;border-radius:10px 10px 0 0;font-size:13px;font-weight:700;cursor:pointer;color:var(--tm);transition:.2s;border:2px solid transparent;border-bottom:none;margin-bottom:-2px;}
-.os-tab:hover{color:var(--tx);background:var(--gl);}
-.os-tab.active{color:var(--or);border-color:var(--or);border-bottom-color:#fff;background:#fff;}
-.os-panel{display:none;}.os-panel.on{display:block;}
-.shops-admin-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-top:1rem;}
-.shop-admin-card{background:#fff;border:1.5px solid var(--gm);border-radius:16px;overflow:hidden;transition:.2s;}
-.shop-admin-card:hover{border-color:var(--or);box-shadow:0 4px 16px rgba(255,107,0,.1);}
-.shop-admin-card-top{
-  background:linear-gradient(135deg,var(--or-pale),#fff);
-  padding:1rem 1.25rem;
-  display:flex;align-items:center;gap:12px;
-  border-bottom:1.5px solid var(--gm);
+/* ===== REVENUE PAGE ===== */
+.rev-wrap{max-width:1050px;}
+.rev-filter-bar{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  background:#fff;border:1.5px solid var(--gm);
+  border-radius:14px;padding:1rem 1.25rem;margin-bottom:1.5rem;
 }
-.shop-admin-ico{width:48px;height:48px;border-radius:13px;background:rgba(255,107,0,.12);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;}
-.shop-admin-name{font-size:15px;font-weight:800;color:var(--tx);}
-.shop-admin-cat{font-size:11px;color:var(--tm);margin-top:2px;}
-.shop-admin-body{padding:1rem 1.25rem;}
-.shop-offers-count{display:inline-flex;align-items:center;gap:5px;background:var(--or-pale);color:var(--or);font-size:12px;font-weight:700;padding:3px 10px;border-radius:50px;margin-bottom:.85rem;}
-.shop-admin-btns{display:flex;gap:7px;}
-.add-shop-form,.add-cat-form{background:var(--gl);border-radius:14px;padding:1.25rem;margin-bottom:1.5rem;border:1.5px solid var(--gm);}
-.add-shop-form h4,.add-cat-form h4{font-size:14px;font-weight:800;margin-bottom:1rem;color:var(--tx);}
-.emoji-picker-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
-.ep-btn{width:34px;height:34px;border-radius:8px;border:1.5px solid var(--gm);background:#fff;font-size:18px;cursor:pointer;transition:.2s;display:flex;align-items:center;justify-content:center;}
-.ep-btn:hover{border-color:var(--or);background:var(--or-pale);}
-.ep-btn.sel{border-color:var(--or);background:var(--or-pale);}
-.offers-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:3000;display:none;align-items:center;justify-content:center;padding:1rem;}
-.offers-modal-overlay.on{display:flex;}
-.offers-modal{background:#fff;border-radius:20px;padding:1.75rem;width:100%;max-width:580px;max-height:90vh;overflow-y:auto;}
-.offers-modal-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1.5px solid var(--gm);}
-.offers-modal-hd h3{font-size:16px;font-weight:800;}
-.offer-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--gl);border-radius:12px;margin-bottom:8px;}
-.offer-row-ico{width:36px;height:36px;border-radius:10px;background:var(--or-pale);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
-.offer-row-info{flex:1;min-width:0;}
-.offer-row-name{font-size:13px;font-weight:700;color:var(--tx);}
-.offer-row-price{font-size:12px;color:var(--tm);margin-top:1px;}
-.offer-row-btns{display:flex;gap:5px;flex-shrink:0;}
-.cat-list{display:flex;flex-direction:column;gap:8px;}
-.cat-row{display:flex;align-items:center;gap:12px;padding:10px 14px;background:#fff;border:1.5px solid var(--gm);border-radius:12px;transition:.2s;}
-.cat-row:hover{border-color:var(--or);}
-.cat-row-ico{font-size:22px;width:36px;text-align:center;}
-.cat-row-name{flex:1;font-size:14px;font-weight:700;color:var(--tx);}
-.cat-row-btns{display:flex;gap:6px;}
+.rev-filter-bar label{font-size:12px;font-weight:700;color:var(--tm);}
+.rev-filter-bar input[type=date]{
+  padding:7px 12px;border:1.5px solid var(--gm);border-radius:9px;
+  font-family:'Cairo',sans-serif;font-size:13px;color:var(--tx);cursor:pointer;
+}
+.rev-filter-bar input[type=date]:focus{outline:none;border-color:var(--or);}
+.rev-kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:1.5rem;}
+.rev-kpi{
+  background:#fff;border:1.5px solid var(--gm);border-radius:14px;
+  padding:1rem 1.2rem;text-align:center;
+}
+.rev-kpi-num{font-size:24px;font-weight:900;color:var(--or);margin-bottom:3px;}
+.rev-kpi-lbl{font-size:11px;color:var(--tm);font-weight:700;letter-spacing:.3px;}
+.rev-table-wrap{overflow-x:auto;border-radius:14px;border:1.5px solid var(--gm);}
+.rev-table{width:100%;border-collapse:collapse;font-size:13px;}
+.rev-table thead tr{background:linear-gradient(135deg,var(--nv),var(--nv2));color:#fff;}
+.rev-table thead th{padding:11px 14px;text-align:right;font-weight:700;font-size:12px;white-space:nowrap;}
+.rev-table tbody tr{border-bottom:1px solid var(--gm);transition:.15s;}
+.rev-table tbody tr:hover{background:var(--or-pale);}
+.rev-table tbody td{padding:10px 14px;vertical-align:middle;}
+.rev-table tbody tr:last-child{border-bottom:none;}
+.day-group-hd{
+  background:var(--gl);
+  font-size:12px;font-weight:800;
+  color:var(--tm);letter-spacing:.3px;
+  padding:7px 14px;border-bottom:1px solid var(--gm);
+}
+.day-group-hd td{padding:7px 14px;}
+.day-total{font-weight:900;color:var(--or);}
+.reset-day-btn{
+  background:rgba(239,68,68,.1);color:var(--red);border:1.5px solid rgba(239,68,68,.2);
+  padding:5px 12px;border-radius:8px;font-family:'Cairo',sans-serif;
+  font-size:11px;font-weight:700;cursor:pointer;transition:.2s;
+}
+.reset-day-btn:hover{background:var(--red);color:#fff;}
+.export-bar{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:1rem;flex-wrap:wrap;gap:8px;
+}
+.export-btn{
+  background:linear-gradient(135deg,#16A34A,#15803D);color:#fff;
+  border:none;padding:9px 18px;border-radius:10px;
+  font-family:'Cairo',sans-serif;font-weight:700;font-size:13px;
+  cursor:pointer;transition:.2s;
+  display:flex;align-items:center;gap:6px;
+}
+.export-btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(22,163,74,.3);}
+.who-badge{
+  display:inline-flex;align-items:center;gap:4px;
+  background:rgba(13,36,97,.08);color:var(--nv);
+  font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;
+}
+
 /* ===== ADMINS PAGE ===== */
 .admins-page-wrap{max-width:900px;}
 .perm-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
@@ -556,8 +547,9 @@ tr:hover td{background:rgba(13,36,97,.02);}
       <div class="sb-sec">الإدارة</div>
       <a onclick="nav('drivers')"><span class="ico">🛵</span>السائقين</a>
       <a onclick="nav('add-driver')"><span class="ico">➕</span>إضافة سائق</a>
+      <div class="sb-sec">التقارير</div>
+      <a onclick="nav('revenue')" id="nav-revenue"><span class="ico">💰</span>الإيرادات</a>
       <div class="sb-sec">النظام</div>
-      <a onclick="nav('offers-settings')" id="nav-offers-settings"><span class="ico">🍽️</span>إعدادات العروض</a>
       <a onclick="nav('admins')" id="nav-admins"><span class="ico">👥</span>المستخدمين والصلاحيات</a>
       <a onclick="nav('settings')"><span class="ico">⚙️</span>الإعدادات</a>
     </nav>
@@ -737,159 +729,6 @@ tr:hover td{background:rgba(13,36,97,.02);}
         </div>
       </div>
 
-      <!-- ========== OFFERS SETTINGS PAGE ========== -->
-      <div id="page-offers-settings" class="page">
-        <div class="offers-settings-wrap">
-          <div class="page-hd"><h2>🍽️ إعدادات العروض والقوائم</h2></div>
-
-          <!-- تابز -->
-          <div class="os-tabs">
-            <div class="os-tab active" onclick="switchOsTab('cats')">📂 التصنيفات</div>
-            <div class="os-tab" onclick="switchOsTab('shops')">🏪 المحلات</div>
-          </div>
-
-          <!-- ═══ تاب التصنيفات ═══ -->
-          <div class="os-panel on" id="os-panel-cats">
-            <div class="add-cat-form">
-              <h4>➕ إضافة تصنيف جديد</h4>
-              <div class="fr2" style="margin-bottom:.85rem">
-                <div class="fg">
-                  <label class="fl">اسم التصنيف *</label>
-                  <input class="fi" id="cat-name" type="text" placeholder="مثال: مطاعم، حلويات..."/>
-                </div>
-                <div class="fg">
-                  <label class="fl">الترتيب</label>
-                  <input class="fi" id="cat-order" type="number" placeholder="1" value="1"/>
-                </div>
-              </div>
-              <div class="fg" style="margin-bottom:.85rem">
-                <label class="fl">أيقونة التصنيف</label>
-                <input class="fi" id="cat-icon" type="text" placeholder="🍕" style="width:80px;display:inline-block;margin-left:10px"/>
-                <div class="emoji-picker-row" id="cat-emoji-picker">
-                  <button class="ep-btn" onclick="pickCatEmoji('🍕')">🍕</button>
-                  <button class="ep-btn" onclick="pickCatEmoji('🍔')">🍔</button>
-                  <button class="ep-btn" onclick="pickCatEmoji('🌯')">🌯</button>
-                  <button class="ep-btn" onclick="pickCatEmoji('🍗')">🍗</button>
-                  <button class="ep-btn" onclick="pickCatEmoji('🥗')">🥗</button>
-                  <button class="ep-btn" onclick="pickCatEmoji('🍰')">🍰</button>
-                  <button class="ep-btn" onclick="pickCatEmoji('🧁')">🧁</button>
-                  <button class="ep-btn" onclick="pickCatEmoji('☕')">☕</button>
-                  <button class="ep-btn" onclick="pickCatEmoji('🧃')">🧃</button>
-                  <button class="ep-btn" onclick="pickCatEmoji('💊')">💊</button>
-                  <button class="ep-btn" onclick="pickCatEmoji('🛒')">🛒</button>
-                  <button class="ep-btn" onclick="pickCatEmoji('🏪')">🏪</button>
-                </div>
-              </div>
-              <button class="sub-btn" onclick="addCategory()" style="padding:10px 24px;font-size:13px;width:auto">➕ إضافة</button>
-            </div>
-
-            <div class="card">
-              <div class="card-hd"><h3>التصنيفات الحالية (<span id="cats-count">0</span>)</h3></div>
-              <div class="cat-list" id="cats-list">
-                <div class="empty-state"><div>📂</div>لا توجد تصنيفات بعد</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- ═══ تاب المحلات ═══ -->
-          <div class="os-panel" id="os-panel-shops">
-            <div class="add-shop-form">
-              <h4>➕ إضافة محل جديد</h4>
-              <div class="fr2" style="margin-bottom:.85rem">
-                <div class="fg">
-                  <label class="fl">اسم المحل *</label>
-                  <input class="fi" id="shop-name" type="text" placeholder="مثال: كنتاكي فرع الجامعة"/>
-                </div>
-                <div class="fg">
-                  <label class="fl">التصنيف</label>
-                  <select class="fi" id="shop-cat">
-                    <option value="">— بدون تصنيف —</option>
-                  </select>
-                </div>
-              </div>
-              <div class="fr2" style="margin-bottom:.85rem">
-                <div class="fg">
-                  <label class="fl">وصف المحل</label>
-                  <input class="fi" id="shop-desc" type="text" placeholder="وصف مختصر للمحل"/>
-                </div>
-                <div class="fg">
-                  <label class="fl">تاج (اختياري)</label>
-                  <input class="fi" id="shop-tag" type="text" placeholder="مثال: الأكثر طلباً"/>
-                </div>
-              </div>
-              <div class="fg" style="margin-bottom:1rem">
-                <label class="fl">أيقونة المحل</label>
-                <input class="fi" id="shop-icon" type="text" placeholder="🏪" style="width:80px;display:inline-block;margin-left:10px"/>
-                <div class="emoji-picker-row">
-                  <button class="ep-btn" onclick="pickShopEmoji('🍕')">🍕</button>
-                  <button class="ep-btn" onclick="pickShopEmoji('🍔')">🍔</button>
-                  <button class="ep-btn" onclick="pickShopEmoji('🌯')">🌯</button>
-                  <button class="ep-btn" onclick="pickShopEmoji('🍗')">🍗</button>
-                  <button class="ep-btn" onclick="pickShopEmoji('🥗')">🥗</button>
-                  <button class="ep-btn" onclick="pickShopEmoji('🍰')">🍰</button>
-                  <button class="ep-btn" onclick="pickShopEmoji('🧁')">🧁</button>
-                  <button class="ep-btn" onclick="pickShopEmoji('☕')">☕</button>
-                  <button class="ep-btn" onclick="pickShopEmoji('💊')">💊</button>
-                  <button class="ep-btn" onclick="pickShopEmoji('🛒')">🛒</button>
-                  <button class="ep-btn" onclick="pickShopEmoji('🏪')">🏪</button>
-                  <button class="ep-btn" onclick="pickShopEmoji('🍩')">🍩</button>
-                </div>
-              </div>
-              <button class="sub-btn" onclick="addShop()" style="padding:10px 24px;font-size:13px;width:auto">➕ إضافة المحل</button>
-            </div>
-
-            <div class="card">
-              <div class="card-hd"><h3>المحلات الحالية (<span id="shops-count">0</span>)</h3></div>
-              <div class="shops-admin-grid" id="shops-admin-grid">
-                <div class="empty-state"><div>🏪</div>لا توجد محلات بعد</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Offers Modal -->
-      <div class="offers-modal-overlay" id="offers-modal">
-        <div class="offers-modal">
-          <div class="offers-modal-hd">
-            <h3>🎁 عروض: <span id="offers-modal-shop-name"></span></h3>
-            <button class="modal-close" onclick="closeOffersModal()">✕</button>
-          </div>
-          <!-- إضافة عرض جديد -->
-          <div style="background:var(--gl);border-radius:12px;padding:1rem;margin-bottom:1.25rem;border:1.5px solid var(--gm)">
-            <div style="font-size:13px;font-weight:800;margin-bottom:.85rem;color:var(--tx)">➕ إضافة عرض جديد</div>
-            <div class="fr2" style="margin-bottom:.75rem">
-              <div class="fg">
-                <label class="fl">اسم العرض *</label>
-                <input class="fi" id="offer-name" type="text" placeholder="مثال: وجبة عائلية خاصة"/>
-              </div>
-              <div class="fg">
-                <label class="fl">أيقونة</label>
-                <input class="fi" id="offer-icon" type="text" placeholder="🎁" style="width:70px"/>
-              </div>
-            </div>
-            <div class="fg" style="margin-bottom:.75rem">
-              <label class="fl">وصف العرض</label>
-              <input class="fi" id="offer-desc" type="text" placeholder="تفاصيل العرض..."/>
-            </div>
-            <div class="fr2" style="margin-bottom:.75rem">
-              <div class="fg">
-                <label class="fl">السعر القديم (جم)</label>
-                <input class="fi" id="offer-old-price" type="number" placeholder="100"/>
-              </div>
-              <div class="fg">
-                <label class="fl">السعر الجديد (جم) *</label>
-                <input class="fi" id="offer-new-price" type="number" placeholder="75"/>
-              </div>
-            </div>
-            <button class="sub-btn" onclick="addOffer()" style="padding:9px 20px;font-size:13px;width:auto">➕ إضافة العرض</button>
-          </div>
-          <!-- قائمة العروض الحالية -->
-          <div style="font-size:13px;font-weight:700;color:var(--tm);margin-bottom:.75rem">العروض الحالية:</div>
-          <div id="offers-list"></div>
-        </div>
-      </div>
-
       <!-- ========== ADMINS PAGE ========== -->
       <div id="page-admins" class="page">
         <div class="admins-page-wrap">
@@ -1025,6 +864,85 @@ tr:hover td{background:rgba(13,36,97,.02);}
             <div class="admin-grid" id="admins-grid">
               <div class="empty-state"><div>👥</div>لا يوجد مستخدمين مضافين</div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== REVENUE PAGE ========== -->
+      <div id="page-revenue" class="page">
+        <div class="rev-wrap">
+          <div class="page-hd"><h2>💰 الإيرادات والتقارير</h2></div>
+
+          <!-- فلتر التاريخ -->
+          <div class="rev-filter-bar">
+            <label>من:</label>
+            <input type="date" id="rev-from" oninput="renderRevenue()"/>
+            <label>إلى:</label>
+            <input type="date" id="rev-to" oninput="renderRevenue()"/>
+            <button class="abtn bl" onclick="setRevToday()">اليوم</button>
+            <button class="abtn gray" onclick="setRevWeek()">آخر 7 أيام</button>
+            <button class="abtn gray" onclick="setRevMonth()">الشهر الحالي</button>
+            <button class="abtn gray" onclick="setRevAll()">الكل</button>
+          </div>
+
+          <!-- KPIs -->
+          <div class="rev-kpi-row">
+            <div class="rev-kpi">
+              <div class="rev-kpi-num" id="rkpi-total-rev">0 جم</div>
+              <div class="rev-kpi-lbl">إجمالي الإيرادات</div>
+            </div>
+            <div class="rev-kpi">
+              <div class="rev-kpi-num" id="rkpi-orders">0</div>
+              <div class="rev-kpi-lbl">عدد الطلبات المكتملة</div>
+            </div>
+            <div class="rev-kpi">
+              <div class="rev-kpi-num" id="rkpi-avg">0 جم</div>
+              <div class="rev-kpi-lbl">متوسط قيمة الطلب</div>
+            </div>
+            <div class="rev-kpi">
+              <div class="rev-kpi-num" id="rkpi-cancelled">0</div>
+              <div class="rev-kpi-lbl">طلبات ملغية</div>
+            </div>
+            <div class="rev-kpi">
+              <div class="rev-kpi-num" id="rkpi-best-day">—</div>
+              <div class="rev-kpi-lbl">أفضل يوم</div>
+            </div>
+          </div>
+
+          <!-- جدول + تصدير -->
+          <div class="export-bar">
+            <div style="font-size:14px;font-weight:700;color:var(--tx)">
+              تفاصيل الطلبات (<span id="rev-count">0</span>)
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="export-btn" onclick="exportExcel()">
+                📊 تصدير Excel
+              </button>
+              <button class="reset-day-btn" onclick="confirmResetDay()">
+                🔄 تصفير إيراد اليوم
+              </button>
+            </div>
+          </div>
+
+          <div class="rev-table-wrap">
+            <table class="rev-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>رقم الطلب</th>
+                  <th>التاريخ</th>
+                  <th>الوقت</th>
+                  <th>النوع</th>
+                  <th>المحل</th>
+                  <th>العنوان</th>
+                  <th>التليفون</th>
+                  <th>مين عمله</th>
+                  <th>الحالة</th>
+                  <th>سعر التوصيل</th>
+                </tr>
+              </thead>
+              <tbody id="rev-tbody"></tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -1227,7 +1145,7 @@ function doLogout(){
 }
 
 // ========= NAV =========
-const PAGE_NAMES={dash:'الرئيسية',orders:'إدارة الطلبات',drivers:'السائقين','add-driver':'إضافة سائق جديد','offers-settings':'إعدادات العروض',admins:'المستخدمين والصلاحيات',settings:'الإعدادات'};
+const PAGE_NAMES={dash:'الرئيسية',orders:'إدارة الطلبات',drivers:'السائقين','add-driver':'إضافة سائق جديد',revenue:'الإيرادات',admins:'المستخدمين والصلاحيات',settings:'الإعدادات'};
 function nav(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.sb-nav a').forEach(a=>a.classList.remove('act'));
@@ -1241,6 +1159,7 @@ function nav(id){
   if(id==='orders')renderOrders();
   else if(id==='drivers')renderDrivers();
   else if(id==='dash')renderDash();
+  else if(id==='revenue'){ initRevDates(); renderRevenue(); }
 }
 
 // ========= STATUS MAP =========
@@ -1396,7 +1315,11 @@ function viewOrder(id){
     <div class="detail-row"><span>التليفون</span><span dir="ltr">${o.phone}</span></div>
     <div class="detail-row"><span>ملاحظات</span><span>${o.notes||'—'}</span></div>
     <div class="detail-row"><span>الوقت</span><span>${o.time} — ${o.date}</span></div>
-    <div class="detail-row"><span>الحالة</span><span><span class="badge ${SMAP[o.status]||'b-new'}">${o.status}</span></span></div>`;
+    <div class="detail-row"><span>الحالة</span><span><span class="badge ${SMAP[o.status]||'b-new'}">${o.status}</span></span></div>
+    <div class="detail-row"><span>سعر التوصيل</span><span style="font-weight:900;color:var(--or)">${_getOrderPrice(o)} جم</span></div>
+    <div class="detail-row"><span>مين قبله</span><span class="who-badge">👤 ${o.acceptedBy||o.driverName||'أدمن'}</span></div>
+    ${o.driverName?`<div class="detail-row"><span>السائق</span><span>🛵 ${o.driverName}</span></div>`:''}
+    ${o.driverRating?`<div class="detail-row"><span>تقييم السائق</span><span>${'⭐'.repeat(o.driverRating)} (${o.driverRating}/5)</span></div>`:''}`;
   const ac=document.getElementById('modal-order-actions');
   ac.innerHTML='';
   if(o.status==='جديد'){
@@ -1921,242 +1844,245 @@ window.toggleAllPerms=toggleAllPerms;
 window.renderAdminsTable=renderAdminsTable;
 
 // ════════════════════════════════════════════════════════
-//  OFFERS SETTINGS — Categories & Shops Management
+//  REVENUE MODULE
 // ════════════════════════════════════════════════════════
-let _editingShopId = null;
 
-// ── تبديل التابز ──
-function switchOsTab(tab){
-  document.querySelectorAll('.os-tab').forEach((t,i)=>t.classList.toggle('active', (i===0&&tab==='cats')||(i===1&&tab==='shops')));
-  document.getElementById('os-panel-cats').classList.toggle('on', tab==='cats');
-  document.getElementById('os-panel-shops').classList.toggle('on', tab==='shops');
-  if(tab==='shops') populateShopCatSelect();
+// helper: سعر الطلب
+function _getOrderPrice(o){
+  if(o.deliveryPrice && parseFloat(o.deliveryPrice)>0) return parseFloat(o.deliveryPrice);
+  const area=(window._allAreas||[]).find(a=>o.addr&&o.addr.includes(a.name));
+  return area ? parseFloat(area.price) : 25;
 }
-window.switchOsTab = switchOsTab;
+window._getOrderPrice = _getOrderPrice;
 
-// ── اختيار إيموجي ──
-function pickCatEmoji(e){ document.getElementById('cat-icon').value=e; document.querySelectorAll('#cat-emoji-picker .ep-btn').forEach(b=>{b.classList.toggle('sel',b.textContent===e);}); }
-function pickShopEmoji(e){ document.getElementById('shop-icon').value=e; }
-window.pickCatEmoji  = pickCatEmoji;
-window.pickShopEmoji = pickShopEmoji;
-
-// ── ملء سيلكت تصنيف المحل ──
-function populateShopCatSelect(){
-  const sel = document.getElementById('shop-cat');
-  if(!sel) return;
-  const cats = window._allMenuCategories||[];
-  sel.innerHTML = '<option value="">— بدون تصنيف —</option>' +
-    cats.map(c=>`<option value="${c.id}">${c.icon||''} ${c.name}</option>`).join('');
+// تهيئة التواريخ
+function initRevDates(){
+  const from=document.getElementById('rev-from');
+  const to=document.getElementById('rev-to');
+  if(!from||!to) return;
+  if(!from.value && !to.value) setRevToday();
 }
 
-// ════ CATEGORIES ════
-async function addCategory(){
-  const name  = document.getElementById('cat-name').value.trim();
-  const icon  = document.getElementById('cat-icon').value.trim() || '🏪';
-  const order = parseInt(document.getElementById('cat-order').value)||1;
-  if(!name){ showToast('⚠️ اكتب اسم التصنيف'); return; }
-  if(!window._fbAddCat){ showToast('⚠️ Firebase مش جاهز'); return; }
-  try{
-    await window._fbAddCat({ name, icon, order, visible:true });
-    showToast('✅ تم إضافة التصنيف: '+name);
-    document.getElementById('cat-name').value='';
-    document.getElementById('cat-icon').value='';
-  }catch(e){ showToast('❌ خطأ: '+e.message); }
+function _todayStr(){
+  return new Date().toISOString().slice(0,10);
 }
-window.addCategory = addCategory;
-
-async function toggleCatVisibility(id, cur){
-  try{ await window._fbUpdateCat(id,{visible:!cur}); showToast('✅ تم تحديث الحالة'); }
-  catch(e){ showToast('❌ خطأ: '+e.message); }
-}
-window.toggleCatVisibility = toggleCatVisibility;
-
-async function deleteCat(id){
-  if(!confirm('حذف التصنيف؟')) return;
-  try{ await window._fbDeleteCat(id); showToast('🗑️ تم الحذف'); }
-  catch(e){ showToast('❌ خطأ: '+e.message); }
-}
-window.deleteCat = deleteCat;
-
-function renderCatsTable(){
-  const list = document.getElementById('cats-list');
-  const cnt  = document.getElementById('cats-count');
-  const cats = window._allMenuCategories||[];
-  if(cnt) cnt.textContent = cats.length;
-  if(!list) return;
-  if(!cats.length){
-    list.innerHTML='<div class="empty-state"><div>📂</div>لا توجد تصنيفات</div>'; return;
+function _toLocalDate(o){
+  // يحاول يحسب التاريخ من createdAt أو date field
+  if(o.createdAt && o.createdAt.toDate){
+    return o.createdAt.toDate().toISOString().slice(0,10);
   }
-  list.innerHTML = cats.map(c=>`
-    <div class="cat-row">
-      <span class="cat-row-ico">${c.icon||'🏪'}</span>
-      <span class="cat-row-name">${c.name}</span>
-      <span class="badge ${c.visible!==false?'b-done':'b-cancel'}">${c.visible!==false?'ظاهر':'مخفي'}</span>
-      <div class="cat-row-btns">
-        <button class="abtn ${c.visible!==false?'gray':'grn'}" onclick="toggleCatVisibility('${c.id}',${c.visible!==false})">${c.visible!==false?'إخفاء':'إظهار'}</button>
-        <button class="abtn red" onclick="deleteCat('${c.id}')">🗑</button>
-      </div>
-    </div>`).join('');
-  populateShopCatSelect();
-}
-window.renderCatsTable = renderCatsTable;
-
-// ════ SHOPS ════
-async function addShop(){
-  const name = document.getElementById('shop-name').value.trim();
-  const cat  = document.getElementById('shop-cat').value;
-  const desc = document.getElementById('shop-desc').value.trim();
-  const tag  = document.getElementById('shop-tag').value.trim();
-  const icon = document.getElementById('shop-icon').value.trim()||'🏪';
-  if(!name){ showToast('⚠️ اكتب اسم المحل'); return; }
-  if(!window._fbAddShop){ showToast('⚠️ Firebase مش جاهز'); return; }
-  try{
-    await window._fbAddShop({ name, categoryId:cat||'', description:desc, tag, icon, visible:true, offers:[] });
-    showToast('✅ تم إضافة المحل: '+name);
-    ['shop-name','shop-desc','shop-tag','shop-icon'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
-  }catch(e){ showToast('❌ خطأ: '+e.message); }
-}
-window.addShop = addShop;
-
-async function toggleShopVisibility(id, cur){
-  try{ await window._fbUpdateShop(id,{visible:!cur}); showToast('✅ تم تحديث حالة المحل'); }
-  catch(e){ showToast('❌ خطأ: '+e.message); }
-}
-window.toggleShopVisibility = toggleShopVisibility;
-
-async function deleteShop(id){
-  if(!confirm('حذف المحل وكل عروضه؟')) return;
-  try{ await window._fbDeleteShop(id); showToast('🗑️ تم الحذف'); }
-  catch(e){ showToast('❌ خطأ: '+e.message); }
-}
-window.deleteShop = deleteShop;
-
-function renderShopsTable(){
-  const grid = document.getElementById('shops-admin-grid');
-  const cnt  = document.getElementById('shops-count');
-  const shops= window._allShops||[];
-  const cats = window._allMenuCategories||[];
-  if(cnt) cnt.textContent = shops.length;
-  if(!grid) return;
-  if(!shops.length){
-    grid.innerHTML='<div class="empty-state" style="grid-column:span 3"><div>🏪</div>لا توجد محلات بعد</div>'; return;
+  if(o.date){
+    // date قد يكون "١٢/٦/٢٠٢٥" — نحوّله
+    try{
+      const parts=o.date.split('/');
+      if(parts.length===3){
+        const d=parseInt(parts[0]),m=parseInt(parts[1]),y=parseInt(parts[2]);
+        if(y>2000) return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      }
+    }catch(e){}
   }
-  grid.innerHTML = shops.map(s=>{
-    const cat = cats.find(c=>c.id===s.categoryId);
-    const offersCount = (s.offers||[]).length;
-    const activeOffers = (s.offers||[]).filter(o=>o.active!==false).length;
-    return `<div class="shop-admin-card">
-      <div class="shop-admin-card-top">
-        <div class="shop-admin-ico">${s.icon||'🏪'}</div>
-        <div style="flex:1;min-width:0">
-          <div class="shop-admin-name">${s.name}</div>
-          <div class="shop-admin-cat">${cat?cat.icon+' '+cat.name:'بدون تصنيف'}</div>
-        </div>
-        <span class="badge ${s.visible!==false?'b-done':'b-cancel'}">${s.visible!==false?'ظاهر':'مخفي'}</span>
-      </div>
-      <div class="shop-admin-body">
-        <div style="font-size:12px;color:var(--tm);margin-bottom:.75rem">${s.description||'—'}</div>
-        <div class="shop-offers-count">🎁 ${activeOffers} عرض نشط من ${offersCount}</div>
-        <div class="shop-admin-btns">
-          <button class="abtn bl" style="flex:1" onclick="openOffersModal('${s.id}')">✏️ العروض</button>
-          <button class="abtn ${s.visible!==false?'gray':'grn'}" onclick="toggleShopVisibility('${s.id}',${s.visible!==false})">${s.visible!==false?'إخفاء':'إظهار'}</button>
-          <button class="abtn red" onclick="deleteShop('${s.id}')">🗑</button>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
+  return _todayStr(); // fallback
 }
-window.renderShopsTable = renderShopsTable;
 
-// ════ OFFERS MODAL ════
-function openOffersModal(shopId){
-  _editingShopId = shopId;
-  const shop = (window._allShops||[]).find(s=>s.id===shopId);
-  if(!shop) return;
-  document.getElementById('offers-modal-shop-name').textContent = shop.name;
-  renderOffersList(shop.offers||[]);
-  document.getElementById('offers-modal').classList.add('on');
+function setRevToday(){
+  const t=_todayStr();
+  document.getElementById('rev-from').value=t;
+  document.getElementById('rev-to').value=t;
+  renderRevenue();
 }
-window.openOffersModal = openOffersModal;
-
-function closeOffersModal(){
-  document.getElementById('offers-modal').classList.remove('on');
-  _editingShopId = null;
-  ['offer-name','offer-icon','offer-desc','offer-old-price','offer-new-price'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+function setRevWeek(){
+  const to=new Date(), from=new Date();
+  from.setDate(from.getDate()-6);
+  document.getElementById('rev-from').value=from.toISOString().slice(0,10);
+  document.getElementById('rev-to').value=to.toISOString().slice(0,10);
+  renderRevenue();
 }
-window.closeOffersModal = closeOffersModal;
+function setRevMonth(){
+  const now=new Date();
+  document.getElementById('rev-from').value=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+  document.getElementById('rev-to').value=now.toISOString().slice(0,10);
+  renderRevenue();
+}
+function setRevAll(){
+  document.getElementById('rev-from').value='';
+  document.getElementById('rev-to').value='';
+  renderRevenue();
+}
+window.setRevToday=setRevToday;window.setRevWeek=setRevWeek;
+window.setRevMonth=setRevMonth;window.setRevAll=setRevAll;
 
-function renderOffersList(offers){
-  const list = document.getElementById('offers-list');
-  if(!list) return;
-  if(!offers.length){
-    list.innerHTML='<div style="text-align:center;padding:1.5rem;color:var(--tm);font-size:13px">لا توجد عروض بعد — أضف أول عرض!</div>'; return;
+function renderRevenue(){
+  const fromVal=document.getElementById('rev-from')?.value||'';
+  const toVal  =document.getElementById('rev-to')?.value||'';
+  let orders=getOrders();
+
+  // فلترة بالتاريخ
+  if(fromVal||toVal){
+    orders=orders.filter(o=>{
+      const d=_toLocalDate(o);
+      if(fromVal && d<fromVal) return false;
+      if(toVal   && d>toVal)   return false;
+      return true;
+    });
   }
-  list.innerHTML = offers.map((o,i)=>`
-    <div class="offer-row">
-      <div class="offer-row-ico">${o.icon||'🎁'}</div>
-      <div class="offer-row-info">
-        <div class="offer-row-name">${o.name}</div>
-        <div class="offer-row-price">${o.newPrice?o.newPrice+' جم':'بدون سعر'}${o.oldPrice?' (كان '+o.oldPrice+' جم)':''}</div>
-      </div>
-      <div class="offer-row-btns">
-        <button class="abtn ${o.active!==false?'gray':'grn'}" onclick="toggleOffer(${i})">${o.active!==false?'إخفاء':'إظهار'}</button>
-        <button class="abtn red" onclick="deleteOffer(${i})">🗑</button>
-      </div>
-    </div>`).join('');
-}
 
-async function addOffer(){
-  if(!_editingShopId){ showToast('⚠️ خطأ'); return; }
-  const name     = document.getElementById('offer-name').value.trim();
-  const icon     = document.getElementById('offer-icon').value.trim()||'🎁';
-  const desc     = document.getElementById('offer-desc').value.trim();
-  const oldPrice = parseFloat(document.getElementById('offer-old-price').value)||0;
-  const newPrice = parseFloat(document.getElementById('offer-new-price').value)||0;
-  if(!name){ showToast('⚠️ اكتب اسم العرض'); return; }
-  if(!newPrice){ showToast('⚠️ اكتب السعر الجديد'); return; }
-  const shop = (window._allShops||[]).find(s=>s.id===_editingShopId);
-  if(!shop) return;
-  const newOffer = { name, icon, description:desc, oldPrice:oldPrice||null, newPrice, active:true, id:'offer_'+Date.now() };
-  const offers = [...(shop.offers||[]), newOffer];
-  try{
-    await window._fbUpdateShop(_editingShopId, { offers });
-    showToast('✅ تم إضافة العرض: '+name);
-    renderOffersList(offers);
-    ['offer-name','offer-icon','offer-desc','offer-old-price','offer-new-price'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  }catch(e){ showToast('❌ خطأ: '+e.message); }
-}
-window.addOffer = addOffer;
+  // حساب KPIs
+  const done      = orders.filter(o=>o.status==='تم التوصيل');
+  const cancelled = orders.filter(o=>o.status==='ملغي');
+  const totalRev  = done.reduce((s,o)=>s+_getOrderPrice(o),0);
+  const avgRev    = done.length ? Math.round(totalRev/done.length) : 0;
 
-async function toggleOffer(index){
-  const shop = (window._allShops||[]).find(s=>s.id===_editingShopId);
-  if(!shop) return;
-  const offers = [...(shop.offers||[])];
-  offers[index] = {...offers[index], active: offers[index].active===false ? true : false};
-  try{
-    await window._fbUpdateShop(_editingShopId,{offers});
-    renderOffersList(offers);
-    showToast('✅ تم تحديث حالة العرض');
-  }catch(e){ showToast('❌ خطأ: '+e.message); }
-}
-window.toggleOffer = toggleOffer;
+  // أفضل يوم
+  const dayMap={};
+  done.forEach(o=>{
+    const d=_toLocalDate(o);
+    dayMap[d]=(dayMap[d]||0)+_getOrderPrice(o);
+  });
+  const bestDay=Object.entries(dayMap).sort((a,b)=>b[1]-a[1])[0];
 
-async function deleteOffer(index){
-  if(!confirm('حذف العرض؟')) return;
-  const shop = (window._allShops||[]).find(s=>s.id===_editingShopId);
-  if(!shop) return;
-  const offers = (shop.offers||[]).filter((_,i)=>i!==index);
-  try{
-    await window._fbUpdateShop(_editingShopId,{offers});
-    renderOffersList(offers);
-    showToast('🗑️ تم حذف العرض');
-  }catch(e){ showToast('❌ خطأ: '+e.message); }
+  // تحديث KPIs
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+  set('rkpi-total-rev', totalRev+' جم');
+  set('rkpi-orders',    done.length);
+  set('rkpi-avg',       avgRev+' جم');
+  set('rkpi-cancelled', cancelled.length);
+  set('rkpi-best-day',  bestDay?bestDay[0]+' ('+bestDay[1]+' جم)':'—');
+  set('rev-count',      orders.length);
+
+  // رسم الجدول مجموع بالأيام
+  const tbody=document.getElementById('rev-tbody');
+  if(!tbody) return;
+  if(!orders.length){
+    tbody.innerHTML=`<tr><td colspan="11" style="text-align:center;padding:2rem;color:var(--tm)">لا توجد طلبات في هذه الفترة</td></tr>`;
+    return;
+  }
+
+  // ترتيب بالأحدث
+  const sorted=[...orders].sort((a,b)=>{
+    const da=_toLocalDate(a), db=_toLocalDate(b);
+    return da>db?-1:da<db?1:0;
+  });
+
+  // تجميع بالأيام
+  const groups={};
+  sorted.forEach(o=>{
+    const d=_toLocalDate(o);
+    if(!groups[d]) groups[d]=[];
+    groups[d].push(o);
+  });
+
+  let rows='', rowNum=1;
+  Object.entries(groups).sort((a,b)=>b[0]>a[0]?1:-1).forEach(([day,dayOrders])=>{
+    const dayRevenue=dayOrders.filter(o=>o.status==='تم التوصيل').reduce((s,o)=>s+_getOrderPrice(o),0);
+    const dayDone=dayOrders.filter(o=>o.status==='تم التوصيل').length;
+    // هيدر اليوم
+    rows+=`<tr class="day-group-hd">
+      <td colspan="8">📅 ${day} — ${dayOrders.length} طلب | ${dayDone} مكتمل</td>
+      <td colspan="2" class="day-total">${dayRevenue} جم</td>
+      <td><button class="reset-day-btn" onclick="confirmResetDay('${day}')">🔄 تصفير</button></td>
+    </tr>`;
+    dayOrders.forEach(o=>{
+      const price=o.status==='تم التوصيل'?_getOrderPrice(o):0;
+      const who=o.acceptedBy||o.driverName||o.assignedTo||'—';
+      rows+=`<tr>
+        <td style="color:var(--tl);font-size:11px">${rowNum++}</td>
+        <td><strong style="color:var(--or)">${o.id}</strong></td>
+        <td style="font-size:12px;color:var(--tm)">${day}</td>
+        <td style="font-size:12px">${o.time||'—'}</td>
+        <td style="font-size:12px">${o.type||'—'}</td>
+        <td style="font-size:12px;font-weight:600">${o.place||'—'}</td>
+        <td style="font-size:11px;color:var(--tm)">${o.addr||'—'}</td>
+        <td dir="ltr" style="font-size:12px">${o.phone||'—'}</td>
+        <td>${who!=='—'?`<span class="who-badge">👤 ${who}</span>`:who}</td>
+        <td><span class="badge ${SMAP[o.status]||'b-new'}">${o.status}</span></td>
+        <td style="font-weight:900;color:${price?'var(--or)':'var(--tl)'}">${price?price+' جم':'—'}</td>
+      </tr>`;
+    });
+  });
+  tbody.innerHTML=rows;
 }
-window.deleteOffer = deleteOffer;
+window.renderRevenue=renderRevenue;
+
+// ══ تصفير يوم ══
+async function confirmResetDay(day){
+  const targetDay = day || _todayStr();
+  const orders = getOrders().filter(o=>_toLocalDate(o)===targetDay && o.status==='تم التوصيل');
+  if(!orders.length){showToast('ℹ️ لا يوجد إيرادات في هذا اليوم');return;}
+  const totalRev = orders.reduce((s,o)=>s+_getOrderPrice(o),0);
+  if(!confirm(`تأكيد تصفير إيرادات يوم ${targetDay}؟
+${orders.length} طلب — ${totalRev} جم
+هيتحول حالة الطلبات لـ "مؤرشف" ومش هتتحسب في الإيرادات.`)) return;
+  let done=0;
+  for(const o of orders){
+    if(o._docId && window._fbUpdateOrder){
+      try{ await window._fbUpdateOrder(o._docId,{status:'مؤرشف',archivedAt:new Date().toISOString()}); done++; }
+      catch(e){ console.error(e); }
+    }
+  }
+  showToast(`✅ تم تصفير ${done} طلب ليوم ${targetDay}`);
+  renderRevenue();
+}
+window.confirmResetDay=confirmResetDay;
+
+// ══ تصدير Excel ══
+function exportExcel(){
+  const fromVal=document.getElementById('rev-from')?.value||'';
+  const toVal  =document.getElementById('rev-to')?.value||'';
+  let orders=getOrders();
+  if(fromVal||toVal){
+    orders=orders.filter(o=>{
+      const d=_toLocalDate(o);
+      if(fromVal&&d<fromVal)return false;
+      if(toVal&&d>toVal)return false;
+      return true;
+    });
+  }
+  if(!orders.length){showToast('⚠️ لا توجد بيانات للتصدير');return;}
+
+  // بناء CSV
+  const headers=['#','رقم الطلب','التاريخ','الوقت','النوع','المحل','العنوان','التليفون','مين عمله','السائق','الحالة','سعر التوصيل (جم)'];
+  const rows=orders.map((o,i)=>[
+    i+1,
+    o.id,
+    _toLocalDate(o),
+    o.time||'',
+    o.type||'',
+    o.place||'',
+    (o.addr||'').replace(/,/g,'،'),
+    o.phone||'',
+    o.acceptedBy||o.driverName||'—',
+    o.driverName||'—',
+    o.status,
+    o.status==='تم التوصيل'?_getOrderPrice(o):0
+  ]);
+
+  // إضافة سطر الإجمالي
+  const totalRev=orders.filter(o=>o.status==='تم التوصيل').reduce((s,o)=>s+_getOrderPrice(o),0);
+  rows.push(['','','','','','','','','','','إجمالي الإيرادات',totalRev]);
+
+  const csvContent='﻿'+[headers,...rows].map(r=>r.map(c=>`"${c}"`).join(',')).join('
+');
+  const blob=new Blob([csvContent],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  const rangeLabel=fromVal&&toVal?`${fromVal}_${toVal}`:fromVal||toVal||'كل_الوقت';
+  a.download=`إيرادات_المتميز_${rangeLabel}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('✅ تم تصدير الملف!');
+}
+window.exportExcel=exportExcel;
+
+// ══ تحديث الإيرادات في الداشبورد عند تغيير الطلبات ══
+const _origRenderDash=typeof renderDash==='function'?renderDash:null;
 
 // Auto refresh every 30s
 setInterval(()=>{
   if(document.getElementById('app').classList.contains('on'))refresh();
+  // تحديث صفحة الإيرادات لو مفتوحة
+  const revPg=document.getElementById('page-revenue');
+  if(revPg&&revPg.classList.contains('on')) renderRevenue();
 },30000);
 
 // استرجاع الجلسة عند الرفريش
