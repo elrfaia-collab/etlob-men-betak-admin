@@ -94,7 +94,12 @@ window.updateDeliveryPrice = function() {
     return onSnapshot(q, snap => {
       if(!snap.empty){
         const drv = snap.docs[0].data();
-        if(drv.lat && drv.lng) cb({ lat: drv.lat, lng: drv.lng, name: drv.fname + ' ' + drv.lname });
+        if(drv.lat && drv.lng) cb({
+          lat: drv.lat,
+          lng: drv.lng,
+          name: drv.fname + ' ' + drv.lname,
+          accuracy: drv.accuracy || null  // دقة الموقع بالمتر
+        });
       }
     });
   };
@@ -1356,6 +1361,7 @@ window.addEventListener('load', () => {
 // كل سائق عنده instance منفصل من الـ Map والـ Marker
 let _driverMap      = null;
 let _driverMarkers  = {};    // { uname: L.marker }
+let _accuracyCircles = {};  // { uname: L.circle }  — دائرة دقة الموقع
 let _mapInitialized = false;
 let _driverLocUnsubs = {};   // { uname: unsubFn }   — listener لكل سائق
 let _driverLocUnsub = null;  // للتتبع الفردي (طلب واحد)
@@ -1380,19 +1386,20 @@ function updateDriverMap(order){
       order.driverUname || 'unknown',
       parseFloat(order.driverLat),
       parseFloat(order.driverLng),
-      order.driverName || 'السائق'
+      order.driverName || 'السائق',
+      null
     );
   }
 
   const uname = order.driverUname || order.assignedTo;
   if(uname && !_driverLocUnsub && window._listenDriverLocation){
     _driverLocUnsub = window._listenDriverLocation(uname, ({lat, lng, name}) => {
-      _renderDriverOnMap(uname, parseFloat(lat), parseFloat(lng), name || order.driverName || 'السائق');
+      _renderDriverOnMap(uname, parseFloat(lat), parseFloat(lng), name || order.driverName || 'السائق', accuracy ? parseFloat(accuracy) : null);
     });
   }
 }
 
-function _renderDriverOnMap(uname, lat, lng, driverName){
+function _renderDriverOnMap(uname, lat, lng, driverName, accuracy){
   if(!lat || !lng || isNaN(lat) || isNaN(lng)) return;
   const wrap = document.getElementById('driver-map-wrap');
   if(!wrap) return;
@@ -1412,11 +1419,13 @@ function _renderDriverOnMap(uname, lat, lng, driverName){
       zoomControl: true,
       attributionControl: false,
       tap: false
-    }).setView([lat, lng], 15);
+    }).setView([lat, lng], 17);  // zoom 17 = مستوى الشارع بوضوح
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      subdomains: 'abc'
+    // Carto Voyager — أوضح خريطة للشوارع والأسماء بالعربي والإنجليزي
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      maxZoom: 20,
+      subdomains: 'abcd',
+      attribution: '&copy; <a href="https://carto.com/">CARTO</a>'
     }).addTo(_driverMap);
 
     _mapInitialized = true;
@@ -1425,19 +1434,31 @@ function _renderDriverOnMap(uname, lat, lng, driverName){
 
   // أيقونة السائق
   const driverIcon = L.divIcon({
-    html: `<div style="font-size:30px;line-height:1;filter:drop-shadow(0 2px 8px rgba(0,0,0,.6))" title="${driverName}">🛵</div>`,
+    html: '<div style="font-size:30px;line-height:1;filter:drop-shadow(0 2px 8px rgba(0,0,0,.6))" title="' + driverName + '">🛵</div>',
     iconSize: [40,40], iconAnchor: [20,20], className: ''
   });
 
   if(_driverMarkers[uname]){
     // حدّث موقع الـ marker الموجود
     _driverMarkers[uname].setLatLng([lat, lng]);
+    // حدّث دائرة الدقة لو موجودة
+    if(_accuracyCircles[uname]) _accuracyCircles[uname].setLatLng([lat, lng]);
   } else {
     // أنشئ Marker جديد للسائق ده
     const marker = L.marker([lat, lng], { icon: driverIcon }).addTo(_driverMap);
-    marker.bindPopup(`<b style="font-family:Cairo,sans-serif">🛵 ${driverName} في الطريق</b>`).openPopup();
+    marker.bindPopup('<b style="font-family:Cairo,sans-serif">🛵 ' + driverName + ' في الطريق</b>').openPopup();
     _driverMarkers[uname] = marker;
+    // دائرة الدقة (شفافة زرقاء حول السائق)
+    const circle = L.circle([lat, lng], {
+      radius: accuracy || 40,
+      color: '#3b82f6', fillColor: '#3b82f6',
+      fillOpacity: 0.08, weight: 1.5, dashArray: '4'
+    }).addTo(_driverMap);
+    _accuracyCircles[uname] = circle;
   }
+
+  // حدّث نصف قطر الدائرة لو دقة جديدة
+  if(accuracy && _accuracyCircles[uname]) _accuracyCircles[uname].setRadius(accuracy);
 
   // تحريك الخريطة للسائق الحالي
   _driverMap.panTo([lat, lng], { animate: true, duration: 0.8 });
@@ -1455,7 +1476,9 @@ function resetMap(){
   _driverLocUnsubs = {};
   // امسح كل الماركرز
   Object.values(_driverMarkers).forEach(m => { if(_driverMap && m) m.remove(); });
+  Object.values(_accuracyCircles).forEach(c => { if(_driverMap && c) c.remove(); });
   _driverMarkers  = {};
+  _accuracyCircles = {};
   _mapInitialized = false;
   if(_driverMap){ _driverMap.remove(); _driverMap = null; }
 }
