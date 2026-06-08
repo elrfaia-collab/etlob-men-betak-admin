@@ -1352,11 +1352,13 @@ window.addEventListener('load', () => {
   }
 });
 
-//  DRIVER LIVE MAP
+//  DRIVER LIVE MAP — دعم متعدد السائقين
+// كل سائق عنده instance منفصل من الـ Map والـ Marker
 let _driverMap      = null;
-let _driverMarker   = null;
+let _driverMarkers  = {};    // { uname: L.marker }
 let _mapInitialized = false;
-let _driverLocUnsub = null;
+let _driverLocUnsubs = {};   // { uname: unsubFn }   — listener لكل سائق
+let _driverLocUnsub = null;  // للتتبع الفردي (طلب واحد)
 
 function updateDriverMap(order){
   const wrap = document.getElementById('driver-map-wrap');
@@ -1365,38 +1367,46 @@ function updateDriverMap(order){
   const isActive = order.status === 'جاري التوصيل';
   if(!isActive){
     wrap.style.display = 'none';
+    // وقّف الاستماع للسائق الخاص بهذا الطلب
     if(_driverLocUnsub){ _driverLocUnsub(); _driverLocUnsub = null; }
     return;
   }
 
   wrap.style.display = 'block';
 
+  // لو في موقع محفوظ في الـ order اعرضه فوراً
   if(order.driverLat && order.driverLng){
-    _renderOnMap(parseFloat(order.driverLat), parseFloat(order.driverLng));
+    _renderDriverOnMap(
+      order.driverUname || 'unknown',
+      parseFloat(order.driverLat),
+      parseFloat(order.driverLng),
+      order.driverName || 'السائق'
+    );
   }
 
   const uname = order.driverUname || order.assignedTo;
   if(uname && !_driverLocUnsub && window._listenDriverLocation){
-    _driverLocUnsub = window._listenDriverLocation(uname, ({lat, lng}) => {
-      _renderOnMap(parseFloat(lat), parseFloat(lng));
+    _driverLocUnsub = window._listenDriverLocation(uname, ({lat, lng, name}) => {
+      _renderDriverOnMap(uname, parseFloat(lat), parseFloat(lng), name || order.driverName || 'السائق');
     });
   }
 }
 
-function _renderOnMap(lat, lng){
+function _renderDriverOnMap(uname, lat, lng, driverName){
   if(!lat || !lng || isNaN(lat) || isNaN(lng)) return;
   const wrap = document.getElementById('driver-map-wrap');
   if(!wrap) return;
   wrap.style.display = 'block';
 
   if(typeof L === 'undefined'){
-    setTimeout(() => _renderOnMap(lat, lng), 1000);
+    setTimeout(() => _renderDriverOnMap(uname, lat, lng, driverName), 1000);
     return;
   }
 
   const mapEl = document.getElementById('driver-map');
   if(!mapEl) return;
 
+  // أنشئ الـ Map لو مش موجود
   if(!_mapInitialized){
     _driverMap = L.map('driver-map', {
       zoomControl: true,
@@ -1409,25 +1419,45 @@ function _renderOnMap(lat, lng){
       subdomains: 'abc'
     }).addTo(_driverMap);
 
-    const driverIcon = L.divIcon({
-      html: '<div style="font-size:32px;line-height:1;filter:drop-shadow(0 2px 8px rgba(0,0,0,.6))">🛵</div>',
-      iconSize: [40,40], iconAnchor: [20,20], className: ''
-    });
-    _driverMarker = L.marker([lat, lng], { icon: driverIcon }).addTo(_driverMap);
-    _driverMarker.bindPopup('<b style="font-family:Cairo,sans-serif">🛵 السائق في طريقه إليك</b>').openPopup();
     _mapInitialized = true;
     [300, 600, 1000].forEach(t => setTimeout(() => { if(_driverMap) _driverMap.invalidateSize(); }, t));
-  } else {
-    _driverMarker.setLatLng([lat, lng]);
-    _driverMap.panTo([lat, lng], { animate: true, duration: 0.8 });
   }
+
+  // أيقونة السائق
+  const driverIcon = L.divIcon({
+    html: `<div style="font-size:30px;line-height:1;filter:drop-shadow(0 2px 8px rgba(0,0,0,.6))" title="${driverName}">🛵</div>`,
+    iconSize: [40,40], iconAnchor: [20,20], className: ''
+  });
+
+  if(_driverMarkers[uname]){
+    // حدّث موقع الـ marker الموجود
+    _driverMarkers[uname].setLatLng([lat, lng]);
+  } else {
+    // أنشئ Marker جديد للسائق ده
+    const marker = L.marker([lat, lng], { icon: driverIcon }).addTo(_driverMap);
+    marker.bindPopup(`<b style="font-family:Cairo,sans-serif">🛵 ${driverName} في الطريق</b>`).openPopup();
+    _driverMarkers[uname] = marker;
+  }
+
+  // تحريك الخريطة للسائق الحالي
+  _driverMap.panTo([lat, lng], { animate: true, duration: 0.8 });
+}
+
+// دالة قديمة (للتوافقية مع أي كود بيستدعيها)
+function _renderOnMap(lat, lng){
+  _renderDriverOnMap('legacy', lat, lng, 'السائق');
 }
 
 function resetMap(){
   if(_driverLocUnsub){ _driverLocUnsub(); _driverLocUnsub = null; }
+  // وقّف كل المستمعين
+  Object.values(_driverLocUnsubs).forEach(fn => fn && fn());
+  _driverLocUnsubs = {};
+  // امسح كل الماركرز
+  Object.values(_driverMarkers).forEach(m => { if(_driverMap && m) m.remove(); });
+  _driverMarkers  = {};
   _mapInitialized = false;
-  _driverMap      = null;
-  _driverMarker   = null;
+  if(_driverMap){ _driverMap.remove(); _driverMap = null; }
 }
 
 //  CONFIRM DELIVERY
