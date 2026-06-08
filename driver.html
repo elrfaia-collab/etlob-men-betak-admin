@@ -714,9 +714,11 @@ function callClient(phone) {
 // ══════════════════════════════════════════════
 //  ONLINE TOGGLE
 // ══════════════════════════════════════════════
-let _gpsInterval = null;
+let _gpsWatchId = null;   // watchPosition ID (يشتغل على Android و iOS)
+let _gpsInterval = null;  // fallback interval للأجهزة القديمة
 let _currentLat = null;
 let _currentLng = null;
+let _lastSentTime = 0;    // منع إرسال متكرر جداً
 
 function toggleOnline() {
   isOnline = !isOnline;
@@ -740,24 +742,66 @@ function toggleOnline() {
 }
 
 function startGPS() {
-  if(!navigator.geolocation) return;
-  // Get location immediately
-  navigator.geolocation.getCurrentPosition(pos => {
-    _currentLat = pos.coords.latitude;
-    _currentLng = pos.coords.longitude;
-    sendLocationToFirebase();
-  });
-  // Then every 30 seconds
-  _gpsInterval = setInterval(() => {
-    navigator.geolocation.getCurrentPosition(pos => {
+  if(!navigator.geolocation) {
+    showToast('⚠️ GPS مش متاح على جهازك');
+    return;
+  }
+
+  // ── watchPosition: يشتغل تلقائي على Android و iOS ──
+  // maximumAge: 0  → دايماً موقع حديث
+  // timeout: 15s  → مهلة معقولة
+  // enableHighAccuracy: true → أدق موقع ممكن
+  const gpsOpts = { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 };
+
+  _gpsWatchId = navigator.geolocation.watchPosition(
+    (pos) => {
       _currentLat = pos.coords.latitude;
       _currentLng = pos.coords.longitude;
+      // إرسال للـ Firebase كل 20 ثانية كحد أدنى لتوفير الباندويدث
+      const now = Date.now();
+      if(now - _lastSentTime >= 20000) {
+        _lastSentTime = now;
+        sendLocationToFirebase();
+      }
+    },
+    (err) => {
+      console.warn('GPS watchPosition error:', err.code, err.message);
+      // إذا فشل watchPosition، fallback لـ getCurrentPosition كل 30 ثانية
+      if(!_gpsInterval) {
+        _gpsInterval = setInterval(() => {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              _currentLat = pos.coords.latitude;
+              _currentLng = pos.coords.longitude;
+              sendLocationToFirebase();
+            },
+            (e) => console.warn('GPS fallback error:', e.message),
+            gpsOpts
+          );
+        }, 30000);
+      }
+    },
+    gpsOpts
+  );
+
+  // أول موقع فوراً بدون انتظار watchPosition
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      _currentLat = pos.coords.latitude;
+      _currentLng = pos.coords.longitude;
+      _lastSentTime = Date.now();
       sendLocationToFirebase();
-    }, err => console.log('GPS error:', err), { enableHighAccuracy: true });
-  }, 30000);
+    },
+    (err) => console.warn('GPS initial error:', err.message),
+    gpsOpts
+  );
 }
 
 function stopGPS() {
+  if(_gpsWatchId !== null) {
+    navigator.geolocation.clearWatch(_gpsWatchId);
+    _gpsWatchId = null;
+  }
   if(_gpsInterval) { clearInterval(_gpsInterval); _gpsInterval = null; }
   // Mark offline in Firebase
   if(currentDriver?._docId && window._updateDriverStatus) {
