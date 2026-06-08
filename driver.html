@@ -96,6 +96,11 @@
     });
   };
 
+  // ── تحديث بيانات الطلب (موقع السائق) ──
+  window._fbUpdateOrder = async (docId, data) => {
+    await updateDoc(doc(db, "orders", docId), data);
+  };
+
   window._firebaseReady = true;
   window.dispatchEvent(new Event('firebaseReady'));
   console.log("✅ Driver Firebase Ready");
