@@ -89,19 +89,23 @@ window.updateDeliveryPrice = function() {
   };
 
   // ── الاستماع لموقع السائق من driver document (fallback) ──
+  // بيبحث بـ uname — وده الـ key المحفوظ في الـ order كـ driverUname
   window._listenDriverLocation = (driverUname, cb) => {
     const q = query(collection(db, "drivers"), where("uname", "==", driverUname));
     return onSnapshot(q, snap => {
       if(!snap.empty){
         const drv = snap.docs[0].data();
-        if(drv.lat && drv.lng) cb({
-          lat: drv.lat,
-          lng: drv.lng,
-          name: drv.fname + ' ' + drv.lname,
-          accuracy: drv.accuracy || null  // دقة الموقع بالمتر
-        });
+        // اعرض الموقع فقط لو السائق online ولو عنده lat/lng
+        if(drv.lat && drv.lng) {
+          cb({
+            lat:      drv.lat,
+            lng:      drv.lng,
+            name:     (drv.fname || '') + ' ' + (drv.lname || ''),
+            accuracy: drv.accuracy || null
+          });
+        }
       }
-    });
+    }, (err) => { console.warn('listenDriverLocation error:', err.message); });
   };
 // ── الاستماع للعروض اليومية من Firestore وتحديث الواجهة تلقائياً ──
   try {
@@ -848,8 +852,14 @@ footer strong{color:var(--or);}
 
         <!-- خريطة موقع السائق -->
         <div id="driver-map-wrap">
-          <div id="driver-map-label">🛵 موقع السائق الآن — مباشر</div>
+          <div id="driver-map-label">
+            🛵 موقع السائق الآن — مباشر
+            <span id="map-status-dot" style="margin-right:auto;font-size:11px;color:var(--or);font-weight:600;display:none">⏳ جاري تحديد الموقع...</span>
+          </div>
           <div id="driver-map"></div>
+          <div id="driver-map-loading" style="display:none;padding:24px;text-align:center;color:var(--tm);font-size:13px">
+            ⏳ في انتظار إشارة GPS من السائق...
+          </div>
         </div>
 
         <!-- معلومات السائق -->
@@ -1366,6 +1376,8 @@ let _mapInitialized = false;
 let _driverLocUnsubs = {};   // { uname: unsubFn }   — listener لكل سائق
 let _driverLocUnsub = null;  // للتتبع الفردي (طلب واحد)
 
+let _lastTrackedUname = null;  // نتابع آخر سائق كنا بنستمع له
+
 function updateDriverMap(order){
   const wrap = document.getElementById('driver-map-wrap');
   if(!wrap) return;
@@ -1373,17 +1385,25 @@ function updateDriverMap(order){
   const isActive = order.status === 'جاري التوصيل';
   if(!isActive){
     wrap.style.display = 'none';
-    // وقّف الاستماع للسائق الخاص بهذا الطلب
     if(_driverLocUnsub){ _driverLocUnsub(); _driverLocUnsub = null; }
+    _lastTrackedUname = null;
     return;
   }
 
   wrap.style.display = 'block';
 
-  // لو في موقع محفوظ في الـ order اعرضه فوراً
+  const uname = order.driverUname || order.driverPhone || 'driver';
+
+  // أظهر/أخفي رسالة الانتظار
+  const loadMsg = document.getElementById('driver-map-loading');
+  const mapEl   = document.getElementById('driver-map');
+  const hasFix  = !!(order.driverLat && order.driverLng);
+  if(loadMsg) loadMsg.style.display = hasFix ? 'none' : 'block';
+  if(mapEl)   mapEl.style.display   = hasFix ? 'block' : 'none';
+
+  // لو في موقع محفوظ في الـ order اعرضه فوراً (قبل ما يجي الـ realtime)
   if(order.driverLat && order.driverLng){
-    _renderDriverOnMap(
-      order.driverUname || 'unknown',
+    _renderDriverOnMap(uname,
       parseFloat(order.driverLat),
       parseFloat(order.driverLng),
       order.driverName || 'السائق',
@@ -1391,10 +1411,21 @@ function updateDriverMap(order){
     );
   }
 
-  const uname = order.driverUname || order.assignedTo;
-  if(uname && !_driverLocUnsub && window._listenDriverLocation){
-    _driverLocUnsub = window._listenDriverLocation(uname, ({lat, lng, name}) => {
-      _renderDriverOnMap(uname, parseFloat(lat), parseFloat(lng), name || order.driverName || 'السائق', accuracy ? parseFloat(accuracy) : null);
+  // ابدأ الاستماع للـ realtime — أو أعد البدء لو تغيّر السائق
+  if(uname && uname !== _lastTrackedUname && window._listenDriverLocation){
+    // وقّف المستمع القديم لو موجود
+    if(_driverLocUnsub){ _driverLocUnsub(); _driverLocUnsub = null; }
+    _lastTrackedUname = uname;
+
+    _driverLocUnsub = window._listenDriverLocation(uname, ({lat, lng, name, accuracy}) => {
+      const la = parseFloat(lat);
+      const ln = parseFloat(lng);
+      if(isNaN(la) || isNaN(ln)) return;
+      _renderDriverOnMap(
+        uname, la, ln,
+        name || order.driverName || 'السائق',
+        accuracy ? parseFloat(accuracy) : null
+      );
     });
   }
 }
@@ -1404,6 +1435,11 @@ function _renderDriverOnMap(uname, lat, lng, driverName, accuracy){
   const wrap = document.getElementById('driver-map-wrap');
   if(!wrap) return;
   wrap.style.display = 'block';
+  // موقع وصل — اخفي رسالة الانتظار وظهر الخريطة
+  const loadMsg = document.getElementById('driver-map-loading');
+  const mapDiv  = document.getElementById('driver-map');
+  if(loadMsg) loadMsg.style.display = 'none';
+  if(mapDiv)  mapDiv.style.display  = 'block';
 
   if(typeof L === 'undefined'){
     setTimeout(() => _renderDriverOnMap(uname, lat, lng, driverName), 1000);
