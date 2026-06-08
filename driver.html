@@ -74,8 +74,8 @@
     await updateDoc(doc(db, "orders", docId), { status });
   };
 
-  // ── تحديث حالة السائق (أونلاين + موقع) ──
-  window._updateDriverStatus = async (docId, isOnline, lat, lng) => {
+  // ── تحديث حالة السائق (أونلاين + موقع + دقة GPS) ──
+  window._updateDriverStatus = async (docId, isOnline, lat, lng, accuracy) => {
     const data = {
       online: isOnline,
       lastSeen: new Date().toISOString(),
@@ -83,6 +83,7 @@
     if(lat && lng) {
       data.lat = lat;
       data.lng = lng;
+      if(accuracy) data.accuracy = Math.round(accuracy); // بالمتر
     }
     await updateDoc(doc(db, "drivers", docId), data);
   };
@@ -398,6 +399,7 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
       </div>
     </div>
     <div class="hdr-right">
+      <div id="gps-accuracy-badge" style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;background:rgba(100,116,139,.15);color:#94a3b8;display:flex;align-items:center;white-space:nowrap;transition:background .4s,color .4s;">📡 GPS...</div>
       <div class="online-toggle on" id="online-toggle" onclick="toggleOnline()">
         <div class="dot"></div>
         <span id="online-txt">متاح</span>
@@ -718,6 +720,7 @@ let _gpsWatchId = null;   // watchPosition ID (يشتغل على Android و iOS)
 let _gpsInterval = null;  // fallback interval للأجهزة القديمة
 let _currentLat = null;
 let _currentLng = null;
+let _currentAcc = null;  // دقة GPS بالمتر
 let _lastSentTime = 0;    // منع إرسال متكرر جداً
 
 function toggleOnline() {
@@ -741,60 +744,69 @@ function toggleOnline() {
   }
 }
 
+// ── حد أقصى للدقة المقبولة بالمتر — لو أكتر الموقع مش موثوق ──
+const GPS_ACCURACY_THRESHOLD = 80;
+
+function _onGPSSuccess(pos) {
+  const acc = pos.coords.accuracy;
+  const lat = pos.coords.latitude;
+  const lng = pos.coords.longitude;
+  _updateAccuracyBadge(acc);
+  if(acc > GPS_ACCURACY_THRESHOLD) {
+    console.warn('GPS accuracy too low: ' + Math.round(acc) + 'm — waiting for better fix');
+    return;
+  }
+  _currentLat = lat;
+  _currentLng = lng;
+  _currentAcc = acc;
+  const now = Date.now();
+  if(now - _lastSentTime >= 15000) {
+    _lastSentTime = now;
+    sendLocationToFirebase();
+  }
+}
+
+function _onGPSError(err) {
+  console.warn('GPS error:', err.code, err.message);
+  _updateAccuracyBadge(null, err.code);
+  if(!_gpsInterval) {
+    _gpsInterval = setInterval(() => {
+      navigator.geolocation.getCurrentPosition(
+        _onGPSSuccess,
+        (e) => console.warn('GPS fallback error:', e.message),
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 }
+      );
+    }, 30000);
+  }
+}
+
+function _updateAccuracyBadge(acc, errCode) {
+  const badge = document.getElementById('gps-accuracy-badge');
+  if(!badge) return;
+  if(errCode !== undefined) {
+    const msgs = { 1:'مرفوض — افتح إذن الموقع', 2:'إشارة GPS ضعيفة', 3:'انتهت مهلة GPS' };
+    badge.textContent = '📡 ' + (msgs[errCode] || 'خطأ GPS');
+    badge.style.background = 'rgba(239,68,68,.2)'; badge.style.color = '#fca5a5';
+    return;
+  }
+  if(acc === null) return;
+  const m = Math.round(acc);
+  if(m <= 15)      { badge.textContent = '📡 دقة ممتازة ±' + m + 'م';    badge.style.background='rgba(16,185,129,.2)'; badge.style.color='#6ee7b7'; }
+  else if(m <= 40) { badge.textContent = '📡 دقة جيدة ±' + m + 'م';      badge.style.background='rgba(59,130,246,.2)'; badge.style.color='#93c5fd'; }
+  else if(m <= 80) { badge.textContent = '📡 دقة مقبولة ±' + m + 'م';    badge.style.background='rgba(245,158,11,.2)'; badge.style.color='#fcd34d'; }
+  else             { badge.textContent = '📡 دقة ضعيفة ±' + m + 'م ⏳';  badge.style.background='rgba(239,68,68,.15)'; badge.style.color='#fca5a5'; }
+}
+
 function startGPS() {
   if(!navigator.geolocation) {
     showToast('⚠️ GPS مش متاح على جهازك');
     return;
   }
-
-  // ── watchPosition: يشتغل تلقائي على Android و iOS ──
-  // maximumAge: 0  → دايماً موقع حديث
-  // timeout: 15s  → مهلة معقولة
-  // enableHighAccuracy: true → أدق موقع ممكن
-  const gpsOpts = { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 };
-
-  _gpsWatchId = navigator.geolocation.watchPosition(
-    (pos) => {
-      _currentLat = pos.coords.latitude;
-      _currentLng = pos.coords.longitude;
-      // إرسال للـ Firebase كل 20 ثانية كحد أدنى لتوفير الباندويدث
-      const now = Date.now();
-      if(now - _lastSentTime >= 20000) {
-        _lastSentTime = now;
-        sendLocationToFirebase();
-      }
-    },
-    (err) => {
-      console.warn('GPS watchPosition error:', err.code, err.message);
-      // إذا فشل watchPosition، fallback لـ getCurrentPosition كل 30 ثانية
-      if(!_gpsInterval) {
-        _gpsInterval = setInterval(() => {
-          navigator.geolocation.getCurrentPosition(
-            (pos) => {
-              _currentLat = pos.coords.latitude;
-              _currentLng = pos.coords.longitude;
-              sendLocationToFirebase();
-            },
-            (e) => console.warn('GPS fallback error:', e.message),
-            gpsOpts
-          );
-        }, 30000);
-      }
-    },
-    gpsOpts
-  );
-
-  // أول موقع فوراً بدون انتظار watchPosition
-  navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      _currentLat = pos.coords.latitude;
-      _currentLng = pos.coords.longitude;
-      _lastSentTime = Date.now();
-      sendLocationToFirebase();
-    },
-    (err) => console.warn('GPS initial error:', err.message),
-    gpsOpts
-  );
+  const gpsOpts = { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 };
+  _gpsWatchId = navigator.geolocation.watchPosition(_onGPSSuccess, _onGPSError, gpsOpts);
+  // أول موقع فوري
+  navigator.geolocation.getCurrentPosition(_onGPSSuccess,
+    (err) => console.warn('GPS initial error:', err.message), gpsOpts);
 }
 
 function stopGPS() {
@@ -811,7 +823,7 @@ function stopGPS() {
 
 function sendLocationToFirebase() {
   if(isOnline && currentDriver?._docId && window._updateDriverStatus) {
-    window._updateDriverStatus(currentDriver._docId, true, _currentLat, _currentLng);
+    window._updateDriverStatus(currentDriver._docId, true, _currentLat, _currentLng, _currentAcc);
   }
   // Also update active orders with driver location so client can see distance
   if(_currentLat && _currentLng && window._fbUpdateOrder) {
