@@ -623,6 +623,7 @@ tr:hover td{background:rgba(13,36,97,.02);}
           <button class="fbtn" onclick="filterOrders('ملغي',this)">❌ ملغي</button>
           <div class="search-wrap" style="display:flex;gap:6px;max-width:320px;">
             <input type="text" id="search-input" placeholder="ابحث برقم الطلب أو التليفون..." 
+              oninput="searchOrders(this.value)"
               onkeydown="if(event.key==='Enter')doSearch()"
               style="flex:1;"/>
             <button onclick="doSearch()" style="background:var(--nv);color:#fff;border:none;padding:8px 14px;border-radius:10px;font-family:'Cairo',sans-serif;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;transition:.2s;" onmouseover="this.style.background='var(--nv2)'" onmouseout="this.style.background='var(--nv)'">🔍 بحث</button>
@@ -1098,21 +1099,34 @@ async function doLogin(){
     return;
   }
 
+  // التحقق من بيانات الدخول
+  // يدعم: الأدمن الرئيسي + أي أدمن مضاف من Firebase
+  const passHash = await sha256(p);
 
-  
-  
-  // التحقق: اسم المستخدم "admin" وكلمة السر "123456"
-  // لتغيير كلمة السر: شغّل في console المتصفح: crypto.subtle.digest('SHA-256', new TextEncoder().encode('كلمة_سرك')).then(b=>console.log(Array.from(new 
-const passHash = await sha256(p);
-  const validUser = u === 'admin';
-  const validPass = passHash === await sha256('3042003');
+  // ── 1. تحقق من الأدمن الرئيسي (محفوظ في الكود) ──
+  const mainAdminValid = (u === 'admin' && passHash === await sha256('3042003'));
 
-  if(validUser && validPass){
+  // ── 2. تحقق من أدمنز Firebase ──
+  let fbAdminValid = false;
+  let fbAdmin = null;
+  if(!mainAdminValid && window._allAdmins && window._allAdmins.length){
+    fbAdmin = window._allAdmins.find(a => a.uname === u);
+    if(fbAdmin){
+      const fbHash = await sha256(fbAdmin.pass || '');
+      fbAdminValid = (passHash === fbHash) || (p === fbAdmin.pass);
+    }
+  }
+
+  if(mainAdminValid || fbAdminValid){
     loginAttempts = 0;
     lockUntil = 0;
     sessionStorage.setItem('emb_auth','1');
+    sessionStorage.setItem('emb_uname', fbAdmin ? (fbAdmin.name || u) : 'الأدمن الرئيسي');
     document.getElementById('login-screen').style.display='none';
     document.getElementById('app').classList.add('on');
+    // تحديث اسم المستخدم في الـ sidebar
+    const unameEl = document.getElementById('sb-uname-txt');
+    if(unameEl) unameEl.textContent = fbAdmin ? (fbAdmin.name || u) : 'الأدمن الرئيسي';
     const lastPage = sessionStorage.getItem('emb_last_page') || 'dash';
     refresh();
     loadCurrentOffer();
@@ -1244,7 +1258,12 @@ let curFilter='all', curSearch='';
 function renderOrders(){
   let list=getOrders();
   if(curFilter!=='all')list=list.filter(o=>o.status===curFilter);
-  if(curSearch)list=list.filter(o=>o.id.toLowerCase().includes(curSearch)||o.phone.includes(curSearch));
+  if(curSearch) list = list.filter(o =>
+    (o.id    ||'').toLowerCase().includes(curSearch) ||
+    (o.phone ||'').includes(curSearch)               ||
+    (o.place ||'').toLowerCase().includes(curSearch) ||
+    (o.addr  ||'').toLowerCase().includes(curSearch)
+  );
   const tb=document.getElementById('orders-tbody');
   if(!list.length){tb.innerHTML=`<tr><td colspan="9"><div class="empty-state"><div>📭</div>لا يوجد طلبات</div></td></tr>`;return;}
   tb.innerHTML=list.map((o,i)=>`
@@ -1272,7 +1291,10 @@ function filterOrders(f,btn){
   btn.classList.add('act');
   renderOrders();
 }
-function searchOrders(v){curSearch=v.trim().toLowerCase();renderOrders();}
+function searchOrders(v){
+  curSearch = v.trim().toLowerCase();
+  renderOrders();
+}
 
 function doSearch(){
   const v = document.getElementById('search-input');
@@ -2060,8 +2082,7 @@ function exportExcel(){
   const totalRev=orders.filter(o=>o.status==='تم التوصيل').reduce((s,o)=>s+_getOrderPrice(o),0);
   rows.push(['','','','','','','','','','','إجمالي الإيرادات',totalRev]);
 
-  const csvContent='﻿'+[headers,...rows].map(r=>r.map(c=>`"${c}"`).join(',')).join('
-');
+  const csvContent='\uFEFF'+[headers,...rows].map(r=>r.map(c=>`"${c}"`).join(',')).join('\n');
   const blob=new Blob([csvContent],{type:'text/csv;charset=utf-8'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
@@ -2092,6 +2113,10 @@ window.addEventListener('load', () => {
   if(auth){
     document.getElementById('login-screen').style.display='none';
     document.getElementById('app').classList.add('on');
+    // استرجاع اسم المستخدم
+    const savedUname = sessionStorage.getItem('emb_uname');
+    const unameEl = document.getElementById('sb-uname-txt');
+    if(unameEl && savedUname) unameEl.textContent = savedUname;
     setTimeout(()=>{
       refresh();
       loadCurrentOffer();
