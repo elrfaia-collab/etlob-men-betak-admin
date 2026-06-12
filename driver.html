@@ -617,21 +617,43 @@ function renderAvailable() {
         </div>
         <div class="oc-row">
           <span class="oc-ico">📍</span>
-          <div class="oc-info"><div class="oc-lbl">من</div><div class="oc-val">${o.place||'—'}</div></div>
+          <div class="oc-info"><div class="oc-lbl">من</div><div class="oc-val">${getOrderPickup(o)}</div></div>
         </div>
         <div class="oc-row">
           <span class="oc-ico">🏠</span>
-          <div class="oc-info"><div class="oc-lbl">العنوان</div><div class="oc-val">${o.addr||'—'}</div></div>
+          <div class="oc-info"><div class="oc-lbl">العنوان</div><div class="oc-val">${getOrderAddr(o)}</div></div>
         </div>
+        ${o.senderPhone?`<div class="oc-row"><span class="oc-ico">📤</span><div class="oc-info"><div class="oc-lbl">المُرسل ${o.senderName&&o.senderName!=='غير محدد'?'('+o.senderName+')':''}</div><div class="oc-val" dir="ltr">${o.senderPhone}</div></div></div>`:''}
+        ${o.receiverPhone?`<div class="oc-row"><span class="oc-ico">📥</span><div class="oc-info"><div class="oc-lbl">المُستقبل ${o.receiverName&&o.receiverName!=='غير محدد'?'('+o.receiverName+')':''}</div><div class="oc-val" dir="ltr">${o.receiverPhone}</div></div></div>`:''}
         ${o.details ? `<div class="oc-row"><span class="oc-ico">📝</span><div class="oc-info"><div class="oc-lbl">تفاصيل</div><div class="oc-val">${o.details}</div></div></div>` : ''}
       </div>
       <div class="oc-actions">
         <button class="abtn accept" onclick="acceptOrder('${o._docId}','${o.id}')">✅ قبول</button>
-        <button class="abtn wa" onclick="contactWA('${o.phone}')">💬 واتساب</button>
-        <button class="abtn call" onclick="callClient('${o.phone}')">📞 اتصال</button>
+        <button class="abtn wa" onclick="contactWA('${getOrderSenderPhone(o)}')">💬 واتساب</button>
+        <button class="abtn call" onclick="callClient('${getOrderSenderPhone(o)}')">📞 اتصال</button>
       </div>
     </div>
   `).join('');
+}
+
+
+// 📍 دوال موحدة لقراءة بيانات الطلب (تدعم الفورم القديم والجديد)
+function getOrderAddr(o){
+  if(o.addr) return o.addr;
+  if(o.address) return o.address;
+  if(o.deliveryAddress) return o.deliveryAddress;
+  return '—';
+}
+function getOrderPickup(o){
+  if(o.pickupAddress) return o.pickupAddress;
+  return o.place || '—';
+}
+function getOrderPhone(o){
+  if(o.phone) return o.phone;
+  return o.receiverPhone || o.senderPhone || '';
+}
+function getOrderSenderPhone(o){
+  return o.senderPhone || o.phone || '';
 }
 
 // ══════════════════════════════════════════════
@@ -657,15 +679,20 @@ function renderMyOrders() {
       <div class="oc-body">
         <div class="oc-row">
           <span class="oc-ico">🏪</span>
-          <div class="oc-info"><div class="oc-lbl">من</div><div class="oc-val">${o.place||'—'}</div></div>
+          <div class="oc-info"><div class="oc-lbl">من</div><div class="oc-val">${getOrderPickup(o)}</div></div>
         </div>
         <div class="oc-row">
           <span class="oc-ico">🏠</span>
-          <div class="oc-info"><div class="oc-lbl">إلى</div><div class="oc-val">${o.addr||'—'}</div></div>
+          <div class="oc-info"><div class="oc-lbl">إلى</div><div class="oc-val">${getOrderAddr(o)}</div></div>
         </div>
         <div class="oc-row">
           <span class="oc-ico">📱</span>
-          <div class="oc-info"><div class="oc-lbl">العميل</div><div class="oc-val" dir="ltr">${o.phone||'—'}</div></div>
+          <div class="oc-info"><div class="oc-lbl">العميل</div><div class="oc-val" dir="ltr">${getOrderPhone(o)||'—'}</div></div>
+        </div>
+        ${o.senderPhone?`<div class="oc-row"><span class="oc-ico">📤</span><div class="oc-info"><div class="oc-lbl">المُرسل ${o.senderName&&o.senderName!=='غير محدد'?'('+o.senderName+')':''}</div><div class="oc-val" dir="ltr">${o.senderPhone}</div></div></div>`:''}
+        ${o.receiverPhone?`<div class="oc-row"><span class="oc-ico">📥</span><div class="oc-info"><div class="oc-lbl">المُستقبل ${o.receiverName&&o.receiverName!=='غير محدد'?'('+o.receiverName+')':''}</div><div class="oc-val" dir="ltr">${o.receiverPhone}</div></div></div>`:''}
+        ${o.pickupAddress?`<div class="oc-row"><span class="oc-ico">📤</span><div class="oc-info"><div class="oc-lbl">عنوان الاستلام</div><div class="oc-val">${o.pickupAddress}</div></div></div>`:''}
+        <div class="oc-row" style="display:none">
         </div>
         ${o.details ? `<div class="oc-row"><span class="oc-ico">📝</span><div class="oc-info"><div class="oc-lbl">تفاصيل</div><div class="oc-val">${o.details}</div></div></div>` : ''}
         ${o.notes ? `<div class="oc-row"><span class="oc-ico">💬</span><div class="oc-info"><div class="oc-lbl">ملاحظات</div><div class="oc-val">${o.notes}</div></div></div>` : ''}
@@ -674,8 +701,8 @@ function renderMyOrders() {
         ${o.status==='في انتظار التحضير' ? `<button class="abtn prep" onclick="updateStatus('${o._docId}','${o.id}','جاري التحضير')">🍳 جاري التحضير</button>` : ''}
         ${o.status==='جاري التحضير' ? `<button class="abtn deliver" onclick="updateStatus('${o._docId}','${o.id}','جاري التوصيل')">🛵 جاري التوصيل</button>` : ''}
         ${o.status==='جاري التوصيل' ? `<button class="abtn done" onclick="updateStatus('${o._docId}','${o.id}','تم التوصيل')">✅ تم التوصيل</button>` : ''}
-        <button class="abtn wa" onclick="contactWA('${o.phone}')">💬 واتساب</button>
-        <button class="abtn call" onclick="callClient('${o.phone}')">📞 اتصال</button>
+        <button class="abtn wa" onclick="contactWA('${getOrderPhone(o)}')">💬 واتساب</button>
+        <button class="abtn call" onclick="callClient('${getOrderPhone(o)}')">📞 اتصال</button>
       </div>
     </div>
   `).join('');
