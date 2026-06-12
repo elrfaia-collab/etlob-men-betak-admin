@@ -593,9 +593,35 @@ function submitOrder() {
   }
   
   const orderNum = 'ORD-' + Math.floor(1000 + Math.random() * 9000);
-  document.getElementById('order-form-body').style.display = 'none';
-  document.getElementById('success-order-num').textContent = 'طلبك: ' + orderNum;
-  document.getElementById('order-success').classList.add('show');
+  
+  // حفظ في Firebase
+  if(window.fbAddDoc && window._fbCollection && window.db) {
+    const orderData = {
+      id: orderNum,
+      type: type,
+      place: place,
+      details: document.getElementById('odetails').value || 'بدون تفاصيل',
+      address: addr,
+      phone: phone,
+      notes: document.getElementById('onotes').value,
+      status: 'جديد',
+      area: area,
+      createdAt: new Date(),
+      time: new Date().toLocaleTimeString('ar-EG'),
+      date: new Date().toLocaleDateString('ar-EG')
+    };
+    
+    window.fbAddDoc(window._fbCollection(window.db, 'orders'), orderData)
+      .then(() => {
+        document.getElementById('order-form-body').style.display = 'none';
+        document.getElementById('success-order-num').textContent = 'طلبك: ' + orderNum;
+        document.getElementById('order-success').classList.add('show');
+        sessionStorage.setItem('emb_track_id', orderNum);
+      })
+      .catch(err => alert('❌ خطأ في حفظ الطلب: ' + err.message));
+  } else {
+    alert('❌ Firebase غير متصل');
+  }
 }
 
 function submitOrderMS() {
@@ -605,7 +631,10 @@ function submitOrderMS() {
   const details = document.getElementById('odetails-ms').value;
   const delivery = document.getElementById('odelivery-addr').value;
   const senderPhone = document.getElementById('osender-phone').value;
+  const senderName = document.getElementById('osender-name').value;
   const receiverPhone = document.getElementById('oreceiver-phone').value;
+  const receiverName = document.getElementById('oreceiver-name').value;
+  const notes = document.getElementById('onotes-ms').value;
   
   if(!area || !type || !pickup || !details || !delivery || !senderPhone || !receiverPhone) {
     alert('❌ برجاء ملء جميع الحقول المطلوبة');
@@ -613,9 +642,38 @@ function submitOrderMS() {
   }
   
   const orderNum = 'ORD-' + Math.floor(1000 + Math.random() * 9000);
-  document.getElementById('order-form-body').style.display = 'none';
-  document.getElementById('success-order-num').textContent = 'طلبك: ' + orderNum;
-  document.getElementById('order-success').classList.add('show');
+  
+  // حفظ في Firebase
+  if(window.fbAddDoc && window._fbCollection && window.db) {
+    const orderData = {
+      id: orderNum,
+      type: type,
+      pickupAddress: pickup,
+      details: details,
+      deliveryAddress: delivery,
+      senderPhone: senderPhone,
+      senderName: senderName || 'غير محدد',
+      receiverPhone: receiverPhone,
+      receiverName: receiverName || 'غير محدد',
+      notes: notes,
+      status: 'جديد',
+      area: area,
+      createdAt: new Date(),
+      time: new Date().toLocaleTimeString('ar-EG'),
+      date: new Date().toLocaleDateString('ar-EG')
+    };
+    
+    window.fbAddDoc(window._fbCollection(window.db, 'orders'), orderData)
+      .then(() => {
+        document.getElementById('order-form-body').style.display = 'none';
+        document.getElementById('success-order-num').textContent = 'طلبك: ' + orderNum;
+        document.getElementById('order-success').classList.add('show');
+        sessionStorage.setItem('emb_track_id', orderNum);
+      })
+      .catch(err => alert('❌ خطأ في حفظ الطلب: ' + err.message));
+  } else {
+    alert('❌ Firebase غير متصل');
+  }
 }
 
 function resetForm() {
