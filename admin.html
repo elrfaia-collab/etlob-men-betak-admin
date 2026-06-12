@@ -1478,7 +1478,7 @@ function renderOrders(){
   if(curFilter!=='all')list=list.filter(o=>o.status===curFilter);
   if(curSearch) list = list.filter(o =>
     (o.id    ||'').toLowerCase().includes(curSearch) ||
-    (o.phone ||'').includes(curSearch)               ||
+    (getOrderPhone(o)||'').includes(curSearch)               ||
     (o.place ||'').toLowerCase().includes(curSearch) ||
     (getOrderAddr(o)||'').toLowerCase().includes(curSearch)
   );
@@ -1491,7 +1491,7 @@ function renderOrders(){
       <td>${o.type}</td>
       <td style="font-weight:600">${o.place||o.type||"—"}</td>
       <td style="color:var(--tm);font-size:12px">${getOrderAddr(o)}</td>
-      <td dir="ltr" style="font-size:12px">${o.phone}</td>
+      <td dir="ltr" style="font-size:12px">${getOrderPhone(o)}</td>
       <td style="color:var(--tm);font-size:12px">${o.time}</td>
       <td><span class="badge ${SMAP[o.status]||'b-new'}">${o.status}</span></td>
       <td><div class="action-btns">
@@ -2313,7 +2313,7 @@ function renderRevenue(){
         <td style="font-size:12px">${o.type||'—'}</td>
         <td style="font-size:12px;font-weight:600">${o.place||'—'}</td>
         <td style="font-size:11px;color:var(--tm)">${getOrderAddr(o)}</td>
-        <td dir="ltr" style="font-size:12px">${o.phone||'—'}</td>
+        <td dir="ltr" style="font-size:12px">${getOrderPhone(o)}</td>
         <td>${who!=='—'?`<span class="who-badge">👤 ${who}</span>`:who}</td>
         <td><span class="badge ${SMAP[o.status]||'b-new'}">${o.status}</span></td>
         <td style="font-weight:900;color:${price?'var(--or)':'var(--tl)'}">${price?price+' جم':'—'}</td>
@@ -2370,7 +2370,7 @@ function exportExcel(){
     o.type||'',
     o.place||'',
     (getOrderAddr(o)||'').replace(/,/g,'،'),
-    o.phone||'',
+    getOrderPhone(o)||'',
     o.acceptedBy||o.driverName||'—',
     o.driverName||'—',
     o.status,
