@@ -1734,10 +1734,58 @@ function showToast(msg){
 // ========= REFRESH =========
 // Real-time orders listener
 let _ordersUnsub = null;
+let _lastNewOrdersCount = -1; // -1 يعني أول تحميل
+let _notifSoundReady = false;
+
+// 🔊 صوت التنبيه
+const _notifAudio = new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU' + 'A'.repeat(100));
+function _playNotifSound(){
+  try {
+    // نغمة تنبيه بـ Web Audio API
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const playTone = (freq, start, dur) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = freq;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0.4, ctx.currentTime + start);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + start + dur);
+      osc.start(ctx.currentTime + start);
+      osc.stop(ctx.currentTime + start + dur);
+    };
+    playTone(880, 0, 0.15);
+    playTone(1100, 0.18, 0.15);
+    playTone(1320, 0.36, 0.25);
+  } catch(e) { console.warn('Sound error:', e); }
+}
+
+// 📱 طلب إذن إشعارات المتصفح
+function _requestNotifPermission(){
+  if('Notification' in window && Notification.permission === 'default'){
+    Notification.requestPermission();
+  }
+}
+
+// 📱 إشعار المتصفح
+function _showBrowserNotif(order){
+  if(!('Notification' in window) || Notification.permission !== 'granted') return;
+  try {
+    const n = new Notification('🛵 طلب جديد — المتميز', {
+      body: `${order.type || 'طلب'} — ${order.area || ''}\n${order.place || order.pickupAddress || ''}`,
+      icon: 'https://em-content.zobj.net/source/apple/391/motor-scooter_1f6f5.png',
+      tag: 'new-order',
+      requireInteraction: true
+    });
+    n.onclick = () => { window.focus(); nav('orders'); n.close(); };
+  } catch(e) { console.warn('Notif error:', e); }
+}
 
 function startOrdersListener(){
   if(!window.db || !window._fbOnSnapshot) return;
   if(_ordersUnsub) _ordersUnsub(); // unsubscribe previous
+
+  _requestNotifPermission(); // اطلب إذن الإشعارات
 
   const ordersRef = window._fbCollection(window.db, 'orders');
   _ordersUnsub = window._fbOnSnapshot(ordersRef, (snapshot) => {
@@ -1754,10 +1802,33 @@ function startOrdersListener(){
     saveOrders(newOrders);
     renderDash();
     if(document.getElementById('page-orders').classList.contains('on')) renderOrders();
-    // Show notification if new orders arrived
+    
+    // عدد الطلبات الجديدة
     const newCount = newOrders.filter(o=>o.status==='جديد').length;
     document.getElementById('new-count').textContent = newCount;
     document.getElementById('notif-dot').style.display = newCount ? 'block' : 'none';
+
+    // 🔔 إشعار لو في طلب جديد وصل (مش أول تحميل)
+    if(_lastNewOrdersCount !== -1 && newCount > _lastNewOrdersCount){
+      const latestOrder = newOrders.find(o => o.status === 'جديد') || {};
+      
+      // 1. صوت
+      _playNotifSound();
+      
+      // 2. إشعار متصفح
+      _showBrowserNotif(latestOrder);
+      
+      // 3. Toast داخلي
+      showToast('🔔 طلب جديد وصل! ' + (latestOrder.id || ''));
+      
+      // 4. اهتزاز للموبايل
+      if(navigator.vibrate) navigator.vibrate([200, 100, 200]);
+      
+      // 5. تغيير عنوان الصفحة
+      document.title = '🔴 (' + newCount + ') طلب جديد — المتميز';
+      setTimeout(() => { document.title = 'لوحة تحكم الأدمن — المتميز'; }, 10000);
+    }
+    _lastNewOrdersCount = newCount;
   }, (err) => {
     console.error('Orders listener error:', err);
   });
@@ -2343,4 +2414,3 @@ setInterval(()=>{
 
 </body>
 </html>
-
