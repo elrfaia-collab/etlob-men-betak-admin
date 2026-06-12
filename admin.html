@@ -1434,7 +1434,7 @@ function renderDash(){
     let total=0;
     todayDone.forEach(o=>{
       // Try to get price from area, fallback to 25
-      const area=(window._allAreas||[]).find(a=>o.addr&&o.addr.includes(a.name));
+      const _oaddr=getOrderAddr(o); const area=(window._allAreas||[]).find(a=>_oaddr&&_oaddr.includes(a.name))||(window._allAreas||[]).find(a=>o.area===a.name);
       total+=(area?parseFloat(area.price):25);
     });
     return total;
@@ -1451,8 +1451,8 @@ function renderDash(){
     <div class="mini-order" onclick="viewOrder('${o.id}')" style="cursor:pointer">
       <div class="mo-ico">${o.type.split(' ')[0]}</div>
       <div class="mo-info">
-        <div class="mo-id">${o.id} — ${o.place}</div>
-        <div class="mo-sub">📍 ${o.addr} | 📞 ${o.phone}</div>
+        <div class="mo-id">${o.id} — ${o.place||o.type||"طلب"}</div>
+        <div class="mo-sub">📍 ${getOrderAddr(o)} | 📞 ${getOrderPhone(o)}</div>
       </div>
       <span class="badge ${SMAP[o.status]||'b-new'}">${o.status}</span>
     </div>`).join('');
@@ -1480,7 +1480,7 @@ function renderOrders(){
     (o.id    ||'').toLowerCase().includes(curSearch) ||
     (o.phone ||'').includes(curSearch)               ||
     (o.place ||'').toLowerCase().includes(curSearch) ||
-    (o.addr  ||'').toLowerCase().includes(curSearch)
+    (getOrderAddr(o)||'').toLowerCase().includes(curSearch)
   );
   const tb=document.getElementById('orders-tbody');
   if(!list.length){tb.innerHTML=`<tr><td colspan="9"><div class="empty-state"><div>📭</div>لا يوجد طلبات</div></td></tr>`;return;}
@@ -1489,8 +1489,8 @@ function renderOrders(){
       <td style="color:var(--tl);font-size:12px">${i+1}</td>
       <td><strong style="color:var(--or)">${o.id}</strong></td>
       <td>${o.type}</td>
-      <td style="font-weight:600">${o.place}</td>
-      <td style="color:var(--tm);font-size:12px">${o.addr}</td>
+      <td style="font-weight:600">${o.place||o.type||"—"}</td>
+      <td style="color:var(--tm);font-size:12px">${getOrderAddr(o)}</td>
       <td dir="ltr" style="font-size:12px">${o.phone}</td>
       <td style="color:var(--tm);font-size:12px">${o.time}</td>
       <td><span class="badge ${SMAP[o.status]||'b-new'}">${o.status}</span></td>
@@ -1548,11 +1548,17 @@ function viewOrder(id){
   document.getElementById('modal-order-body').innerHTML=`
     <div class="detail-row"><span>رقم الطلب</span><span style="color:var(--or);font-weight:900">${o.id}</span></div>
     <div class="detail-row"><span>نوع الطلب</span><span>${o.type}</span></div>
-    <div class="detail-row"><span>المحل</span><span>${o.place}</span></div>
+    ${o.place?`<div class="detail-row"><span>المحل</span><span>${o.place}</span></div>`:''}
     <div class="detail-row"><span>التفاصيل</span><span>${o.details||'—'}</span></div>
     ${o.imageUrl && o.imageUrl !== 'local' ? `<div class="detail-row" style="flex-direction:column;align-items:flex-start;gap:8px"><span style="color:var(--tm)">صورة المنتج</span><img src="${o.imageUrl}" style="max-width:100%;max-height:200px;border-radius:10px;border:1.5px solid var(--gm);object-fit:cover;" alt="صورة الطلب"/></div>` : ''}
-    <div class="detail-row"><span>العنوان</span><span>${o.addr}</span></div>
-    <div class="detail-row"><span>التليفون</span><span dir="ltr">${o.phone}</span></div>
+    ${o.pickupAddress?`<div class="detail-row"><span>📤 عنوان الاستلام</span><span>${o.pickupAddress}</span></div>`:''}
+    ${o.deliveryAddress?`<div class="detail-row"><span>📥 عنوان التسليم</span><span>${o.deliveryAddress}</span></div>`:''}
+    ${!o.pickupAddress&&!o.deliveryAddress?`<div class="detail-row"><span>العنوان</span><span>${getOrderAddr(o)}</span></div>`:''}
+    ${o.senderPhone?`<div class="detail-row"><span>📤 تليفون المُرسل</span><span dir="ltr">${o.senderPhone}</span></div>`:''}
+    ${o.senderName&&o.senderName!=='غير محدد'?`<div class="detail-row"><span>📤 اسم المُرسل</span><span>${o.senderName}</span></div>`:''}
+    ${o.receiverPhone?`<div class="detail-row"><span>📥 تليفون المُستقبل</span><span dir="ltr">${o.receiverPhone}</span></div>`:''}
+    ${o.receiverName&&o.receiverName!=='غير محدد'?`<div class="detail-row"><span>📥 اسم المُستقبل</span><span>${o.receiverName}</span></div>`:''}
+    ${o.phone?`<div class="detail-row"><span>التليفون</span><span dir="ltr">${o.phone}</span></div>`:''}
     <div class="detail-row"><span>ملاحظات</span><span>${o.notes||'—'}</span></div>
     <div class="detail-row"><span>الوقت</span><span>${o.time} — ${o.date}</span></div>
     <div class="detail-row"><span>الحالة</span><span><span class="badge ${SMAP[o.status]||'b-new'}">${o.status}</span></span></div>
@@ -1729,6 +1735,23 @@ function showToast(msg){
   t.textContent=msg;t.style.display='block';
   clearTimeout(t._to);
   t._to=setTimeout(()=>t.style.display='none',3500);
+}
+
+
+// 📍 دالة موحدة لقراءة عنوان الطلب (تدعم الفورم القديم والجديد)
+function getOrderAddr(o){
+  if(o.addr) return o.addr;
+  if(o.address) return o.address;
+  if(o.pickupAddress && o.deliveryAddress) return '📤 استلام: ' + o.pickupAddress + ' ← 📥 تسليم: ' + o.deliveryAddress;
+  if(o.deliveryAddress) return o.deliveryAddress;
+  if(o.pickupAddress) return o.pickupAddress;
+  return '—';
+}
+// 📞 دالة موحدة لقراءة التليفون
+function getOrderPhone(o){
+  if(o.phone) return o.phone;
+  if(o.senderPhone && o.receiverPhone) return '📤 ' + o.senderPhone + ' | 📥 ' + o.receiverPhone;
+  return o.senderPhone || o.receiverPhone || '—';
 }
 
 // ========= REFRESH =========
@@ -2148,7 +2171,7 @@ window.renderAdminsTable=renderAdminsTable;
 // helper: سعر الطلب
 function _getOrderPrice(o){
   if(o.deliveryPrice && parseFloat(o.deliveryPrice)>0) return parseFloat(o.deliveryPrice);
-  const area=(window._allAreas||[]).find(a=>o.addr&&o.addr.includes(a.name));
+  const _oaddr=getOrderAddr(o); const area=(window._allAreas||[]).find(a=>_oaddr&&_oaddr.includes(a.name))||(window._allAreas||[]).find(a=>o.area===a.name);
   return area ? parseFloat(area.price) : 25;
 }
 window._getOrderPrice = _getOrderPrice;
@@ -2289,7 +2312,7 @@ function renderRevenue(){
         <td style="font-size:12px">${o.time||'—'}</td>
         <td style="font-size:12px">${o.type||'—'}</td>
         <td style="font-size:12px;font-weight:600">${o.place||'—'}</td>
-        <td style="font-size:11px;color:var(--tm)">${o.addr||'—'}</td>
+        <td style="font-size:11px;color:var(--tm)">${getOrderAddr(o)}</td>
         <td dir="ltr" style="font-size:12px">${o.phone||'—'}</td>
         <td>${who!=='—'?`<span class="who-badge">👤 ${who}</span>`:who}</td>
         <td><span class="badge ${SMAP[o.status]||'b-new'}">${o.status}</span></td>
@@ -2346,7 +2369,7 @@ function exportExcel(){
     o.time||'',
     o.type||'',
     o.place||'',
-    (o.addr||'').replace(/,/g,'،'),
+    (getOrderAddr(o)||'').replace(/,/g,'،'),
     o.phone||'',
     o.acceptedBy||o.driverName||'—',
     o.driverName||'—',
