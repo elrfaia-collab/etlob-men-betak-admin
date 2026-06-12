@@ -272,64 +272,137 @@ e["\x70\x72\x65\x76\x65\x6e\x74\x44\x65\x66\x61\x75\x6c\x74"]();e["\x73\x74\x6f\
         </div>
       </div>
       
-      <!-- ERROR MSG -->
-      <div class="err-msg" id="order-err"></div>
+        <!-- ── MULTI-STEP FORM ── -->
+        <div id="order-form-body">
+          
+          <!-- STEP 1: نوع الخدمة + اسم المكان -->
+          <div class="order-step" id="step-1">
+            <h3 style="margin-bottom:1.2rem;font-size:16px;font-weight:800;">الخطوة 1 من 5: نوع الخدمة والمكان</h3>
+            
+            <div class="fg">
+              <label class="fl">اختر منطقتك / مكان التوصيل *</label>
+              <select id="order-area-select" onchange="updateDeliveryPrice()" required>
+                <option value="">-- اختر المنطقة لطلب التوصيل --</option>
+              </select>
+            </div>
 
-      <!-- FORM -->
-      <div id="order-form-body">
-        <div class="fg">
-          <label class="fl">اختر منطقتك / مكان التوصيل *</label>
-          <select id="order-area-select" onchange="updateDeliveryPrice()" required>
-            <option value="">-- اختر المنطقة لطلب التوصيل --</option>
-          </select>
-        </div>
+            <div class="price-row">
+              <span>💵 رسوم التوصيل:</span>
+              <strong id="client-delivery-price">0 جم</strong>
+            </div>
 
-        <!-- كارد عرض السعر المتغير بحسب المنطقة -->
-        <div class="price-row">
-          <span>💵 رسوم التوصيل لهذه المنطقة:</span>
-          <strong id="client-delivery-price">0 جم</strong>
-        </div>
+            <div class="fg">
+              <label class="fl">إيه اللي عايزه؟ *</label>
+              <select id="otype" onchange="updateFormLayout()">
+                <option value="">اختار نوع الطلب</option>
+                <option>🍕 مطعم</option>
+                <option>🛒 سوبر ماركت</option>
+                <option>💊 صيدلية</option>
+                <option>📦 شحن طرود</option>
+                <option>🚗 مشوار خاص</option>
+                <option>✨ خدمات اخرى</option>
+              </select>
+            </div>
 
-        <div class="fg">
-          <label class="fl">إيه اللي عايزه؟ *</label>
-          <select id="otype">
-            <option value="">اختار نوع الطلب</option>
-            <option>🍕 مطعم</option>
-            <option>🛒 سوبر ماركت</option>
-            <option>💊 صيدلية</option>
-            <option>📦 شحن طرود</option>
-            <option>🚗 مشوار خاص</option>
-            <option>✨ خدمات اخرى</option>
-          </select>
+            <div class="fg">
+              <label class="fl">اسم المحل أو المكان اللي هنستلم منه *</label>
+              <input id="oplace" type="text" placeholder="مثال: كنتاكي فرع الجامعة"/>
+            </div>
+
+            <button class="sub-btn" onclick="nextStep(1, 2)">التالي ➜</button>
+          </div>
+
+          <!-- STEP 2: تفاصيل الطلب -->
+          <div class="order-step" id="step-2" style="display:none;">
+            <h3 style="margin-bottom:1.2rem;font-size:16px;font-weight:800;">الخطوة 2 من 5: تفاصيل الطلب</h3>
+            
+            <div class="fg">
+              <label class="fl">تفاصيل الطلب (اكتب اللي عايزه بالظبط) *</label>
+              <textarea id="odetails" placeholder="اكتب تفاصيل الطلب كاملة... مثال: عايز دراج دجاج وكولا 2 لتر وتوست"></textarea>
+            </div>
+
+            <div style="display:flex;gap:10px;">
+              <button class="sub-btn" style="flex:1;background:var(--tm);color:#fff" onclick="nextStep(2, 1)">← الرجوع</button>
+              <button class="sub-btn" style="flex:1;" onclick="nextStep(2, 3)">التالي ➜</button>
+            </div>
+          </div>
+
+          <!-- STEP 3: العنوان -->
+          <div class="order-step" id="step-3" style="display:none;">
+            <h3 style="margin-bottom:1.2rem;font-size:16px;font-weight:800;">الخطوة 3 من 5: عنوان التوصيل</h3>
+            
+            <div class="fg">
+              <label class="fl">الحي / المنطقة *</label>
+              <input id="oaddr-area" type="text" placeholder="مثال: بورسعيد"/>
+            </div>
+
+            <div class="fg">
+              <label class="fl">اسم الشارع *</label>
+              <input id="oaddr-street" type="text" placeholder="مثال: شارع النصر"/>
+            </div>
+
+            <div class="fg">
+              <label class="fl">رقم العمارة / المنزل *</label>
+              <input id="oaddr-building" type="text" placeholder="مثال: 5"/>
+            </div>
+
+            <div class="fg">
+              <label class="fl">الدور / رقم الشقة *</label>
+              <input id="oaddr-floor" type="text" placeholder="مثال: الدور الثالث / شقة 3"/>
+            </div>
+
+            <div style="display:flex;gap:10px;">
+              <button class="sub-btn" style="flex:1;background:var(--tm);color:#fff" onclick="nextStep(3, 2)">← الرجوع</button>
+              <button class="sub-btn" style="flex:1;" onclick="nextStep(3, 4)">التالي ➜</button>
+            </div>
+          </div>
+
+          <!-- STEP 4: رقم التليفون المُرسل -->
+          <div class="order-step" id="step-4" style="display:none;">
+            <h3 style="margin-bottom:1.2rem;font-size:16px;font-weight:800;">الخطوة 4 من 5: بيانات المُرسل</h3>
+            
+            <div class="fg">
+              <label class="fl">رقم تليفون من سنستلم منه الحاجة *</label>
+              <input id="osender-phone" type="tel" placeholder="01XXXXXXXXX"/>
+            </div>
+
+            <div class="fg">
+              <label class="fl">اسم المُرسل (اختياري)</label>
+              <input id="osender-name" type="text" placeholder="اسمك"/>
+            </div>
+
+            <div style="display:flex;gap:10px;">
+              <button class="sub-btn" style="flex:1;background:var(--tm);color:#fff" onclick="nextStep(4, 3)">← الرجوع</button>
+              <button class="sub-btn" style="flex:1;" onclick="nextStep(4, 5)">التالي ➜</button>
+            </div>
+          </div>
+
+          <!-- STEP 5: رقم التليفون المُستقبل + تأكيد -->
+          <div class="order-step" id="step-5" style="display:none;">
+            <h3 style="margin-bottom:1.2rem;font-size:16px;font-weight:800;">الخطوة 5 من 5: بيانات المُستقبل</h3>
+            
+            <div class="fg">
+              <label class="fl">رقم تليفون من هيستقبل الحاجة *</label>
+              <input id="oreceiver-phone" type="tel" placeholder="01XXXXXXXXX"/>
+            </div>
+
+            <div class="fg">
+              <label class="fl">اسم المُستقبل (اختياري)</label>
+              <input id="oreceiver-name" type="text" placeholder="اسم المستقبل"/>
+            </div>
+
+            <div class="fg">
+              <label class="fl">ملاحظات إضافية</label>
+              <input id="onotes" type="text" placeholder="أي تفاصيل مهمة..."/>
+            </div>
+
+            <div style="display:flex;gap:10px;">
+              <button class="sub-btn" style="flex:1;background:var(--tm);color:#fff" onclick="nextStep(5, 4)">← الرجوع</button>
+              <button class="sub-btn" style="flex:1;" onclick="submitOrder()">تأكيد الطلب ✅</button>
+            </div>
+          </div>
+
         </div>
-        
-        <div class="fg">
-          <label class="fl">اسم المحل أو المكان *</label>
-          <input id="oplace" type="text" placeholder="مثال: كنتاكي فرع الجامعة"/>
-        </div>
-        
-        <div class="fg">
-          <label class="fl">تفاصيل الطلب</label>
-          <textarea id="odetails" placeholder="اكتب تفاصيل الطلب... أو ابعت صورة على واتساب"></textarea>
-        </div>
-        
-        <div class="fg">
-          <label class="fl">العنوان بالتفصيل (المنطقه / اسم الشارع / رقم العمارة / الدور) *</label>
-          <input type="text" id="oaddr" placeholder="مثال: بورسعيد ،شارع النصر، عمارة رقم 5، الدور الثالث" required />
-        </div>
-        
-        <div class="fg">
-          <label class="fl">رقم التليفون *</label>
-          <input id="ophone" type="tel" placeholder="01XXXXXXXXX"/>
-        </div>
-        
-        <div class="fg">
-          <label class="fl">ملاحظات إضافية</label>
-          <input id="onotes" type="text" placeholder="أي تفاصيل إضافية..."/>
-        </div>
-        
-        <button class="sub-btn" id="submit-btn" onclick="submitOrder()">تأكيد الطلب ✅</button>
-      </div>
 
       <!-- SUCCESS -->
       <div class="success-box" id="order-success">
@@ -337,7 +410,7 @@ e["\x70\x72\x65\x76\x65\x6e\x74\x44\x65\x66\x61\x75\x6c\x74"]();e["\x73\x74\x6f\
         <div class="success-num" id="success-order-num"></div>
         <div class="success-msg">تم استلام طلبك بنجاح!<br>هنتواصل معك على التليفون في أقرب وقت 🛵</div>
         <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;">
-          <button class="direct-track-btn" id="direct-track-btn" onclick="redirectToTrack()">تتبع طلبك الآن مباشر 🔍</button>
+          <button class="direct-track-btn" id="direct-track-btn" onclick="redirectToTrack()">تتبع طلبك الآن 🔍</button>
           <button class="back-btn" onclick="resetForm()">اطلب تاني</button>
         </div>
       </div>
@@ -469,3 +542,149 @@ e["\x70\x72\x65\x76\x65\x6e\x74\x44\x65\x66\x61\x75\x6c\x74"]();e["\x73\x74\x6f\
 
 </body>
 </html>
+
+<script>
+// ── MULTI-STEP FORM NAVIGATION ──
+function nextStep(currentStep, nextStep) {
+  // تحقق من البيانات المدخلة
+  if (currentStep === 1) {
+    const area = document.getElementById('order-area-select').value.trim();
+    const type = document.getElementById('otype').value.trim();
+    const place = document.getElementById('oplace').value.trim();
+    
+    if (!area || !type || !place) {
+      alert('⚠️ أكمل جميع الحقول المطلوبة');
+      return;
+    }
+  } else if (currentStep === 2) {
+    const details = document.getElementById('odetails').value.trim();
+    if (!details) {
+      alert('⚠️ اكتب تفاصيل الطلب');
+      return;
+    }
+  } else if (currentStep === 3) {
+    const area = document.getElementById('oaddr-area').value.trim();
+    const street = document.getElementById('oaddr-street').value.trim();
+    const building = document.getElementById('oaddr-building').value.trim();
+    const floor = document.getElementById('oaddr-floor').value.trim();
+    
+    if (!area || !street || !building || !floor) {
+      alert('⚠️ أكمل العنوان كاملاً');
+      return;
+    }
+  } else if (currentStep === 4) {
+    const senderPhone = document.getElementById('osender-phone').value.trim();
+    if (!senderPhone || senderPhone.length < 10) {
+      alert('⚠️ ادخل رقم تليفون صحيح');
+      return;
+    }
+  } else if (currentStep === 5) {
+    const receiverPhone = document.getElementById('oreceiver-phone').value.trim();
+    if (!receiverPhone || receiverPhone.length < 10) {
+      alert('⚠️ ادخل رقم تليفون صحيح');
+      return;
+    }
+  }
+
+  // خفي الخطوة الحالية
+  document.getElementById('step-' + currentStep).style.display = 'none';
+  
+  // أظهر الخطوة التالية
+  document.getElementById('step-' + nextStep).style.display = 'block';
+  
+  // عودة للأعلى
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// تحديث submitOrder لاستخدام البيانات الجديدة
+async function submitOrder(){
+  const areaSelect = document.getElementById('order-area-select');
+  const type = document.getElementById('otype').value.trim();
+  const place = document.getElementById('oplace').value.trim();
+  const details = document.getElementById('odetails').value.trim();
+  const addrArea = document.getElementById('oaddr-area').value.trim();
+  const addrStreet = document.getElementById('oaddr-street').value.trim();
+  const addrBuilding = document.getElementById('oaddr-building').value.trim();
+  const addrFloor = document.getElementById('oaddr-floor').value.trim();
+  const senderPhone = document.getElementById('osender-phone').value.trim();
+  const senderName = document.getElementById('osender-name').value.trim();
+  const receiverPhone = document.getElementById('oreceiver-phone').value.trim();
+  const receiverName = document.getElementById('oreceiver-name').value.trim();
+  const notes = document.getElementById('onotes').value.trim();
+
+  const selectedOption = areaSelect.options[areaSelect.selectedIndex];
+  const deliveryCost = parseFloat(selectedOption ? selectedOption.dataset.price : 0) || 0;
+  const selectedAreaName = areaSelect.value;
+
+  const fullAddr = `${addrArea} - ${addrStreet} - عمارة ${addrBuilding} - ${addrFloor}`;
+  const orderNum = 'ORD-' + Math.floor(1000 + Math.random() * 9000);
+
+  const orderData = {
+    id: orderNum,
+    type,
+    place,
+    details,
+    address: fullAddr,
+    senderPhone,
+    senderName: senderName || 'غير محدد',
+    receiverPhone,
+    receiverName: receiverName || 'غير محدد',
+    notes,
+    status: 'جديد',
+    createdAt: window.fbTimestamp(),
+    deliveryPrice: deliveryCost,
+    area: selectedAreaName,
+    time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
+    date: new Date().toLocaleDateString('ar-EG')
+  };
+
+  const btn = document.getElementById('submit-btn');
+  if(btn){
+    btn.disabled = true;
+    btn.textContent = '⏳ جاري الرفع...';
+  }
+
+  try {
+    await window.fbAddDoc(window._fbCollection(window.db, 'orders'), orderData);
+    
+    document.getElementById('order-form-body').style.display = 'none';
+    document.getElementById('success-order-num').textContent = 'طلبك رقم: ' + orderNum;
+    document.getElementById('order-success').classList.add('show');
+
+    sessionStorage.setItem('emb_track_id', orderNum);
+  } catch(err) {
+    alert('❌ حدث خطأ: ' + err.message);
+    if(btn){
+      btn.disabled = false;
+      btn.textContent = 'تأكيد الطلب ✅';
+    }
+  }
+}
+
+// تحديث resetForm
+function resetForm(){
+  ['otype','oplace','odetails','osender-phone','osender-name','oreceiver-phone','oreceiver-name','onotes','oaddr-area','oaddr-street','oaddr-building','oaddr-floor'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.value='';
+  });
+  const areaSelect = document.getElementById('order-area-select');
+  if(areaSelect) areaSelect.value = '';
+  const priceDisplay = document.getElementById('client-delivery-price');
+  if(priceDisplay) priceDisplay.textContent = '0 جم';
+
+  // عودة للخطوة الأولى
+  document.getElementById('step-1').style.display = 'block';
+  ['step-2','step-3','step-4','step-5'].forEach(id=>document.getElementById(id).style.display='none');
+  
+  document.getElementById('order-form-body').style.display = 'block';
+  document.getElementById('order-success').classList.remove('show');
+  
+  const btn = document.getElementById('submit-btn');
+  if(btn){
+    btn.disabled = false;
+    btn.textContent = 'تأكيد الطلب ✅';
+  }
+  
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+</script>
