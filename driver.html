@@ -626,6 +626,8 @@ function renderAvailable() {
         ${o.senderPhone?`<div class="oc-row"><span class="oc-ico">📤</span><div class="oc-info"><div class="oc-lbl">المُرسل ${o.senderName&&o.senderName!=='غير محدد'?'('+o.senderName+')':''}</div><div class="oc-val" dir="ltr">${o.senderPhone}</div></div></div>`:''}
         ${o.receiverPhone?`<div class="oc-row"><span class="oc-ico">📥</span><div class="oc-info"><div class="oc-lbl">المُستقبل ${o.receiverName&&o.receiverName!=='غير محدد'?'('+o.receiverName+')':''}</div><div class="oc-val" dir="ltr">${o.receiverPhone}</div></div></div>`:''}
         ${o.details ? `<div class="oc-row"><span class="oc-ico">📝</span><div class="oc-info"><div class="oc-lbl">تفاصيل</div><div class="oc-val">${o.details}</div></div></div>` : ''}
+        ${o.pickupGpsLink?`<div class="oc-row"><span class="oc-ico">📍</span><div class="oc-info"><div class="oc-lbl">موقع الاستلام GPS</div>${getMapBtn(o,'pickup')}</div></div>`:''}
+        ${(o.deliveryGpsLink||o.gpsLink)?`<div class="oc-row"><span class="oc-ico">🎯</span><div class="oc-info"><div class="oc-lbl">موقع التسليم GPS</div>${getMapBtn(o,'delivery')}</div></div>`:''}
       </div>
       <div class="oc-actions">
         <button class="abtn accept" onclick="acceptOrder('${o._docId}','${o.id}')">✅ قبول</button>
@@ -654,6 +656,16 @@ function getOrderPhone(o){
 }
 function getOrderSenderPhone(o){
   return o.senderPhone || o.phone || '';
+}
+// 🗺️ زر فتح الموقع على خرائط جوجل
+function getMapBtn(o, which){
+  let link = null;
+  if(which === 'pickup') link = o.pickupGpsLink;
+  else if(which === 'delivery') link = o.deliveryGpsLink || o.gpsLink;
+  else link = o.gpsLink || o.deliveryGpsLink;
+  
+  if(!link) return '';
+  return `<a href="${link}" target="_blank" style="display:inline-flex;align-items:center;gap:5px;background:linear-gradient(135deg,#10B981,#059669);color:#fff;padding:7px 14px;border-radius:8px;font-size:12px;font-weight:800;text-decoration:none;margin-top:6px;box-shadow:0 2px 8px rgba(16,185,129,.3)">🗺️ افتح الموقع على الخريطة</a>`;
 }
 
 // ══════════════════════════════════════════════
@@ -695,6 +707,8 @@ function renderMyOrders() {
         <div class="oc-row" style="display:none">
         </div>
         ${o.details ? `<div class="oc-row"><span class="oc-ico">📝</span><div class="oc-info"><div class="oc-lbl">تفاصيل</div><div class="oc-val">${o.details}</div></div></div>` : ''}
+        ${o.pickupGpsLink?`<div class="oc-row"><span class="oc-ico">📍</span><div class="oc-info"><div class="oc-lbl">موقع الاستلام GPS</div>${getMapBtn(o,'pickup')}</div></div>`:''}
+        ${(o.deliveryGpsLink||o.gpsLink)?`<div class="oc-row"><span class="oc-ico">🎯</span><div class="oc-info"><div class="oc-lbl">موقع التسليم GPS</div>${getMapBtn(o,'delivery')}</div></div>`:''}
         ${o.notes ? `<div class="oc-row"><span class="oc-ico">💬</span><div class="oc-info"><div class="oc-lbl">ملاحظات</div><div class="oc-val">${o.notes}</div></div></div>` : ''}
       </div>
       <div class="oc-actions">
