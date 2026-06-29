@@ -626,6 +626,7 @@ function renderAvailable() {
         ${o.senderPhone?`<div class="oc-row"><span class="oc-ico">📤</span><div class="oc-info"><div class="oc-lbl">المُرسل ${o.senderName&&o.senderName!=='غير محدد'?'('+o.senderName+')':''}</div><div class="oc-val" dir="ltr">${o.senderPhone}</div></div></div>`:''}
         ${o.receiverPhone?`<div class="oc-row"><span class="oc-ico">📥</span><div class="oc-info"><div class="oc-lbl">المُستقبل ${o.receiverName&&o.receiverName!=='غير محدد'?'('+o.receiverName+')':''}</div><div class="oc-val" dir="ltr">${o.receiverPhone}</div></div></div>`:''}
         ${o.details ? `<div class="oc-row"><span class="oc-ico">📝</span><div class="oc-info"><div class="oc-lbl">تفاصيل</div><div class="oc-val">${o.details}</div></div></div>` : ''}
+        ${o.deliveryAddress||o.deliveryAddr?`<div class="oc-row"><span class="oc-ico">🏁</span><div class="oc-info"><div class="oc-lbl">التسليم إلى</div><div class="oc-val">${o.deliveryAddress||o.deliveryAddr}</div></div></div>`:''}
         ${o.pickupGpsLink?`<div class="oc-row"><span class="oc-ico">📍</span><div class="oc-info"><div class="oc-lbl">موقع الاستلام GPS</div>${getMapBtn(o,'pickup')}</div></div>`:''}
         ${(o.deliveryGpsLink||o.gpsLink)?`<div class="oc-row"><span class="oc-ico">🎯</span><div class="oc-info"><div class="oc-lbl">موقع التسليم GPS</div>${getMapBtn(o,'delivery')}</div></div>`:''}
       </div>
@@ -641,9 +642,10 @@ function renderAvailable() {
 
 // 📍 دوال موحدة لقراءة بيانات الطلب (تدعم الفورم القديم والجديد)
 function getOrderAddr(o){
+  if(o.deliveryAddress) return o.deliveryAddress;
+  if(o.deliveryAddr) return o.deliveryAddr;
   if(o.addr) return o.addr;
   if(o.address) return o.address;
-  if(o.deliveryAddress) return o.deliveryAddress;
   return '—';
 }
 function getOrderPickup(o){
@@ -704,6 +706,7 @@ function renderMyOrders() {
         ${o.senderPhone?`<div class="oc-row"><span class="oc-ico">📤</span><div class="oc-info"><div class="oc-lbl">المُرسل ${o.senderName&&o.senderName!=='غير محدد'?'('+o.senderName+')':''}</div><div class="oc-val" dir="ltr">${o.senderPhone}</div></div></div>`:''}
         ${o.receiverPhone?`<div class="oc-row"><span class="oc-ico">📥</span><div class="oc-info"><div class="oc-lbl">المُستقبل ${o.receiverName&&o.receiverName!=='غير محدد'?'('+o.receiverName+')':''}</div><div class="oc-val" dir="ltr">${o.receiverPhone}</div></div></div>`:''}
         ${o.pickupAddress?`<div class="oc-row"><span class="oc-ico">📤</span><div class="oc-info"><div class="oc-lbl">عنوان الاستلام</div><div class="oc-val">${o.pickupAddress}</div></div></div>`:''}
+        ${o.deliveryAddress||o.deliveryAddr?`<div class="oc-row"><span class="oc-ico">🏁</span><div class="oc-info"><div class="oc-lbl">التسليم إلى</div><div class="oc-val">${o.deliveryAddress||o.deliveryAddr}</div></div></div>`:''}
         <div class="oc-row" style="display:none">
         </div>
         ${o.details ? `<div class="oc-row"><span class="oc-ico">📝</span><div class="oc-info"><div class="oc-lbl">تفاصيل</div><div class="oc-val">${o.details}</div></div></div>` : ''}
