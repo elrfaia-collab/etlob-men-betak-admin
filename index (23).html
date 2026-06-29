@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- إلغاء ومنع عمل الزوم إن والزوم أوت التلقائي واليدوي للحفاظ على أبعاد التصميم ثابتة ومريحة في التصفح وملائمة لأبعاد شاشات الهواتف -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title> المتميز</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet"/>
+
+<!-- Firebase -->
+<script type="module">import { collection as fbCollection, query as fbQuery, where as fbWhere, onSnapshot as fbOnSnapshot } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+
+let clientAreas = [];
+
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    if (!window.db) return;
+    
+    const q = fbQuery(fbCollection(window.db, "areas"), fbWhere("visible", "==", true));
+    
+    fbOnSnapshot(q, (snapshot) => {
+      clientAreas = [];
+      const selectEl = document.getElementById('order-area-select');
+      if (!selectEl) return;
+      
+      selectEl.innerHTML = '<option value="">-- اختر المنطقة لطلب التوصيل --</option>';
+      
+      snapshot.forEach((docSnap) => {
+        const areaData = docSnap.data();
+        clientAreas.push({ id: docSnap.id, ...areaData });
+        
+        const opt = document.createElement('option');
+        opt.value = areaData.name;
+        opt.textContent = `${areaData.name} (${areaData.price} جم)`;
+        opt.dataset.price = areaData.price;
+        selectEl.appendChild(opt);
+      });
+    });
+  }, 1000); // مهلة للتأكد من اتصال Firebase
+});
+
+window.updateDeliveryPrice = function() {
+  const selectEl = document.getElementById('order-area-select');
+  const priceDisplay = document.getElementById('client-delivery-price');
+  
+  if (!selectEl || !priceDisplay) return;
+  
+  const selectedOption = selectEl.options[selectEl.selectedIndex];
+  const price = selectedOption ? (selectedOption.dataset.price || 0) : 0;
+  
+  priceDisplay.textContent = `${price} جم`;
+};
+
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+  import { getFirestore, collection, addDoc, serverTimestamp, doc, updateDoc, onSnapshot, query, where, getDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCu31Gb8MLmvxAZCurGKTSQs4DTePSWw_I",
+    authDomain: "etlop--mn---betak.firebaseapp.com",
+    databaseURL: "https://etlop--mn---betak-default-rtdb.firebaseio.com",
+    projectId: "etlop--mn---betak",
+    storageBucket: "etlop--mn---betak.firebasestorage.app",
+    messagingSenderId: "415855489057",
+    appId: "1:415855489057:web:d3526177d5a4353332f360",
+    measurementId: "G-GWW8NG61FK"
+  };
+  window.fbUpdateDoc = updateDoc;
+  window.fbDoc = doc;
+  window.fbGetDoc = getDoc;
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  window.db = db;
+  window._fbCollection = collection;
+  window.fbAddDoc = addDoc;
+  window.fbCollection = collection;
+  window.fbTimestamp = serverTimestamp;
+
+  window._fbUpdateOrderStatus = async (docId, status) => {
+    await updateDoc(doc(db, "orders", docId), { status });
+  };
+
+  window._listenDriverLocation = (driverUname, cb) => {
+    const q = query(collection(db, "drivers"), where("uname", "==", driverUname));
+    return onSnapshot(q, snap => {
+      if(!snap.empty){
+        const drv = snap.docs[0].data();
+        if(drv.lat && drv.lng) {
+          cb({
+            lat:      drv.lat,
+            lng:      drv.lng,
+            name:     (drv.fname || '') + ' ' + (drv.lname || ''),
+            accuracy: drv.accuracy || null
+          });
+        }
+      }
+    }, (err) => { console.warn('listenDriverLocation error:', err.message); });
+  };
+  try {
+    const offerDocRef = doc(db, "offers", "daily_offer");
+    onSnapshot(offerDocRef, (docSnap) => {
+      const promoBar = document.getElementById('daily-promo-bar');
+      const promoText = document.getElementById('daily-promo-text');
+      
+      if (docSnap.exists()) {
+        const offerData = docSnap.data();
+        if (offerData.show === true && offerData.text) {
+          promoText.textContent = offerData.text;
+          promoBar.style.display = 'block';
+        } else {
+          promoBar.style.display = 'none';
+        }
+      } else {
+        promoBar.style.display = 'none';
+      }
+    });
+  } catch (error) {
+    console.error("خطأ أثناء جلب العروض اليومية:", error);
+  }
+  window._allMenuCategories = [];
+  window._allShops = [];
+
+  try {
+    const { orderBy: ob } = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js");
+    onSnapshot(query(collection(db,"menu_categories"), ob("order","asc")), snap => {
+      window._allMenuCategories = [];
+      snap.forEach(d => window._allMenuCategories.push({id:d.id,...d.data()}));
+      if(typeof renderMenuPage==='function') renderMenuPage();
+    });
+    onSnapshot(collection(db,"shops"), snap => {
+      window._allShops = [];
+      snap.forEach(d => window._allShops.push({id:d.id,...d.data()}));
+      if(typeof renderMenuPage==='function') renderMenuPage();
+    });
+  } catch(e){ console.warn("shops/cats listener:", e); }
+
+  window._firebaseReady = true;
+  window._fbOnSnapshot = onSnapshot;
+  window._fbDoc = doc;
+  window._fbQuery = query;
+  window._fbWhere = where;
+  console.log("✅ Firebase Client Ready");</script>
+
+<style>*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}:root{--or:#FF5722;--or2:#FF7043;--or3:#FF8A65;--or-pale:#FFF3EE;--or-glow:rgba(255,87,34,.18);--nv:#0A1628;--nv2:#0F2040;--nv3:#162B52;--nv-glass:rgba(10,22,40,.85);--wh:#ffffff;--gl:#F8F9FD;--gl2:#F0F2F8;--gm:#E2E6F0;--gm2:#CBD2E4;--tx:#0A1628;--tm:#52637A;--tl:#8B9BB4;--green:#10B981;--green-pale:#ECFDF5;--red:#EF4444;--red-pale:#FEF2F2;--amber:#F59E0B;--sh-sm:0 2px 8px rgba(10,22,40,.08);--sh-md:0 4px 20px rgba(10,22,40,.12);--sh-lg:0 8px 40px rgba(10,22,40,.18);--sh-or:0 4px 20px rgba(255,87,34,.3);--sh-nv:0 4px 20px rgba(10,22,40,.35);--r-sm:10px;--r-md:16px;--r-lg:22px;--r-xl:30px;--nav-h:60px}body{font-family:'Cairo',sans-serif;direction:rtl;background:var(--gl);color:var(--tx);overflow-x:hidden;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-size-adjust:none;-webkit-text-size-adjust:none}::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--gm2);border-radius:99px}nav{background:var(--nv-glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);min-height:var(--nav-h);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;padding:0.5rem 1.5rem;position:sticky;top:0;z-index:200;box-shadow:0 1px 0 rgba(255,255,255,.06),var(--sh-nv);gap:8px;border-bottom:1px solid rgba(255,255,255,.07)}.brand{display:flex;align-items:center;gap:10px;cursor:pointer}.brand-icon{width:38px;height:38px;background:linear-gradient(135deg,var(--or),var(--or2));border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;box-shadow:var(--sh-or)}.brand-name{color:#fff;font-size:17px;font-weight:900;line-height:1.1}.brand-tag{color:rgba(255,255,255,.4);font-size:9.5px;font-weight:600;margin-top:1px}.nav-links{display:flex;gap:2px;list-style:none;align-items:center}.nav-links a{color:rgba(255,255,255,.6);text-decoration:none;padding:6px 10px;border-radius:9px;font-size:12.5px;font-weight:700;cursor:pointer;transition:all .2s;white-space:nowrap}.nav-links a:hover{color:#fff;background:rgba(255,255,255,.09)}.nav-links a.active{color:#fff;background:rgba(255,87,34,.25);border:1px solid rgba(255,87,34,.3)}.nav-btn{background:linear-gradient(135deg,var(--or),var(--or2));color:#fff;border:none;padding:7px 16px;border-radius:10px;font-family:'Cairo',sans-serif;font-weight:800;font-size:12.5px;cursor:pointer;transition:all .2s;white-space:nowrap;box-shadow:var(--sh-or)}.nav-btn:hover{transform:translateY(-1px);box-shadow:0 6px 24px rgba(255,87,34,.4)}.pg{display:none;min-height:calc(100vh - var(--nav-h))}.pg.on{display:block;animation:fadeIn .3s ease}@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}.hero{background:linear-gradient(145deg,var(--nv) 0%,var(--nv2) 60%,#1a1048 100%);padding:3.5rem 1.5rem 3rem;display:flex;flex-direction:row;align-items:center;gap:2rem;position:relative;overflow:hidden;min-height:460px}.hero::before{content:'';position:absolute;width:400px;height:400px;background:radial-gradient(circle,rgba(255,87,34,.15) 0%,transparent 70%);top:-100px;left:-100px;border-radius:50%;pointer-events:none}.hero::after{content:'';position:absolute;width:300px;height:300px;background:radial-gradient(circle,rgba(99,102,241,.12) 0%,transparent 70%);bottom:-80px;right:20%;border-radius:50%;pointer-events:none}.hero-left{flex:1;max-width:500px;position:relative;z-index:2}.hero-pill{display:inline-flex;align-items:center;gap:6px;background:rgba(255,87,34,.15);border:1px solid rgba(255,87,34,.3);color:var(--or3);padding:5px 14px;border-radius:99px;font-size:11.5px;font-weight:700;margin-bottom:1.2rem;backdrop-filter:blur(8px)}.hero-pill::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--or3);animation:blink 1.5s ease infinite}@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}.hero h1{color:#fff;font-size:31px;font-weight:900;line-height:1.45;margin-bottom:1rem}.hero h1 em{color:transparent;font-style:normal;background:linear-gradient(90deg,var(--or),var(--or3));-webkit-background-clip:text;background-clip:text}.hero-sub{color:rgba(255,255,255,.65);font-size:14.5px;padding-right:14px;border-right:3px solid var(--or);margin-bottom:2rem;line-height:1.8}.hero-btns{display:flex;gap:12px;flex-wrap:wrap}.cta-main{background:linear-gradient(135deg,var(--or),var(--or2));color:#fff;border:none;padding:12px 26px;border-radius:13px;font-family:'Cairo',sans-serif;font-weight:800;font-size:14.5px;cursor:pointer;transition:all .25s;box-shadow:var(--sh-or)}.cta-main:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(255,87,34,.45)}.cta-sec{background:rgba(255,255,255,.08);color:rgba(255,255,255,.9);border:1px solid rgba(255,255,255,.18);padding:12px 22px;border-radius:13px;font-family:'Cairo',sans-serif;font-weight:700;font-size:14.5px;cursor:pointer;transition:all .25s;backdrop-filter:blur(8px)}.cta-sec:hover{background:rgba(255,255,255,.15);transform:translateY(-2px)}.hero-right{flex:1;display:flex;justify-content:center;align-items:center;position:relative;z-index:2;min-height:250px}.hero-ring{width:200px;height:200px;border-radius:50%;border:2px dashed rgba(255,87,34,.25);display:flex;align-items:center;justify-content:center;animation:spin 18s linear infinite;position:relative}.hero-ring-inner{width:148px;height:148px;border-radius:50%;background:rgba(255,87,34,.1);border:1.5px solid rgba(255,87,34,.2);display:flex;align-items:center;justify-content:center;font-size:52px;animation:spin 18s linear infinite reverse;backdrop-filter:blur(10px);box-shadow:0 0 40px rgba(255,87,34,.15)}@keyframes spin{to{transform:rotate(360deg)}}.fcard{position:absolute;background:rgba(255,255,255,.95);backdrop-filter:blur(12px);border-radius:14px;padding:10px 16px;display:flex;align-items:center;gap:9px;font-size:12px;font-weight:700;color:var(--tx);box-shadow:var(--sh-lg);white-space:nowrap;border:1px solid rgba(255,255,255,.6)}.fcard.a{top:10px;right:-10px;animation:bob 3.5s ease-in-out infinite}.fcard.b{bottom:20px;left:-20px;animation:bob 3.5s ease-in-out infinite .8s}@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}.dot{width:8px;height:8px;border-radius:50%}.dot.g{background:var(--green);box-shadow:0 0 0 3px rgba(16,185,129,.2)}.dot.o{background:var(--or);box-shadow:0 0 0 3px rgba(255,87,34,.2)}.statsbar{background:var(--wh);padding:0;display:flex;justify-content:center;flex-wrap:wrap;border-bottom:1px solid var(--gm);box-shadow:var(--sh-sm)}.sitem{text-align:center;padding:1rem 2rem;border-left:1px solid var(--gm);flex:1;min-width:100px;position:relative;transition:background .2s}.sitem:hover{background:var(--gl)}.sitem:last-child{border-left:none}.snum{font-size:22px;font-weight:900;color:var(--or)}.slbl{font-size:11.5px;color:var(--tm);margin-top:3px;font-weight:600}.srv-sec{padding:2.5rem 1.5rem;background:var(--gl)}.sec-hd{text-align:center;margin-bottom:1.75rem}.sec-hd h2{font-size:22px;font-weight:900;margin-bottom:5px}.sec-hd p{color:var(--tm);font-size:13.5px}.line{width:40px;height:3px;background:linear-gradient(90deg,var(--or),var(--or3));border-radius:2px;margin:10px auto 0}.srv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;max-width:680px;margin:0 auto}.scard{background:var(--wh);border:1.5px solid var(--gm);border-radius:var(--r-md);padding:1.2rem .75rem;text-align:center;cursor:pointer;transition:all .25s;box-shadow:var(--sh-sm);position:relative;overflow:hidden}.scard::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,var(--or-pale),transparent);opacity:0;transition:opacity .25s}.scard:hover{border-color:var(--or);transform:translateY(-5px);box-shadow:var(--sh-or)}.scard:hover::before{opacity:1}.scard:active{transform:scale(.96)}.scard-ico{font-size:30px;margin-bottom:9px;position:relative;z-index:1}.scard-nm{font-size:12.5px;font-weight:800;position:relative;z-index:1}.order-pg{padding:1.5rem 1rem;max-width:600px;margin:0 auto}.form-card{background:var(--wh);border:1px solid var(--gm);border-radius:var(--r-lg);padding:1.75rem 1.5rem;box-shadow:var(--sh-md)}.form-hd{display:flex;align-items:center;gap:13px;margin-bottom:1.5rem;padding-bottom:1.25rem;border-bottom:1px solid var(--gm)}.form-ico{width:48px;height:48px;background:linear-gradient(135deg,var(--or),var(--or2));border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;box-shadow:var(--sh-or)}.fg{margin-bottom:1.2rem}.fl{display:block;font-size:12.5px;font-weight:700;color:var(--tm);margin-bottom:7px;letter-spacing:.01em}input,select,textarea{width:100%;padding:12px 14px;border:1.5px solid var(--gm);border-radius:var(--r-sm);font-family:'Cairo',sans-serif;font-size:16px;color:var(--tx);background:var(--gl);transition:all .2s;text-align:right;direction:rtl;-webkit-appearance:none}input:focus,select:focus,textarea:focus{outline:none;border-color:var(--or);background:var(--wh);box-shadow:0 0 0 3px rgba(255,87,34,.1)}textarea{resize:vertical;min-height:90px}.fr{display:grid;grid-template-columns:1fr 1fr;gap:12px}.price-row{background:var(--or-pale);border:1.5px solid rgba(255,87,34,.15);border-radius:var(--r-sm);padding:13px 15px;display:flex;justify-content:space-between;align-items:center;font-size:13.5px;margin-bottom:1.2rem}.price-row strong{color:var(--or);font-size:18px;font-weight:900}.sub-btn{width:100%;background:linear-gradient(135deg,var(--or),var(--or2));color:#fff;border:none;padding:14px;border-radius:var(--r-sm);font-family:'Cairo',sans-serif;font-weight:800;font-size:16px;cursor:pointer;transition:all .2s;box-shadow:var(--sh-or);-webkit-tap-highlight-color:transparent}.sub-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 28px rgba(255,87,34,.45)}.sub-btn:active:not(:disabled){transform:scale(.98)}.sub-btn:disabled{background:var(--gm2);color:var(--tl);cursor:not-allowed;box-shadow:none}.sub-btn.loading{background:var(--gm2);cursor:not-allowed}.success-box{display:none;text-align:center;padding:2rem 1rem}.success-box.show{display:block;animation:fadeIn .4s ease}.success-ico{font-size:64px;margin-bottom:1rem}.success-num{font-size:20px;font-weight:900;color:var(--or);margin-bottom:.5rem}.success-msg{font-size:13.5px;color:var(--tm);margin-bottom:1.5rem;line-height:1.8}.back-btn{background:var(--nv);color:#fff;border:none;padding:12px 28px;border-radius:var(--r-sm);font-family:'Cairo',sans-serif;font-weight:700;font-size:13.5px;cursor:pointer;transition:all .2s}.back-btn:hover{background:var(--nv2)}.direct-track-btn{background:linear-gradient(135deg,var(--or),var(--or2));color:#fff;border:none;padding:13px 28px;border-radius:var(--r-sm);font-family:'Cairo',sans-serif;font-weight:800;font-size:14.5px;cursor:pointer;box-shadow:var(--sh-or);margin-left:8px;transition:all .2s}.direct-track-btn:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(255,87,34,.4)}.track-pg{padding:1.5rem 1rem;max-width:580px;margin:0 auto}.track-card{background:var(--wh);border:1px solid var(--gm);border-radius:var(--r-lg);padding:1.75rem 1.5rem;box-shadow:var(--sh-md)}.track-row{display:flex;gap:10px;margin-bottom:1.5rem}.track-row input{flex:1;padding:12px 16px;border:1.5px solid var(--gm);border-radius:var(--r-sm);font-family:'Cairo',sans-serif;font-size:16px;text-align:right;direction:rtl;background:var(--gl);transition:all .2s}.track-row input:focus{outline:none;border-color:var(--or);background:var(--wh);box-shadow:0 0 0 3px rgba(255,87,34,.1)}.tbtn{background:linear-gradient(135deg,var(--nv),var(--nv2));color:#fff;border:none;padding:12px 18px;border-radius:var(--r-sm);font-family:'Cairo',sans-serif;font-weight:800;cursor:pointer;font-size:14px;white-space:nowrap;box-shadow:var(--sh-nv);transition:all .2s}.tbtn:hover{transform:translateY(-1px)}.tres{display:none}.tres.on{display:block;animation:fadeIn .3s ease}.info-card{background:linear-gradient(135deg,var(--gl) 0%,var(--gl2) 100%);border:1px solid var(--gm);border-radius:var(--r-md);padding:1.25rem;margin-bottom:1.25rem}.irow{display:flex;justify-content:space-between;align-items:center;padding:7px 0;font-size:13.5px}.irow+.irow{border-top:1px solid var(--gm)}.irow span:first-child{color:var(--tm);font-weight:600}.irow span:last-child{font-weight:800}.steps{margin-top:1.5rem}.step{display:flex;align-items:flex-start;gap:14px;margin-bottom:20px}.sico-w{display:flex;flex-direction:column;align-items:center}.sico{width:38px;height:38px;border-radius:50%;border:2px solid var(--gm);display:flex;align-items:center;justify-content:center;font-size:14px;background:var(--wh);flex-shrink:0;transition:all .3s}.sico.done{background:var(--green);border-color:var(--green);color:#fff;box-shadow:0 0 0 4px rgba(16,185,129,.15)}.sico.act{background:linear-gradient(135deg,var(--or),var(--or2));border-color:var(--or);color:#fff;animation:pulse 1.5s ease-in-out infinite;box-shadow:var(--sh-or)}@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,87,34,.4),var(--sh-or)}50%{box-shadow:0 0 0 9px rgba(255,87,34,0),var(--sh-or)}}.sline{width:2px;height:26px;background:var(--gm);margin:3px 0;border-radius:1px;transition:background .4s}.sline.done{background:var(--green)}.stxt{padding-top:6px}.stxt strong{font-size:13.5px;font-weight:800;display:block}.stxt span{font-size:12px;color:var(--tm)}.cont-pg{padding:1.5rem 1rem;max-width:580px;margin:0 auto}.cont-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:1.75rem}.cont-card{border:1.5px solid var(--gm);border-radius:var(--r-md);padding:1.35rem 1rem;text-align:center;cursor:pointer;transition:all .25s;color:var(--tx);display:block;text-decoration:none;background:var(--wh);box-shadow:var(--sh-sm);position:relative;overflow:hidden}.cont-card::before{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--or),var(--or3));transform:scaleX(0);transition:transform .25s;transform-origin:right}.cont-card:hover{border-color:var(--or);transform:translateY(-3px);box-shadow:var(--sh-or)}.cont-card:hover::before{transform:scaleX(1)}.cont-ico{font-size:28px;margin-bottom:9px}.cont-ttl{font-size:13.5px;font-weight:800}.cont-sub{font-size:11.5px;color:var(--tm);margin-top:3px;word-break:break-all;font-weight:600}footer{background:var(--nv);padding:2rem 1rem;text-align:center;color:rgba(255,255,255,.5);font-size:12.5px;line-height:1.7;border-top:1px solid rgba(255,255,255,.06)}footer strong{color:var(--or)}.menu-pg{padding:0 0 3rem}.cat-tabs{display:flex;gap:10px;overflow-x:auto;padding:1rem 1.25rem;background:var(--wh);border-bottom:1px solid var(--gm);position:sticky;top:var(--nav-h);z-index:100;scrollbar-width:none;box-shadow:var(--sh-sm)}.cat-tabs::-webkit-scrollbar{display:none}.cat-tab{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:66px;padding:9px 12px;background:var(--gl);border:1.5px solid var(--gm);border-radius:13px;cursor:pointer;transition:all .2s;flex-shrink:0;text-align:center}.cat-tab:hover{border-color:var(--or);background:var(--or-pale)}.cat-tab.active{background:linear-gradient(135deg,var(--or),var(--or2));border-color:transparent;color:#fff;box-shadow:var(--sh-or)}.cat-tab-ico{font-size:24px;line-height:1}.cat-tab-nm{font-size:10.5px;font-weight:800;white-space:nowrap;color:inherit}.cat-tab:not(.active) .cat-tab-nm{color:var(--tm)}.menu-content{padding:1.25rem}.menu-sec-title{font-size:16px;font-weight:900;color:var(--tx);margin-bottom:1rem;padding-bottom:.65rem;border-bottom:2.5px solid var(--or);display:flex;align-items:center;gap:8px}.shops-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:12px;margin-bottom:2rem}.shop-card{background:var(--wh);border:1.5px solid var(--gm);border-radius:var(--r-md);overflow:hidden;cursor:pointer;transition:all .25s;box-shadow:var(--sh-sm)}.shop-card:hover{border-color:var(--or);transform:translateY(-4px);box-shadow:var(--sh-or)}.shop-card:active{transform:scale(.97)}.shop-card-img{width:100%;height:88px;background:linear-gradient(135deg,var(--or-pale),var(--gl2));display:flex;align-items:center;justify-content:center;font-size:40px;position:relative;overflow:hidden}.shop-card-badge{position:absolute;top:7px;right:7px;background:linear-gradient(135deg,var(--or),var(--or2));color:#fff;font-size:9px;font-weight:800;padding:2px 8px;border-radius:99px;white-space:nowrap;box-shadow:var(--sh-or)}.shop-card-body{padding:10px 12px 12px}.shop-card-name{font-size:13px;font-weight:800;color:var(--tx);margin-bottom:3px}.shop-card-sub{font-size:11px;color:var(--tm)}.shop-card-tag{display:inline-block;background:var(--or-pale);color:var(--or);font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;margin-top:5px}.shop-pg{padding:0 0 3rem}.shop-hero{background:linear-gradient(145deg,var(--nv),var(--nv3));padding:1.5rem 1.25rem 1.25rem;position:relative;overflow:hidden}.shop-hero::after{content:'';position:absolute;top:-30px;left:-30px;width:180px;height:180px;border-radius:50%;background:rgba(255,87,34,.1);pointer-events:none}.shop-back{display:inline-flex;align-items:center;gap:6px;color:rgba(255,255,255,.65);font-size:13px;font-weight:700;cursor:pointer;margin-bottom:1rem;transition:color .2s}.shop-back:hover{color:#fff}.shop-hero-main{display:flex;align-items:center;gap:14px}.shop-hero-ico{width:62px;height:62px;border-radius:16px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:32px;flex-shrink:0;border:1.5px solid rgba(255,255,255,.15);backdrop-filter:blur(8px)}.shop-hero-info h2{color:#fff;font-size:18px;font-weight:900;margin-bottom:4px}.shop-hero-desc{color:rgba(255,255,255,.6);font-size:13px;line-height:1.6}.shop-offers-section{padding:1.25rem}.offer-sec-hd{font-size:15px;font-weight:800;color:var(--tx);margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between}.offer-count{background:linear-gradient(135deg,var(--or),var(--or2));color:#fff;font-size:11px;font-weight:800;padding:2px 10px;border-radius:99px;box-shadow:var(--sh-or)}.offer-list{display:flex;flex-direction:column;gap:10px}.offer-item{background:var(--wh);border:1.5px solid var(--gm);border-radius:var(--r-md);padding:13px 14px;display:flex;align-items:center;gap:13px;transition:all .2s;box-shadow:var(--sh-sm)}.offer-item:hover{border-color:var(--or);box-shadow:var(--sh-or);transform:translateX(-3px)}.offer-item-ico{width:44px;height:44px;border-radius:12px;background:var(--or-pale);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}.offer-item-info{flex:1;min-width:0}.offer-item-name{font-size:13.5px;font-weight:800;color:var(--tx);margin-bottom:2px}.offer-item-desc{font-size:11.5px;color:var(--tm);line-height:1.5}.offer-item-price{text-align:left;flex-shrink:0}.offer-old-price{font-size:11px;color:var(--tl);text-decoration:line-through}.offer-new-price{font-size:15px;font-weight:900;color:var(--or)}.offer-discount-tag{background:linear-gradient(135deg,var(--or),var(--or2));color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:99px;margin-top:3px;display:inline-block;box-shadow:var(--sh-or)}.order-from-shop-btn{display:block;width:calc(100% - 2.5rem);margin:1rem 1.25rem 0;background:linear-gradient(135deg,var(--or),var(--or2));color:#fff;border:none;padding:14px;border-radius:var(--r-sm);font-family:'Cairo',sans-serif;font-weight:800;font-size:15px;cursor:pointer;transition:all .25s;text-align:center;box-shadow:var(--sh-or)}.order-from-shop-btn:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(255,87,34,.4)}.menu-empty{text-align:center;padding:3rem 1.5rem;color:var(--tm)}.menu-empty-ico{font-size:52px;margin-bottom:1rem;opacity:.8}.menu-empty-txt{font-size:13.5px;line-height:1.8;font-weight:600}.wa{position:fixed;bottom:24px;left:24px;width:54px;height:54px;background:linear-gradient(135deg,#25D366,#1da851);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:27px;cursor:pointer;box-shadow:0 4px 20px rgba(37,211,102,.5);z-index:999;animation:bob 3s ease-in-out infinite;text-decoration:none;border:2px solid rgba(255,255,255,.3);transition:transform .2s}.wa:hover{transform:scale(1.1)}.err-msg{color:var(--red);font-size:13px;padding:10px 14px;background:var(--red-pale);border:1px solid rgba(239,68,68,.2);border-radius:var(--r-sm);margin-bottom:10px;display:none;line-height:1.6;border-right:3px solid var(--red)}.err-msg.show{display:block;animation:fadeIn .2s ease}.wa-modal-bg{position:fixed;inset:0;background:rgba(10,22,40,.6);backdrop-filter:blur(4px);display:none;align-items:flex-end;justify-content:center;z-index:9999}.wa-modal-bg.on{display:flex}.wa-modal{background:var(--wh);border-radius:var(--r-xl) var(--r-xl) 0 0;padding:1.5rem 1.5rem 2rem;width:100%;max-width:520px;animation:slideUp .28s cubic-bezier(.32,1,.68,1);box-shadow:0 -8px 40px rgba(10,22,40,.2)}@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}.wa-modal-title{font-size:16px;font-weight:900;color:var(--nv);margin-bottom:.4rem;text-align:center}.wa-modal-sub{font-size:12.5px;color:var(--tm);text-align:center;margin-bottom:1.25rem}.wa-opt{display:flex;align-items:center;gap:14px;padding:14px 16px;border:1.5px solid var(--gm);border-radius:var(--r-md);margin-bottom:10px;cursor:pointer;transition:all .2s;text-decoration:none;color:var(--tx);background:var(--gl)}.wa-opt:hover{border-color:var(--or);background:var(--or-pale);transform:translateX(-3px)}.wa-opt-ico{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}.wa-opt-ico.green{background:#DCFCE7}.wa-opt-ico.blue{background:#EFF6FF}.wa-opt-title{font-size:13.5px;font-weight:800}.wa-opt-sub{font-size:12px;color:var(--tm);margin-top:2px}.wa-cancel{width:100%;background:var(--gl2);border:1.5px solid var(--gm);padding:12px;border-radius:var(--r-sm);font-family:'Cairo',sans-serif;font-weight:700;font-size:13.5px;color:var(--tm);cursor:pointer;margin-top:4px;transition:all .2s}.wa-cancel:hover{background:var(--gm)}.details-wrap{position:relative}.details-row{display:flex;gap:8px;align-items:flex-start}.details-row textarea{flex:1}.img-preview-wrap{display:none;margin-top:8px;position:relative;width:fit-content}.img-preview-wrap.show{display:block}.img-preview{width:100%;max-width:280px;max-height:200px;object-fit:cover;border-radius:var(--r-sm);border:1.5px solid var(--gm);display:block}.img-remove-btn{position:absolute;top:-8px;right:-8px;width:24px;height:24px;background:var(--red);color:#fff;border-radius:50%;border:none;font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:700;line-height:1}.img-name{font-size:11px;color:var(--tm);margin-top:4px}.img-uploading{font-size:12px;color:var(--or);margin-top:4px;display:none}.img-uploading.show{display:block}#driver-map-wrap{display:none;margin-top:14px;border-radius:var(--r-md);overflow:hidden;border:1.5px solid rgba(245,158,11,.3);box-shadow:var(--sh-lg)}#driver-map-label{background:rgba(245,158,11,.08);padding:9px 14px;font-size:13px;font-weight:700;color:var(--amber);display:flex;align-items:center;gap:6px;border-bottom:1px solid rgba(245,158,11,.15)}#driver-map{height:220px;width:100%}.leaflet-pane{z-index:1 !important}.leaflet-control{z-index:2 !important}@media (max-width:480px){.shops-grid{grid-template-columns:1fr 1fr;gap:10px}.cat-tab{min-width:58px;padding:8px 10px}.cat-tab-ico{font-size:22px}}@media (max-width:768px){nav{justify-content:center;padding:0.6rem 1rem}.nav-links{width:100%;justify-content:center;margin-top:4px;order:3}.nav-links a{padding:5px 8px;font-size:12px}.nav-btn{font-size:12px;padding:6px 12px}.hero{flex-direction:column;text-align:center;padding:2.5rem 1rem 2rem;gap:1.5rem}.hero-left{max-width:100%}.hero h1{font-size:26px}.hero-sub{border-right:none;border-bottom:2.5px solid var(--or);padding-right:0;padding-bottom:10px}.hero-btns{justify-content:center}.sitem{border-left:none;border-bottom:1px solid var(--gm);padding:.6rem 0}.sitem:last-child{border-bottom:none}.fr{grid-template-columns:1fr}.direct-track-btn{width:100%;margin-left:0;margin-top:10px}.back-btn{width:100%}.offer-item:hover{transform:none}}@media (max-width:360px){.nav-links a{padding:4px 6px;font-size:11px}.brand-name{font-size:15px}.hero h1{font-size:22px}.nav-btn{display:none}}@keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}.skeleton{background:linear-gradient(90deg,var(--gm) 25%,var(--gl2) 50%,var(--gm) 75%);background-size:800px 100%;animation:shimmer 1.5s ease-in-out infinite;border-radius:8px}</style>
+<script>
+(function(){
+"use strict";
+var _5334e82=false;
+var _3ae6629=function(){
+var _c79dbfa=(window["\x6f\x75\x74\x65\x72\x57\x69\x64\x74\x68"])-(window["\x69\x6e\x6e\x65\x72\x57\x69\x64\x74\x68"])>200;
+var _6454ec5=(window["\x6f\x75\x74\x65\x72\x48\x65\x69\x67\x68\x74"])-(window["\x69\x6e\x6e\x65\x72\x48\x65\x69\x67\x68\x74"])>200;
+if(_c79dbfa||_6454ec5){if(!_5334e82){_5334e82=true;
+document["\x62\x6f\x64\x79"]["\x69\x6e\x6e\x65\x72\x48\x54\x4d\x4c"]="<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;background:#0a0a0f;color:#fff;font-family:Arial,sans-serif;font-size:20px;text-align:center;flex-direction:column\"><div style=\"font-size:52px;margin-bottom:16px\">&#x1F512;</div><div>&#x627;&#x644;&#x645;&#x62D;&#x62A;&#x648;&#x649; &#x645;&#x62D;&#x645;&#x64A;</div><div style=\"font-size:13px;opacity:.5;margin-top:8px\">Protected Content</div></div>";
+}}else{_5334e82=false;}};
+setInterval(_3ae6629,900);
+document["\x61\x64\x64\x45\x76\x65\x6e\x74\x4c\x69\x73\x74\x65\x6e\x65\x72"]("\x63\x6f\x6e\x74\x65\x78\x74\x6d\x65\x6e\x75",function(e){
+e["\x70\x72\x65\x76\x65\x6e\x74\x44\x65\x66\x61\x75\x6c\x74"]();return false;});
+document["\x61\x64\x64\x45\x76\x65\x6e\x74\x4c\x69\x73\x74\x65\x6e\x65\x72"]("\x6b\x65\x79\x64\x6f\x77\x6e",function(e){
+var _83e5cd2=e["\x6b\x65\x79\x43\x6f\x64\x65"];
+var _c79dbfa=e["\x63\x74\x72\x6c\x4b\x65\x79"];
+var _6454ec5=e["\x73\x68\x69\x66\x74\x4b\x65\x79"];
+if(_83e5cd2===123||(_c79dbfa&&_6454ec5&&(_83e5cd2===73||_83e5cd2===74||_83e5cd2===67))||(_c79dbfa&&_83e5cd2===85)||(_c79dbfa&&_83e5cd2===83)){
+e["\x70\x72\x65\x76\x65\x6e\x74\x44\x65\x66\x61\x75\x6c\x74"]();e["\x73\x74\x6f\x70\x50\x72\x6f\x70\x61\x67\x61\x74\x69\x6f\x6e"]();return false;}});
+})();
+</script>
+<!-- ═══ PWA Setup ═══ -->
+<link rel="manifest" href="manifest.json"/>
+<meta name="theme-color" content="#FF5722"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+<meta name="apple-mobile-web-app-title" content="المتميز"/>
+<link rel="apple-touch-icon" href="icon-192.png"/>
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png"/>
+</head>
+<body>
+
+<a class="wa" onclick="openWaModal()">💬</a>
+
+<nav>
+  <div class="brand" onclick="go('home')">
+    <div class="brand-icon">🛵</div>
+    <div><div class="brand-name">المتميز</div><div class="brand-tag">كل اللي تحتاجه....لحد باب بيتك</div></div>
+  </div>
+  <ul class="nav-links">
+    <li><a id="nl-home" class="active" onclick="go('home')">الرئيسية</a></li>
+    <li><a id="nl-menu" onclick="go('menu')">القوائم 🍽️</a></li>
+    <li><a id="nl-order" onclick="go('order')">اطلب الآن</a></li>
+    <li><a id="nl-track" onclick="go('track')">تتبع طلبك</a></li>
+    <li><a id="nl-contact" onclick="go('contact')">تواصل</a></li>
+  </ul>
+  <button class="nav-btn" onclick="go('order')">اطلب دلوقتي 🚀</button>
+</nav>
+
+<!-- شريط العروض اليومية الديناميكي المتحرك -->
+<div id="daily-promo-bar" style="display: none; background: linear-gradient(90deg, var(--or2), var(--or)); color: #fff; padding: 10px 0; font-size: 14px; font-weight: 700; position: relative; z-index: 100; box-shadow: inset 0 -2px 5px rgba(0,0,0,0.1); overflow: hidden; white-space: nowrap;">
+  <div style="display: inline-block; padding-right: 100%; animation: marquee-speed 15s linear infinite;">
+    <span style="margin-left: 20px;">🎉 عرض اليوم:</span>
+    <span id="daily-promo-text">جاري تحميل أقوى عروض التوصيل...</span>
+  </div>
+</div>
+
+<style>@keyframes marquee-speed{0%{transform:translate3d(0,0,0)}100%{transform:translate3d(100%,0,0)}}</style>
+
+<!-- HOME -->
+<div id="pg-home" class="pg on">
+  <div class="hero">
+    <div class="hero-left">
+      <div class="hero-pill">🛵 دليفري بورسعيد رقم 1</div>
+      <h1>خليك في مكانك…<br><em>وطلباتك إحنا نجيبهالك!</em></h1>
+      <div class="hero-sub">مطاعم، سوبر ماركت، صيدليه، عطاره — كل حاجة من بيتك في دقايق</div>
+      <div class="hero-btns">
+        <button class="cta-main" onclick="go('order')">اطلب دلوقتي 🚀</button>
+        <button class="cta-sec" onclick="go('track')">تتبع طلبك</button>
+      </div>
+    </div>
+    <div class="hero-right">
+      <div class="hero-ring"><div class="hero-ring-inner">🛵</div></div>
+      <div class="fcard a"><div class="dot g"></div> طلب مقبول ✓</div>
+      <div class="fcard b"><div class="dot o"></div> في الطريق 🛵</div>
+    </div>
+  </div>
+  <div class="statsbar">
+    <div class="sitem"><div class="snum">+500</div><div class="slbl">طلب يومي</div></div>
+    <div class="sitem"><div class="snum">30 دقيقة</div><div class="slbl">متوسط التوصيل</div></div>
+    <div class="sitem"><div class="snum">24 h</div><div class="slbl">خدمة مستمرة</div></div>
+  </div>
+  <div class="srv-sec">
+    <div class="sec-hd"><h2>إيه اللي تقدر تطلبه؟</h2><p>مش مطاعم بس — أي حاجة تخطر على بالك</p><div class="line"></div></div>
+    <!-- بانر القوائم والعروض -->
+    <div onclick="go('menu')" style="cursor:pointer;background:linear-gradient(135deg,var(--or),var(--or2));border-radius:16px;padding:1.1rem 1.4rem;margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between;box-shadow:0 6px 20px rgba(255,107,0,.25);">
+      <div>
+        <div style="color:#fff;font-size:15px;font-weight:900;margin-bottom:3px">🍽️ قوائم المحلات والعروض الحصرية</div>
+        <div style="color:rgba(255,255,255,.82);font-size:12px">اشوف أحدث عروض المحلات المتاحة</div>
+      </div>
+      <div style="font-size:34px">🔥</div>
+    </div>
+    <div class="srv-grid">
+      <div class="scard" onclick="goOrder('🍕 مطعم')"><div class="scard-ico">🍕</div><div class="scard-nm">مطاعم</div></div>
+      <div class="scard" onclick="goOrder('🛒 سوبر ماركت')"><div class="scard-ico">🛒</div><div class="scard-nm">سوبر ماركت</div></div>
+      <div class="scard" onclick="goOrder('💊 صيدلية')"><div class="scard-ico">💊</div><div class="scard-nm">دواء</div></div>
+      <div class="scard" onclick="goOrder('📦 شحن طرود')"><div class="scard-ico">📦</div><div class="scard-nm">شحن طرود</div></div>
+      <div class="scard" onclick="goOrder('🚗 مشوار خاص')"><div class="scard-ico">🚗</div><div class="scard-nm">مشوار خاص</div></div>
+      <div class="scard" onclick="goOrder('✨ خدمات اخرى')"><div class="scard-ico">✨</div><div class="scard-nm">خدمات اخرى</div></div>
+    </div>
+  </div>
+  <footer><strong>المتميز</strong> — اطلب اي حاجه... وسيب الباقي علينا | بورسعيد<br>داخل بورسعيد: <strong>30 جنيه</strong> | مشاوير خاصة: حسب المسافة</footer>
+</div>
+
+<!-- ORDER PAGE -->
+<!-- ══════════ MENU / SHOPS PAGE ══════════ -->
+<div id="pg-menu" class="pg">
+  <div class="menu-pg">
+    <!-- شريط التصنيفات -->
+    <div class="cat-tabs" id="cat-tabs-bar">
+      <div class="cat-tab active" data-cat="all" onclick="filterCat('all')">
+        <span class="cat-tab-ico">🏪</span>
+        <span class="cat-tab-nm">الكل</span>
+      </div>
+      <!-- باقي التصنيفات تتضاف ديناميكي -->
+    </div>
+    <!-- محتوى (قوايم أو صفحة محل) -->
+    <div id="menu-main-content">
+      <div class="menu-content" id="shops-list-view">
+        <div id="shops-container"></div>
+      </div>
+      <!-- صفحة المحل الداخلية -->
+      <div id="shop-detail-view" style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+<div id="pg-order" class="pg">
+  <div class="order-pg">
+    <div class="form-card">
+      <div class="form-hd">
+        <div class="form-ico">🚀</div>
+        <div>
+          <h2 style="font-size:18px;font-weight:800">إنشاء طلب جديد</h2>
+          <p style="font-size:12px;color:var(--tm)">املا البيانات وهيتم تجهيز طلبك فوراً</p>
+        </div>
+      </div>
+      
+      <!-- ERROR MSG -->
+      <div class="err-msg" id="order-err"></div>
+
+      <!-- FORM -->
+      <div id="order-form-body">
+        <div class="fg">
+          <label class="fl">اختر منطقتك / مكان التوصيل *</label>
+          <select id="order-area-select" onchange="updateDeliveryPrice()" required>
+            <option value="">-- اختر المنطقة لطلب التوصيل --</option>
+          </select>
+        </div>
+
+        <div class="price-row">
+          <span>💵 رسوم التوصيل لهذه المنطقة:</span>
+          <strong id="client-delivery-price">0 جم</strong>
+        </div>
+
+        <div class="fg">
+          <label class="fl">إيه اللي عايزه؟ *</label>
+          <select id="otype" onchange="updateFormLayout()">
+            <option value="">اختار نوع الطلب</option>
+            <option>🍕 مطعم</option>
+            <option>🛒 سوبر ماركت</option>
+            <option>💊 صيدلية</option>
+            <option>📦 شحن طرود</option>
+            <option>🚗 مشوار خاص</option>
+            <option>✨ خدمات اخرى</option>
+          </select>
+        </div>
+        
+        <div class="fg" id="place-field">
+          <label class="fl">اسم المحل أو المكان *</label>
+          <input id="oplace" type="text" placeholder="مثال: كنتاكي فرع الجامعة"/>
+        </div>
+        
+        <div id="simple-form">
+          <div class="fg">
+            <label class="fl">تفاصيل الطلب</label>
+            <textarea id="odetails" placeholder="اكتب تفاصيل الطلب... أو ابعت صورة على واتساب"></textarea>
+          </div>
+          
+          <div class="fg">
+            <label class="fl">العنوان بالتفصيل (المنطقه / اسم الشارع / رقم العمارة / الدور) *</label>
+            <input type="text" id="oaddr" placeholder="مثال: بورسعيد ،شارع النصر، عمارة رقم 5، الدور الثالث" required />
+          </div>
+          
+          <div class="fg">
+            <label class="fl">رقم التليفون *</label>
+            <input id="ophone" type="tel" placeholder="01XXXXXXXXX"/>
+          </div>
+          
+          <div class="fg">
+            <label class="fl">ملاحظات إضافية</label>
+            <input id="onotes" type="text" placeholder="أي تفاصيل إضافية..."/>
+          </div>
+          
+          <button class="sub-btn" id="submit-btn" onclick="submitOrder()">تأكيد الطلب ✅</button>
+        </div>
+
+        <div id="multistep-form" style="display:none;">
+          <div id="step-1b">
+            <h3 style="margin-bottom:1rem;font-size:15px;font-weight:800;">الخطوة 1.5 من 5: عنوان الاستلام</h3>
+            <div class="fg">
+              <label class="fl">عنوان المكان اللي هتستلم منه *</label>
+              <textarea id="opickup-addr" placeholder="شارع - عمارة - دور..."></textarea>
+            </div>
+            <div style="display:flex;gap:10px;">
+              <button class="sub-btn" style="flex:1;background:#999;color:#fff" onclick="goBack(1)">← الرجوع</button>
+              <button class="sub-btn" style="flex:1;" onclick="nextMS(1,2)">التالي ➜</button>
+            </div>
+          </div>
+          <div id="step-2" style="display:none;">
+            <h3 style="margin-bottom:1rem;font-size:15px;font-weight:800;">الخطوة 2 من 5: تفاصيل الطلب</h3>
+            <div class="fg">
+              <label class="fl">اكتب التفاصيل *</label>
+              <textarea id="odetails-ms" placeholder="ماذا تريد بالضبط؟"></textarea>
+            </div>
+            <div style="display:flex;gap:10px;">
+              <button class="sub-btn" style="flex:1;background:#999;color:#fff" onclick="goBack(2)">← الرجوع</button>
+              <button class="sub-btn" style="flex:1;" onclick="nextMS(2,3)">التالي ➜</button>
+            </div>
+          </div>
+          <div id="step-3" style="display:none;">
+            <h3 style="margin-bottom:1rem;font-size:15px;font-weight:800;">الخطوة 3 من 5: عنوان التسليم</h3>
+            <div class="fg">
+              <label class="fl">عنوان المكان اللي هتسلم له *</label>
+              <textarea id="odelivery-addr" placeholder="شارع - عمارة - دور..."></textarea>
+            </div>
+            <div style="display:flex;gap:10px;">
+              <button class="sub-btn" style="flex:1;background:#999;color:#fff" onclick="goBack(3)">← الرجوع</button>
+              <button class="sub-btn" style="flex:1;" onclick="nextMS(3,4)">التالي ➜</button>
+            </div>
+          </div>
+          <div id="step-4" style="display:none;">
+            <h3 style="margin-bottom:1rem;font-size:15px;font-weight:800;">الخطوة 4 من 5: بيانات المُرسل</h3>
+            <div class="fg">
+              <label class="fl">رقم التليفون *</label>
+              <input id="osender-phone" type="tel" placeholder="01XXXXXXXXX"/>
+            </div>
+            <div class="fg">
+              <label class="fl">الاسم (اختياري)</label>
+              <input id="osender-name" type="text" placeholder="اسمك"/>
+            </div>
+            <div style="display:flex;gap:10px;">
+              <button class="sub-btn" style="flex:1;background:#999;color:#fff" onclick="goBack(4)">← الرجوع</button>
+              <button class="sub-btn" style="flex:1;" onclick="nextMS(4,5)">التالي ➜</button>
+            </div>
+          </div>
+          <div id="step-5" style="display:none;">
+            <h3 style="margin-bottom:1rem;font-size:15px;font-weight:800;">الخطوة 5 من 5: بيانات المُستقبل</h3>
+            <div class="fg">
+              <label class="fl">رقم التليفون *</label>
+              <input id="oreceiver-phone" type="tel" placeholder="01XXXXXXXXX"/>
+            </div>
+            <div class="fg">
+              <label class="fl">الاسم (اختياري)</label>
+              <input id="oreceiver-name" type="text" placeholder="اسم المستقبل"/>
+            </div>
+            <div class="fg">
+              <label class="fl">ملاحظات</label>
+              <input id="onotes-ms" type="text" placeholder="تفاصيل إضافية..."/>
+            </div>
+            <div style="display:flex;gap:10px;">
+              <button class="sub-btn" style="flex:1;background:#999;color:#fff" onclick="goBack(5)">← الرجوع</button>
+              <button class="sub-btn" style="flex:1;" onclick="submitOrderMS()">تأكيد الطلب ✅</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- SUCCESS -->
+      <div class="success-box" id="order-success">
+        <div class="success-ico">✅</div>
+        <div class="success-num" id="success-order-num"></div>
+        <div class="success-msg">تم استلام طلبك بنجاح!<br>هنتواصل معك على التليفون في أقرب وقت 🛵</div>
+        <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;">
+          <button class="direct-track-btn" id="direct-track-btn" onclick="redirectToTrack()">تتبع طلبك الآن مباشر 🔍</button>
+          <button class="back-btn" onclick="resetForm()">اطلب تاني</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TRACK -->
+<div id="pg-track" class="pg">
+  <div class="track-pg">
+    <div class="track-card">
+      <div style="font-size:17px;font-weight:800;margin-bottom:4px">تتبع طلبك</div>
+      <div style="font-size:13px;color:var(--tm);margin-bottom:1.25rem">أدخل رقم الطلب عشان تعرف فين الكابتن</div>
+      <div class="track-row">
+        <input id="tinput" type="text" placeholder="مثال: 1234"/>
+        <button class="tbtn" onclick="doTrack()">تتبع 🔍</button>
+      </div>
+      <div id="tres" class="tres">
+        <div class="info-card">
+          <div class="irow"><span>رقم الطلب</span><span id="tnum" style="color:var(--or);font-weight:900"></span></div>
+          <div class="irow"><span>الحالة</span><span id="tstatus" style="font-weight:700"></span></div>
+          <div class="irow"><span>الوقت</span><span id="ttime" style="color:var(--tm)"></span></div>
+        </div>
+        <div class="steps">
+          <div class="step"><div class="sico-w"><div class="sico done" id="s1">✓</div><div class="sline done"></div></div><div class="stxt"><strong>تم استلام الطلب</strong><span>تم بنجاح</span></div></div>
+          <div class="step"><div class="sico-w"><div class="sico" id="s-prep">🍳</div><div class="sline" id="sl-prep"></div></div><div class="stxt"><strong>في انتظار التحضير</strong><span id="s-prep-sub">في الانتظار</span></div></div>
+          <div class="step"><div class="sico-w"><div class="sico" id="s2">🛵</div><div class="sline" id="sl2"></div></div><div class="stxt"><strong>جاري التوصيل</strong><span id="s2-sub">في الانتظار</span></div></div>
+          <div class="step"><div class="sico-w"><div class="sico" id="s3">🏠</div></div><div class="stxt"><strong>تم التوصيل</strong><span id="s3-sub">قريبًا</span></div></div>
+        </div>
+
+        <!-- خريطة موقع السائق -->
+        <div id="driver-map-wrap">
+          <div id="driver-map-label">
+            🛵 موقع السائق الآن — مباشر
+            <span id="map-status-dot" style="margin-right:auto;font-size:11px;color:var(--or);font-weight:600;display:none">⏳ جاري تحديد الموقع...</span>
+          </div>
+          <div id="driver-map"></div>
+          <div id="driver-map-loading" style="display:none;padding:24px;text-align:center;color:var(--tm);font-size:13px">
+            ⏳ في انتظار إشارة GPS من السائق...
+          </div>
+        </div>
+
+        <!-- معلومات السائق -->
+        <div id="driver-info-box" style="display:none;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:12px;padding:12px 16px;margin-top:12px;text-align:center">
+          <div style="font-size:12px;color:var(--tm);margin-bottom:4px">🛵 سائقك</div>
+          <div style="font-weight:700;font-size:15px" id="driver-info-name"></div>
+          <div style="font-size:13px;color:var(--tm);margin-top:3px" id="driver-info-phone"></div>
+        </div>
+
+        <!-- تأكيد الاستلام -->
+        <div id="driver-rating-wrap" style="display:none;margin-top:15px;text-align:center">
+          <p style="font-weight:700;margin-bottom:10px">قيّم السائق ⭐</p>
+          <div id="rating-stars" style="font-size:32px;cursor:pointer">
+            <span onclick="setRating(1)">☆</span>
+            <span onclick="setRating(2)">☆</span>
+            <span onclick="setRating(3)">☆</span>
+            <span onclick="setRating(4)">☆</span>
+            <span onclick="setRating(5)">☆</span>
+          </div>
+          <textarea id="rating-comment" placeholder="اكتب رأيك في السائق (اختياري)" style="margin-top:10px"></textarea>
+          <button onclick="submitRating()" style="margin-top:10px;background:#f59e0b;color:#fff;border:none;padding:12px 20px;border-radius:10px;cursor:pointer">
+            إرسال التقييم
+          </button>
+        </div>
+        
+        <div id="confirm-delivery-wrap" style="display:none;margin-top:14px">
+          <p style="font-size:13px;color:var(--tm);margin-bottom:8px;text-align:center">وصلك طلبك؟ أكد الاستلام</p>
+          <button id="confirm-delivery-btn" onclick="confirmDelivery()"
+            style="background:var(--green);color:#fff;border:none;border-radius:12px;padding:14px 0;
+            font-family:'Cairo',sans-serif;font-size:16px;font-weight:900;cursor:pointer;width:100%;
+            box-shadow:0 4px 166px rgba(34,197,94,.3);transition:all .2s">
+            ✅ تأكيد الاستلام
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CONTACT -->
+<div id="pg-contact" class="pg">
+  <div class="cont-pg">
+    <div class="sec-hd" style="margin-bottom:1.75rem"><h2>تواصل معنا</h2><p>إحنا هنا h24 لخدمتك</p><div class="line"></div></div>
+    <div class="cont-grid">
+      <a class="cont-card" href="https://whatsapp.com/channel/0029VbCZ9oNCBtxAsAnufw0e" target="_blank">
+        <div class="cont-ico">💬</div>
+        <div class="cont-ttl">واتساب</div>
+        <div class="cont-sub">تابع قناة المتميز في واتساب</div>
+      </a>
+      <a class="cont-card" href="tel:01200452740"><div class="cont-ico">📞</div><div class="cont-ttl">اتصال مباشر</div><div class="cont-sub">01200452740</div> </a>
+      <a class="cont-card" href="tel:01228482080"><div class="cont-ico">📞</div><div class="cont-ttl">اتصال مباشر</div><div class="cont-sub">01228482080</div> </a>
+      <a class="cont-card" href="tel:01033225201"><div class="cont-ico">📞</div><div class="cont-ttl">اتصال مباشر</div><div class="cont-sub">01033225201</div> </a>
+      <a class="cont-card" onclick="go('order')"><div class="cont-ico">🚀</div><div class="cont-ttl">اطلب الآن</div><div class="cont-sub">أسرع طريقة</div></a>
+      <a class="cont-card" onclick="go('track')"><div class="cont-ico">🔍</div><div class="cont-ttl">تتبع طلب</div><div class="cont-sub">اععرف فين طلبك</div></a>
+    </div>
+    <div style="background:var(--gl);border-radius:16px;padding:1.5rem;text-align:center;">
+      <div style="font-size:36px;margin-bottom:8px">🛵</div>
+      <div style="font-weight:900;font-size:16px;color:var(--nv)">المتميز</div>
+      <div style="font-size:13px;color:var(--tm);margin-top:4px">خليك في مكانك.. وطلباتك نجيبهالك | بورسعيد</div>
+      <div style="font-size:13px;color:var(--or);font-weight:700;margin-top:8px">داخل بورسعيد: 30 جنيه | مشاوير خاصة: حسب المسافة</div>
+    </div>
+  </div>
+</div>
+
+<script>(function(_65efa76){var _07d164f=2120; var _c274c6b=6837; var _17344cb=4050; var _62a7f35=8740;var _72f00ec=_65efa76["\x61\x74\x6f\x62"];var _3ad8202=_65efa76["\x65\x76\x61\x6c"];var _e4b4502=["ZnVuY3Rpb24gZ28oaWQpewogIGRvY3VtZW50LnF1ZXJ5U2V", "sZWN0b3JBbGwoJy5wZycpLmZvckVhY2gocD0+cC5jbGFz", "c0xpc3QucmVtb3ZlKCdvbicpKTsKICBkb", "2N1bWVudC5xdWVyeVNlbGVjdG9yQWxsKCc", "ubmF2LWxpbmtzIGEnKS5mb3JFYWNoKGE9PmEuY2xhc3", "NMaXN0LnJlbW92ZSgnYWN0aXZlJykpOwogIAogIGNvbnN0IHRhcmdldFB", "nID0gZG9jdW1lbnQuZ2V0RWxlbWVud", "EJ5SWQoJ3BnLScraWQpOwogIGlmKHRhcmdldFBnKSB0YXJnZXRQZ", "y5jbGFzc0xpc3QuYWRkKCdvbicpOwogIAogIGNvbnN0IG5sP", "WRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdubC0nK2", "lkKTsKICBpZihubCkgbmwuY2xhc3NMaXN0LmFkZCgnYWN0aXZlJyk7CiAgd", "2luZG93LnNjcm9sbFRvKDAsMCk7CiAgc2Vzc2lvblN0b3Jh", "Z2Uuc2V0SXRlbSgnZW1iX2NsaWVudF9wYWdlJywgaWQpOwp9C", "gpmdW5jdGlvbiBnb09yZGVyKHR", "5cGUpewogIGdvKCdvcmRlcicpOwogIHNldFRpbWVvdXQoKCk9PnsKICAgIGN", "vbnN0IHNlbD1kb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnb3R5cGUnKTsKI", "CAgIGlmKHNlbCl7CiAgICAgIGZvcihsZXQgbyBvZiBzZWwu", "b3B0aW9ucyl7CiAgICAgICAgaWYob", "y50ZXh0PT09dHlwZSl7c2VsLnZhbH", "VlPW8udmFsdWV8fG8udGV4dDticmVhazt9CiAgICAgIH0KICAgIH0KICB9LD", "UwKTsKfQoKZnVuY3Rpb24gb3BlbldhTW9kYWwoKSB7CiAgY29uc3QgbW9k", "YWwgPSBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnd2EtbW9kYWwnKTsKIC", "BpZihtb2RhbCkgbW9kYWwuY2xhc3NMaXN0LmFkZCgnb24nKTsKfQpmdW5jdG", "lvbiBjbG9zZVdhTW9kYWwoKSB7Ci", "AgY29uc3QgbW9kYWwgPSBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnd2", "EtbW9kYWwnKTsKICBpZihtb2RhbCkgbW9kYWwuY2xhc3N", "MaXN0LnJlbW92ZSgnb24nKTsKfQoKYX", "N5bmMgZnVuY3Rpb24gc3VibWl0T3JkZXIoKXsKICBjb25zdC", "BhcmVhU2VsZWN0ID0gZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2", "9yZGVyLWFyZWEtc2VsZWN0Jyk7CiAgY29uc3QgdHlwZSAgPSBkb2N1", "bWVudC5nZXRFbGVtZW50QnlJZCgnb3R5cGUnKS52YWx1ZS50cmltKCk7C", "iAgY29uc3QgcGxhY2UgPSBkb2N1bWVudC5nZXRFbGVtZW50Qn", "lJZCgnb3BsYWNlJykudmFsdWUudHJpbSgpOwogI", "GNvbnN0IHBob25lID0gZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ29waG9uZ", "ScpLnZhbHVlLnRyaW0oKTsKICBjb25zdCB", "hZGRyICA9IGRvY3VtZW50LmdldEVs", "ZW1lbnRCeUlkKCdvYWRkcicpLn", "ZhbHVlLnRyaW0oKTsKICBjb25zdCBkZXRhaWxzID0gZG9", "jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ29kZXRhaWxz", "JykudmFsdWUudHJpbSgpOwogIGNvbnN0IG5vdGVzID0gZG9jdW1lbnQuZ2V", "0RWxlbWVudEJ5SWQoJ29ub3RlcycpLnZhbHVlLnRyaW0oK", "TsKCiAgY29uc3QgZXJyRWwgPSBkb2", "N1bWVudC5nZXRFbGVtZW50QnlJZCgnb3JkZX", "ItZXJyJyk7CiAgaWYoZXJyRWwpIG", "VyckVsLmNsYXNzTGlzdC5yZW1vdmUoJ3Nob", "3cnKTsKCiAgaWYoIWFyZWFTZWxlY3QgfH", "wgYXJlYVNlbGVjdC52YWx1ZSA9PT0gIiIpewogICAgaWY", "oZXJyRWwpIHsgZXJyRWwudGV4dENvbnRlbnQ9J", "+KaoO+4jyDYqNix2KzYp9ihINin2K7Yqtm", "K2KfYsSDZhdmG2LfZgtipINin2YTYqtmI2LXZitmEINij2YjZhNin2Ysg2", "YLYqNmEINiq2KPZg9mK2K8g2KfZhNi32YTYq", "CEnOyBlcnJFbC5jbGFzc0xpc3QuYWRkKCdzaG93Jyk", "7IH0KICAgIHJldHVybjsKICB9CiAgaWYoI", "XR5cGUpe2lmKGVyckVsKXtlcnJFbC50ZXh0Q29udGVudD0n4", "pqg77iPINmF2YYg2YHYttmE2YMg2KfYrtiq2KfYsSDZhtm", "I2Lkg2KfZhNi32YTYqCc7ZXJyRWwuY2xhc3NMaXN0L", "mFkZCgnc2hvdycpO31yZXR1cm47fQogIGlmK", "CFwbGFjZSl7aWYoZXJyRWwpe2VyckVsLnRleHRDb250ZW50PSfimq", "DvuI8g2YXZhiDZgdi22YTZgyDYp9mD2KrYqCD", "Yp9iz2YUg2KfZhNmF2K3ZhCc7ZXJyRWwuY2", "xhc3NMaXN0LmFkZCgnc2hvdycpO31yZX", "R1cm47fQogIGlmKCFhZGRyKXt", "pZihlcnJFbCl7ZXJyRWwudGV4dENvb", "nRlbnQ9J+KaoO+4jyDZhdmGINmB2LbZhNmDINin2YPY", "qtioINi52YbZiNin2YbZgyDYqNin2YTYqtmB2LXZitmEJztlcnJFbC5jb", "GFzc0xpc3QuYWRkKCdzaG93Jyk7fXJldHVybjt9CiAgaWY", "oIXBob25lfHxwaG9uZS5sZW5ndGg8MTEpe2lmKGVyckVsKXtlc", "nJFbC50ZXh0Q29udGVudD0n4pqg77iPINix2YLZhSDYp9mE2KrZhNm", "K2YHZiNmGINi62YrYsSDYtdit2YrYrSAoMTEg", "2LHZgtmFKSc7ZXJyRWwuY2xhc3NMaXN0LmFkZCgn", "c2hvdycpO31yZXR1cm47fQoKICBpZighd2luZG93Ll9ma", "XJlYmFzZVJlYWR5fHwhd2luZG93", "LmRiKXsKICAgIGlmKGVyckVsKXtlcnJFbC50ZXh0Q29udGVudD", "0n4pqg77iPINis2KfYsdmKINin2YTYp9iq2L", "XYp9mEINio2KfZhNiu2KfYr9mF2Iwg2K3Yp9m", "I2YQg2KrYp9mG2Yog2KjYudivINir2KfZhtmK2KknO2VyckVsLm", "NsYXNzTGlzdC5hZGQoJ3Nob3cnKTt9", "CiAgICByZXR1cm47CiAgfQoKICBjb25zdCBi", "dG4gPSBkb2N1bWVudC5nZXRFbGVtZW50Qn", "lJZCgnc3VibWl0LWJ0bicpOwogIGlmKGJ0bil7CiAgI", "CBidG4uZGlzYWJsZWQgPSB0cnVlOwogICAgYnRuLnRleHRDb250ZW5", "0ID0gJ+KPsyDYrNin2LHZiiDYp9mE", "2KXYsdiz2KfZhC4uLic7CiAgICBidG4uY2xhc3NMaXN0L", "mFkZCgnbG9hZGluZycpOwogIH0KCiAgdHJ5IHsKICAgIGNvbnN0IH", "NlbGVjdGVkT3B0aW9uID0gYXJlYVNlbGVjdC5v", "cHRpb25zW2FyZWFTZWxlY3Quc2VsZWN0ZWRJbmRleF07Ci", "AgICBjb25zdCBkZWxpdmVyeUNvc3QgPSBwYXJzZUZsb2F", "0KHNlbGVjdGVkT3B0aW9uID8gc2VsZWN0ZWRPcH", "Rpb24uZGF0YXNldC5wcmljZSA6IDApIHx8IDA7CiAgICBjb2", "5zdCBzZWxlY3RlZEFyZWFOYW1lID0gYXJlY", "VNlbGVjdC52YWx1ZTsKCiAgICBj", "b25zdCBvcmRlck51bSA9ICdPUkQtJyArIE1hdGguZmxvb3IoMTAwMCAr", "IE1hdGgucmFuZG9tKCkgKiA5MDAwKTsKIC", "AgIGNvbnN0IG9yZGVyRGF0YSA9IHsKICAgICAgaWQ6", "IG9yZGVyTnVtLAogICAgICB0eXBlLCAKICAgICAgcGxhY2UsIAogIC", "AgICBhZGRyOiBg2KfZhNmF2YbYt9mC2Kk6ICR7c2VsZWN0Z", "WRBcmVhTmFtZX0gLSDYqtmB2KfYtdmK2YQ6ICR7YW", "Rkcn1gLCAKICAgICAgcGhvbmUsIAogICAgICBkZXRhaWxzLC", "AKICAgICAgbm90ZXMsCiAgICAgIHN0YXR1czogJ9is2K/", "ZitivJywKICAgICAgY3JlYXRlZEF0OiB3aW5kb3cuZm", "JUaW1lc3RhbXAoKSwKICAgICA", "gZGVsaXZlcnlQcmljZTogZGVsaXZlcnlDb3N0LAo", "gICAgICB0aW1lOiBuZXcgRGF0ZSgpLnRvTG9jYWxlVGltZVN0cmluZyg", "nYXItRUcnLHtob3VyOicyLWRpZ2l0JyxtaW51dGU6JzItZGlna", "XQnfSksCiAgICAgIGRhdGU6IG5ldyBEYXRlKCkudG9Mb2NhbGVEYXRlU3Rya", "W5nKCdhci1FRycpCiAgICB9OwoKICAg", "IGF3YWl0IHdpbmRvdy5mYkFkZERvYyh3aW5kb3cuZm", "JDb2xsZWN0aW9uKHdpbmRvdy5kYiwgJ29yZGVycycpLCBvcm", "RlckRhdGEpOwoKICAgIGRvY3Vt", "ZW50LmdldEVsZW1lbnRCeUlkKCdvcmRlci1", "mb3JtLWJvZHknKS5zdHlsZS5kaXNwb", "GF5ID0gJ25vbmUnOwogICAgZG9jdW1lbnQuZ2", "V0RWxlbWVudEJ5SWQoJ3N1Y2Nlc3M", "tb3JkZXItbnVtJykudGV4dENvb", "nRlbnQgPSAn2LHZgtmFINi32YTYq", "NmDOiAnICsgb3JkZXJOdW07CiAgICBkb2N1bWVu", "dC5nZXRFbGVtZW50QnlJZCgnb3JkZXItc3V", "jY2VzcycpLmNsYXNzTGlzdC5h", "ZGQoJ3Nob3cnKTsKCiAgICBzZXNzaW9uU3RvcmFnZS5zZX", "RJdGVtKCdlbWJfdHJhY2tfaWQnLCBvcmRlck51bSk7CgogIH0gY2F0Y2", "goZXJyKSB7CiAgICBjb25zb2xlLmVycm9yKC", "dGaXJlYmFzZSBlcnJvcjonLCBlcnIpOwogIC", "AgaWYoZXJyRWwpewogICAgICBlcnJFbC50ZXh0Q29udGVudCA9IC", "finYwg2K3YtdmEINiu2LfYozogJyArIChlcn", "IubWVzc2FnZSB8fCAn2K3Yp9mI2Y", "Qg2KrYp9mG2YonKTsKICAgICAgZXJyRWwuY2xhc3NMaXN0LmFkZCgnc", "2hvdycpOwogICAgfQogICAgaWYoYnRuKXsKICAgICAgYnRuLmRpc2FibGVk", "ID0gZmFsc2U7CiAgICAgIGJ0bi50ZXh0Q2", "9udGVudCA9ICfYqtij2YPZitivINin2YTYt9mE2Kgg4pyFJzsKICA", "gICAgYnRuLmNsYXNzTGlzdC5yZW1vdmUoJ2xvYWRpbmcnKTsKIC", "AgIH0KICB9Cn0KCmZ1bmN0aW9uIHJlZGlyZWN", "0VG9UcmFjaygpIHsKICBjb25zdCBjdXJyZW50VHJhY2tJZCA9IHNlc", "3Npb25TdG9yYWdlLmdldEl0ZW0oJ2VtYl90cmFja19pZCcpOwogIGlm", "IChjdXJyZW50VHJhY2tJZCkgewogICAgZ28oJ3RyYWN", "rJyk7CiAgICBjb25zdCB0SW5wdXQgPSBkb2N1bW", "VudC5nZXRFbGVtZW50QnlJZCgndGlucHV0Jyk7CiAgICBpZiAodElucHV0K", "SB0SW5wdXQudmFsdWUgPSBjdXJyZW50VHJhY2tJZDsKIC", "AgIGRvVHJhY2soKTsKICB9Cn0KCmZ1", "bmN0aW9uIHJlc2V0Rm9ybSgpew", "ogIFsnb3R5cGUnLCdvcGxhY2UnLCdvZGV0YWlscycsJ29hZGRyJywnb3Bob", "25lJywnb25vdGVzJ10uZm9yRWFjaCh", "pZD0+ewogICAgY29uc3QgZWwgPSBkb2", "N1bWVudC5nZXRFbGVtZW50QnlJZChpZCk7CiAgICBpZihlbCkgZWwudmF", "sdWU9Jyc7CiAgfSk7CiAgY29uc3QgYXJlYVNlbGVjdCA9IGR", "vY3VtZW50LmdldEVsZW1lbnRCeUlkKCdvcmRlci1hcmVhLXNlbG", "VjdCcpOwogIGlmKGFyZWFTZWxlY3QpIGFyZWFTZWxlY3Q", "udmFsdWUgPSAnJzsKICBjb25zdCBwcmljZURpc3BsYX", "kgPSBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnY2xpZW50LWRlbGl2ZXJ5L", "XByaWNlJyk7CiAgaWYocHJpY2VEaXNwbGF5KSBwcmljZURpc3BsYXku", "dGV4dENvbnRlbnQgPSAnMCDYrN", "mFJzsKCiAgZG9jdW1lbnQuZ2V0RWxlbW", "VudEJ5SWQoJ29yZGVyLWZvcm0tYm", "9keScpLnN0eWxlLmRpc3BsYXkgPSAnYmxvY2snOwogIGRvY3VtZW50", "LmdldEVsZW1lbnRCeUlkKCdvc", "mRlci1zdWNjZXNzJykuY2xhc3NMaXN0LnJl", "bW92ZSgnc2hvdycpOwogIAogIGNvbnN0IGJ0biA9IGRvY3VtZW5", "0LmdldEVsZW1lbnRCeUlkKCdzdWJtaXQtYnRuJyk7CiA", "gaWYoYnRuKXsKICAgIGJ0bi5kaXNhYmxlZCA", "9IGZhbHNlOwogICAgYnRuLnRleHRDb250ZW50ID0gJ9iq", "2KPZg9mK2K8g2KfZhNi32YTYqCDinIU", "nOwogICAgYnRuLmNsYXNzTGlzdC", "5yZW1vdmUoJ2xvYWRpbmcnKTsKICB9CiAgY29uc3QgZXJyRWwgPSBkb", "2N1bWVudC5nZXRFbGVtZW50QnlJZCgnb3JkZX", "ItZXJyJyk7CiAgaWYoZXJyRWwpIGVyckVsLmNsYXNzT", "GlzdC5yZW1vdmUoJ3Nob3cnKTsKfQoKbGV0IF90cm", "Fja1Vuc3ViID0gbnVsbDsKCmZ1bmN0aW9uIGRvVHJhY2soKXsKICBjb", "25zdCB0SW5wdXRFbCA9IGRvY3VtZW50Lmdl", "dEVsZW1lbnRCeUlkKCd0aW5wdXQnKTsKICBpZighdElucHV0RWwpIHJldH", "VybjsKICBjb25zdCB2ID0gdElucHV0RWwu", "dmFsdWUudHJpbSgpLnRvVXBwZXJDYXNlKCk7C", "iAgaWYoIXYpe2FsZXJ0KCfYo9iv2K7ZhCDYsdmC2YUg2KfZhNi3", "2YTYqCcpO3JldHVybjt9CiAgc2Vzc2lvblN0b3Jh", "Z2Uuc2V0SXRlbSgnZW1iX3RyYWNrX2lkJywgdik7Cgo", "gIGlmKF90cmFja1Vuc3ViKXsgX3RyYWNrVW5zdW", "IoKTsgX3RyYWNrVW5zdWIgPSBudWxsOyB9CgogIGZ1bmN0aW9u", "IF9zdGFydExpc3RlbigpewogICAgY29uc3QgcSA9IHdp", "bmRvdy5fZmJRdWVyeSgKICAgICAgd2luZG9", "3Ll9mYkNvbGxlY3Rpb24od2luZG93LmRiLCAnb3JkZXJzJyksCiAgIC", "AgIHdpbmRvdy5fZmJXaGVyZSgnaWQnLCAnPT0nLCB2KQogICAgKTsKCi", "AgICBkb2N1bWVudC5nZXRFbGVt", "ZW50QnlJZCgndG51bScpLnRleHRDb250ZW50ID0gdjsKICAgIGRvY3VtZ", "W50LmdldEVsZW1lbnRCeUlkKCd0c3RhdHVzJykudG", "V4dENvbnRlbnQgPSAn4o+zINis2KfYsdmKINin2YTYqNit", "2KsuLi4nOwogICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3R", "yZXMnKS5jbGFzc0xpc3QuYWRkKCdvbicpOwoK", "ICAgIF90cmFja1Vuc3ViID0gd2luZG9", "3Ll9mYk9uU25hcHNob3QocSwgKHNuYXBzaG90KSA9PiB7CiAg", "ICAgIGlmKHNuYXBzaG90LmVtcHR", "5KXsKICAgICAgICBkb2N1bWVud", "C5nZXRFbGVtZW50QnlJZCgndHN0YXR1cyc", "pLnRleHRDb250ZW50ID0gJ+KdjCDZhdi0INmE2KfZgtmK2", "LQg2LHZgtmFINin2YTYt9mE2Kgg2K/Zhyc7CiAgICAgICAgZG9jdW1lbnQu", "Z2V0RWxlbWVudEJ5SWQoJ3R0aW1lJykudGV4dENvbnRl", "bnQgPSAnJzsKICAgICAgICByZXR", "1cm47CiAgICAgIH0KICAgICAgY29uc3Qgb3JkZXIgPSB7IC4uLn", "NuYXBzaG90LmRvY3NbMF0uZGF", "0YSgpLCBfZG9jSWQ6IHNuYXBzaG90LmRvY3NbMF0", "uaWQgfTsKICAgICAgdXBkYXRlVHJhY2tVSSh", "vcmRlcik7CiAgICB9LCAoZXJyK", "SA9PiB7CiAgICAgIGRvY3VtZW50LmdldEVsZW1lbnRCeU", "lkKCd0c3RhdHVzJykudGV4dENvb", "nRlbnQgPSAn4p2MINiu2LfYozogJyArIGVyci", "5tZXNzYWdlOwogICAgfSk7CiAgfQoKICBpZih3aW5kb3", "cuX2ZpcmViYXNlUmVhZHkgJiYgd2luZG9", "3LmRiICYmIHdpbmRvdy5fZmJRdWVyeSl7CiAgICBfc3RhcnRMaXN", "0ZW4oKTsKICB9IGVsc2UgewogICAgZG9jdW1lb", "nQuZ2V0RWxlbWVudEJ5SWQoJ3RzdGF0dXMnKS50ZXh", "0Q29udGVudCA9ICfij7Mg2KzYp9ix2Yog2KfZhNin2KrY", "tdin2YQuLi4nOwogICAgZG9jdW1lbnQuZ2V0RWxlbWVudE", "J5SWQoJ3RyZXMnKS5jbGFzc0xpc3QuYWRkKCdvbicpOwogICAgY29uc3Qgb", "WF4V2FpdCA9IDUwMDA7CiAgICBjb25zdCBzdGFydCA", "9IERhdGUubm93KCk7CiAgICBjb25zdCBwb2xsID0gc2V0SW", "50ZXJ2YWwoKCkgPT4gewogICAgICBpZih3aW5kb3cuX2Zpc", "mViYXNlUmVhZHkgJiYgd2luZG93LmRiICYmIHdpbmRvdy5fZm", "JRdWVyeSl7CiAgICAgICAgY2xlYXJJb", "nRlcnZhbChwb2xsKTsKICAgICAgICBfc", "3RhcnRMaXN0ZW4oKTsKICAgICAgfSBlbHNlIGlmKERhdGUubm93KCkg", "LSBzdGFydCA+IG1heFdhaXQpewogICAgICAgIGNsZWFySW50ZXJ2YWwocG", "9sbCk7CiAgICAgICAgZG9jdW1lbnQuZ2", "V0RWxlbWVudEJ5SWQoJ3RzdGF0dXMnKS50ZXh0Q29udGVudCA", "9ICfinYwg2KrYudiw2LEg2KfZ", "hNin2KrYtdin2YQg2KjZgCBGaXJlYm", "FzZdiMINit2KfZiNmEINiq2KfZhtmKJzsKICAgICAgfQogICAgf", "SwgMTAwKTsKICB9Cn0KCmZ1bmN0aW9uIHVwZGF0ZVRyYWNrVUkob3JkZ", "XIpewogIHdpbmRvdy5fY3VycmVudFRyYWNrRG9jSWQgPSBvcmR", "lci5fZG9jSWQgfHwgbnVsbDsKCiAgZG9jdW1lbnQ", "uZ2V0RWxlbWVudEJ5SWQoJ3RudW0nKS50ZXh0Q29udGVu", "dCAgPSBvcmRlci5pZDsKICBkb2N1bWVudC5nZXRFbGVtZW50", "QnlJZCgndHRpbWUnKS50ZXh0Q29udGVudCA9IG9yZGVyLnRpbWUgf", "HwgJyc7CgogIGNvbnN0IFNURVBfT1JERVIgPSBbJ9is2", "K/ZitivJywn2YHZiiDYp9mG2KrYuNin", "2LEg2KfZhNiq2K3YttmK2LEnLCfYrN", "in2LHZiiDYp9mE2KrYrdi22YrYsScsJ9is2KfYsd", "mKINin2YTYqtmI2LXZitmEJywn2KrZhSDYp9mE2KrZiNi12YrZhCddOw", "ogIGNvbnN0IHN0YXR1c1RleHQgPSB7CiAg", "ICAn2KzYr9mK2K8nOiAgICAgICAgICAgICAgJ/Cfn6Eg2KrZhSDYp9", "iz2KrZhNin2YUg2LfZhNio2YMnLAogICAg", "J9mB2Yog2KfZhtiq2LjYp9ixINin2YTYqtit2LbZitixJzogJ/Cfn6Mg", "2YHZiiDYp9mG2KrYuNin2LEg2KfZhNiq2K3YttmK2LEnLAogICAgJ9is2", "KfYsdmKINin2YTYqtit2LbZitixJzogICAg", "ICAn8J+UtSDYrNin2LHZiiDYp9mE2KrYrdi22YrY", "sSDYp9mE2KLZhicsCiAgICAn2K", "zYp9ix2Yog2KfZhNiq2YjYtdmK2YQnOiAgICAgICfwn5+iINin2YT", "Zg9in2KjYqtmGINmB2Yog2KfZhNi32LHZitm", "CINil2YTZitmDIPCfm7UnLAogICAgJ9iq2YUg2KfZhNiq2YjYtdmK2", "YQnOiAgICAgICAgJ+KchSDYqtmFIN", "in2YTYqtmI2LXZitmEINio2YbYrNin2K0nLAogI", "CAgJ9mF2YTYutmKJzogICAgICAgICAgICAgICfinYwg2KfZhN", "i32YTYqCDZhdmE2LrZiicsCiAgfTsKICBkb2N1bWV", "udC5nZXRFbGVtZW50QnlJZCgndHN0YXR1cycpLnRleHRD", "b250ZW50ID0gc3RhdHVzVGV4dFtvcmR", "lci5zdGF0dXNdIHx8IG9yZGVyLnN0YXR1", "czsKCiAgY29uc3QgY3VySWR4ID0gU1RFUF9PUkRFUi5pbmRleE9", "mKG9yZGVyLnN0YXR1cyk7CiAgY29uc3Qgc3RlcERlZnMgPSBbCiAgIC", "B7IGljbzonczEnLCAgICAgbGluZTpudWxsLCAgICAgIHN0ZXB", "JZHg6MCB9LAogICAgeyBpY286J3MtcHJlcCcsIGxpbmU6J3NsLXB", "yZXAnLCBzdGVwSWR4OjIgfSwKICAgIHsgaWNvOidzMicsICAgICBsaW5lOi", "dzbDInLCAgICAgc3RlcElkeDozIH0sCiAgIC", "B7IGljbzonczMnLCAgICAgbGluZTpudWxsLCAgICAgIHN0ZXBJ", "ZHg6NCB9LAogIF07CiAgc3RlcERlZnMuZm9yRWFjaC", "goe2ljbyxsaW5lLHN0ZXBJZHh9KSA9PiB7C", "iAgICBjb25zdCBlbCA9IGRvY3Vt", "ZW50LmdldEVsZW1lbnRCeUlkKGljbyk7CiAgICBj", "b25zdCBsbiA9IGxpbmUgPyBkb2N1bWVudC5nZXRFbGVtZW50", "QnlJZChsaW5lKSA6IG51bGw7CiAgICBpZighZW", "wpIHJldHVybjsKICAgIGVsLmNsYXNzTGlzdC5yZW1vdmUoJ2RvbmUnLC", "dhY3QnLCdwcmVwJyk7CiAgICBpZihvcmRlci5zdGF0dXMg", "IT09ICfZhdmE2LrZiicpewogICAgICBpZihjdXJJZHggPiB", "zdGVwSWR4KXsgZWwuY2xhc3NMaXN0LmFkZCgnZG9uZScpOyBlbC50Z", "Xh0Q29udGVudD0n4pyTJzsgaWYobG4pIGxuLmNsYXNzTGl", "zdC5hZGQoJ2RvbmUnKTsgfQogICAgICBlbHNlIGlm", "KGN1cklkeD09PXN0ZXBJZHggfHwgKGljbz09PSdzLXBy", "ZXAnICYmIFsn2YHZiiDYp9mG2KrYuNin2LEg2Kf", "ZhNiq2K3YttmK2LEnLCfYrNin2LHZiiDYp9mE2KrYrdi22Y", "rYsSddLmluY2x1ZGVzKG9yZGVyLnN0YXR1cykpKXsgZWwuY2xhc", "3NMaXN0LmFkZCgnYWN0Jyk7IGlmKGxuKSBsbi5jbGFzc0xpc3QucmVtb3", "ZlKCdkb25lJyk7IH0KICAgICAgZWx", "zZSB7IGlmKGxuKSBsbi5jbGFzc0xpc3QucmV", "tb3ZlKCdkb25lJyk7IH0KICAgIH0KICB9KTsKCiAgY29uc3QgcHJlcFN1Yi", "A9IGRvY3VtZW50LmdldEVsZW1", "lbnRCeUlkKCdzLXByZXAtc3ViJyk7C", "iAgY29uc3QgczJzdWIgICA9IGRvY3VtZW50LmdldEVsZW1lbnRCeUlkK", "CdzMi1zdWInKTsKICBjb25zdCBzM3N1YiAgID0gZG9jdW1lbnQuZ", "2V0RWxlbWVudEJ5SWQoJ3MzLXN1YicpOwogIGlmKHByZXBTdWIpe", "yBwcmVwU3ViLnRleHRDb250ZW50ID0gb3JkZ", "XIuc3RhdHVzPT09J9is2KfYsdmKINin2YTYqtit2LbZitixJyA/ICfYr", "Nin2LHZiiDYp9mE2KrYrdi22YrYsS4uLicgOiAoY3VySWR4PjI/J9iq2YUg", "4pyTJzon2YHZiiDYp9mE2KfZhtiq2LjYp9ixJyk7IH0KICBpZihzM", "nN1YikgIHsgczJzdWIudGV4dENvbnRlbnQgICA9IG9yZGVyLnN0YXR1cz09P", "SfYrNin2LHZiiDYp9mE2KrZiNi12YrZhCcgPyAn2KfZhN", "mD2KfYqNiq2YYg2YHZiiDYp9mE2LfYsdmK2YI", "nIDogKG9yZGVyLnN0YXR1cz09PSf", "YqtmFINin2YTYqtmI2LXZitmEJz8n2", "YjYtdmEIOKckyc6J9mB2Yog2KfZhNin2YbYqti42KfYsScpOyB9CiAg", "aWYoczNzdWIpICB7IHMzc3ViLnRleHRDb250ZW50ICAgPSBv", "cmRlci5zdGF0dXM9PT0n2KrZhSDYp9mE2KrZiNi12Y", "rZhCcgPyAn2KrZhSDYp9mE2KrZiNi12YrZhCDinIUnIDogJ9mC2LHZi", "tio2YvYpyc7IH0KCiAgY29uc3QgZHJpdmVyQm94ID0gZG9jdW1lbnQuZ2V0R", "WxlbWVudEJ5SWQoJ2RyaXZlci1pbmZvLWJve", "CcpOwogIGlmKGRyaXZlckJveCl7CiAgICBpZihvcmRlci5kcm", "l2ZXJOYW1lICYmICFbJ9is2K/ZitivJywn2YX", "ZhNi62YonXS5pbmNsdWRlcyhvcmRlci5zdGF0dXMpKXsKICAgICAgZ", "HJpdmVyQm94LnN0eWxlLmRpc3BsYXkgPSAnYmxvY2snOwogICAgICBkb2N1b", "WVudC5nZXRFbGVtZW50QnlJZCgnZHJpdmVyLWluZ", "m8tbmFtZScpLnRleHRDb250ZW50ID0gJ/CfkaQgJyArIG9y", "ZGVyLmRyaXZlck5hbWU7CiAgICAgIGNvbnN0IHBoID0gb3JkZXIuZHJp", "dmVyUGhvbmUgfHwgJyc7CiAgICAgIGRvY3VtZ", "W50LmdldEVsZW1lbnRCeUlkKCdkcml2ZXItaW5mby1", "waG9uZScpLnRleHRDb250ZW50ID0gcGggPyAn8J+TsSAnICsgcGggOi", "AnJzsKICAgIH0gZWxzZSB7IGRyaXZlckJ", "veC5zdHlsZS5kaXNwbGF5ID0gJ25", "vbmUnOyB9CiAgfQoKICB1cGRhdGVEcml2Z", "XJNYXAob3JkZXIpOwoKICBjb25zdCBj", "b25maXJtV3JhcCA9IGRvY3VtZW50LmdldEVsZW1lbnRCeUlk", "KCdjb25maXJtLWRlbGl2ZXJ5LXdyYX", "AnKTsKICBpZihjb25maXJtV3JhcCl", "7CiAgICBjb25maXJtV3JhcC5zdHlsZS5kaXNwbGF5ID0gb3Jk", "ZXIuc3RhdHVzID09PSAn2KzYp9ix2Yog2KfZhNiq2YjYtd", "mK2YQnID8gJ2Jsb2NrJyA6ICdub25lJzsKICAgIGNvbnN0IGJ0biA9IGR", "vY3VtZW50LmdldEVsZW1lbnRCeUlkKCdjb25maXJtLWRlbGl2ZXJ5LWJ0bi", "cpOwogICAgaWYoYnRuICYmICFid", "G4uZGF0YXNldC51c2VkKXsgYnRuLmRpc2FibGVkPWZhbHN", "lOyBidG4udGV4dENvbnRlbnQ9J+KchSDYqtij2YPZitiv", "INin2YTYp9iz2KrZhNin2YUnOyB9CiAgfQp9CgpsZ", "XQgX2FjdGl2ZUNhdCA9ICdhbGwnOwpsZX", "QgX2FjdGl2ZVNob3BJZCA9IG51bGw7CgpmdW5jdGl", "vbiByZW5kZXJNZW51UGFnZSgpewogIHJlbmRlckNhdFRhYnMoKTsKICB", "zaG93U2hvcHNMaXN0KCk7Cn0Kd", "2luZG93LnJlbmRlck1lbnVQYWdlID0gcmV", "uZGVyTWVudVBhZ2U7CgpmdW5jdGlvbiByZW5kZXJ", "DYXRUYWJzKCl7CiAgY29uc3QgYmFyID0gZG9jdW1lbnQuZ2V0RWxlbW", "VudEJ5SWQoJ2NhdC10YWJzLWJhcicpOwogIG", "lmKCFiYXIpIHJldHVybjsKICBjb25zdC", "BjYXRzID0gd2luZG93Ll9hbGxNZW51Q2F0ZWdvcmllcyB8fCBbXTsK", "ICBsZXQgaHRtbCA9IGA8ZGl2IGN", "sYXNzPSJjYXQtdGFiICR7X2FjdGl2ZUNhdD09PSd", "hbGwnPydhY3RpdmUnOicnfSIgZGF0YS", "1jYXQ9ImFsbCIgb25jbGljaz0iZmlsdGVyQ2F0KCdhbGwnKS", "I+CiAgICA8c3BhbiBjbGFzcz0iY2F0LXRhYi1pY28iPvCfj6o8L3Nw", "YW4+PHNwYW4gY2xhc3M9ImNhdC10YWItbm0iPtin2YTZ", "g9mEPC9zcGFuPjwvZGl2PmA7CiAgY2F0cy5mb3JFYWNoKGMgPT4gewo", "gICAgaWYoYy52aXNpYmxlID09PSBmY", "WxzZSkgcmV0dXJuOwogICAgaHRtbCArPSBgPGRpdiBjbGFzcz0iY2F0LXRh", "YiAke19hY3RpdmVDYXQ9PT1jLmlkPydhY3R", "pdmUnOicnfSIgZGF0YS1jYXQ9IiR7Yy5pZH0iIG", "9uY2xpY2s9ImZpbHRlckNhdCgnJHtjLmlkfScpIj4KI", "CAgICAgPHNwYW4gY2xhc3M9ImNhdC", "10YWItaWNvIj4ke2MuaWNvbnx8J/Cfjb3vuI8nfT", "wvc3Bhbj4KICAgICAgPHNwYW4gY2xhc3M9ImNhdC1", "0YWItbm0iPiR7Yy5uYW1lfTwvc3Bhbj48L2Rpdj5gOwogI", "H0pOwogIGJhci5pbm5lckhUTUwgPSBodG", "1sOwp9CgpmdW5jdGlvbiBmaWx0ZXJDYXQoY2F", "0SWQpewogIF9hY3RpdmVDYXQgPSBjYXRJZDsKICByZW5k", "ZXJDYXRUYWJzKCk7CiAgc2hvd1Nob3BzTGlzdCgpOwp9Cnd", "pbmRvdy5maWx0ZXJDYXQgPSBmaWx0ZXJDYXQ7", "CgpmdW5jdGlvbiBzaG93U2hvcHNMaXN0K", "Cl7CiAgY29uc3QgZGV0YWlsRWwgPSBkb2N1bWVudC5nZXRFbGVtZ", "W50QnlJZCgnc2hvcC1kZXRhaWwtdmll", "dycpOwogIGNvbnN0IGxpc3RFbCAgID0gZG9jdW1lbnQuZ2V0RWxlbWVudEJ", "5SWQoJ3Nob3BzLWxpc3QtdmlldycpOwogIGlmKGRldGFpbEVs", "KSBkZXRhaWxFbC5zdHlsZS5kaXNwbGF5PSdub25lJ", "zsKICBpZihsaXN0RWwpICAgbGlzdEVsLnN0eWxlLmRpc3BsYXk", "9J2Jsb2NrJzsKICBfYWN0aXZlU2hvcElkID0gbnVsbDsKICBjb25zdCB", "zaG9wcyA9ICh3aW5kb3cuX2FsbFNob3BzfHxbXSkuZmls", "dGVyKHMgPT4gcy52aXNpYmxlICE9PSBmYWxzZSk7CiAgY29uc3Q", "gY2F0cyAgPSB3aW5kb3cuX2FsbE1lbnVDYXRlZ29", "yaWVzfHxbXTsKICBjb25zdCBjb250YWluZXIgP", "SBkb2N1bWVudC5nZXRFbGVtZW50Qnl", "JZCgnc2hvcHMtY29udGFpbmVyJyk7CiAgaWYoIWNvbnRhaW5lc", "ikgcmV0dXJuOwoKICBpZighc2hvcHMubGVu", "Z3RoKXsKICAgIGNvbnRhaW5lci5pbm5lckhUTUw9YDxka", "XYgY2xhc3M9Im1lbnUtZW1wdHkiPj", "xkaXYgY2xhc3M9Im1lbnUtZW1wdHktaWNvIj7wn4+qP", "C9kaXY+PGRpdiBjbGFzcz0ibWVudS1lbXB0eS10eHQiPtin2", "YTZgtmI2KfYptmFINmH2KrZg9mI2YYg2KzYp", "9mH2LLYqSDZgtix2YrYqNin2YshPGJyPtin2KjYudiq2YTZhtinINi", "52YTZiSDZiNin2KrYs9in2Kgg2KrYt9mE2K", "gg2KPZiiDYrdin2KzYqTwvZGl2PjwvZGl2PmA7CiAgICB", "yZXR1cm47CiAgfQoKICBpZihfYWN", "0aXZlQ2F0ID09PSAnYWxsJyl7CiAgICBsZXQgaHRtbCA9ICcnO", "wogICAgY29uc3QgdW5jYXRlZ29yaXplZCA", "9IHNob3BzLmZpbHRlcihzID0+ICFzLm", "NhdGVnb3J5SWQpOwogICAgY29uc3QgY2", "F0ZWdvcml6ZWQgICA9IGNhdHMuZmlsdGVyKGM9PmMudmlzaWJsZSE9PWZhbH", "NlKS5tYXAoYz0+KHsKICAgICAg", "Y2F0OmMsIHNob3BzOiBzaG9wcy5maWx0ZXIocz0+", "cy5jYXRlZ29yeUlkPT09Yy5pZCkKICAgIH0pKS5maWx", "0ZXIoZz0+Zy5zaG9wcy5sZW5ndGgpOwoKICAgIGlmKCFjYXRlZ29y", "aXplZC5sZW5ndGgpewogICAgICBodG1sID0g", "YDxkaXYgY2xhc3M9Im1lbnUtc2VjLXRpdGxlIj7w", "n4+qINis2YXZiti5INin2YTZhdit2YTYp9iqPC9kaXY+PGRp", "diBjbGFzcz0ic2hvcHMtZ3JpZCI+JHtzaG", "9wcy5tYXAoc2hvcENhcmRIdG1sKS5qb2luKCcnKX08", "L2Rpdj5gOwogICAgfSBlbHNlIHsKICAgICAgY2F0ZWdvcml6ZWQuZm9yRWF", "jaChnPT57CiAgICAgICAgaHRtbCArPSBgPGRpdiBj", "bGFzcz0ibWVudS1zZWMtdGl0bGUiPjxzcGFuPiR7Zy5jYXQuaWNv", "bnx8J/Cfjb3vuI8nfTwvc3Bhbj4ke2cuY2F0", "Lm5hbWV9PC9kaXY+CiAgICAgICAgICAgICAgICAgPGRpdiB", "jbGFzcz0ic2hvcHMtZ3JpZCI+JHtnLnNob3BzLm1hcChzaG9wQ2FyZEh0b", "WwpLmpvaW4oJycpfTwvZGl2PmA7CiAgICAgIH0pOwogICAgICB", "pZih1bmNhdGVnb3JpemVkLmxlbmd0aCl7CiAgICAg", "ICAgaHRtbCArPSBgPGRpdiBjbGFzcz0ibWVudS1zZWMtdG", "l0bGUiPvCfj6og2KPYrtix2Yk8L2Rpdj48ZGl2IG", "NsYXNzPSJzaG9wcy1ncmlkIj4ke3VuY", "2F0ZWdvcml6ZWQubWFwKHNob3BDYXJ", "kSHRtbCkuam9pbignJyl9PC9kaX", "Y+YDsKICAgICAgfQogICAgfQogICAg", "Y29udGFpbmVyLmlubmVySFRNTCA9IGh0bWw", "7CiAgfSBlbHNlIHsKICAgIGNvbnN0IGZpbHRlc", "mVkID0gc2hvcHMuZmlsdGVyKHM9PnMuY2F0ZWdvcnlJZ", "D09PV9hY3RpdmVDYXQpOwogICAgY2", "9uc3QgY2F0ID0gY2F0cy5maW5kKG", "M9PmMuaWQ9PT1fYWN0aXZlQ2F0KTsKICAgIGlmK", "CFmaWx0ZXJlZC5sZW5ndGgpewogICAgICBjb250YWluZXIuaW5uZXJI", "VE1MPWA8ZGl2IGNsYXNzPSJtZW51LWVtcHR5Ij48Z", "Gl2IGNsYXNzPSJtZW51LWVtcHR5LWljbyI+JHtjYXQ/Y2F0Lmljb246J/Cfj", "6onfTwvZGl2PjxkaXYgY2xhc3M9Im1lbnUtZW1wdHktdHh0Ij7ZhNinI", "NmK2YjYrNivINmF2K3ZhNin2Kog2YHZiiDZh9iw2Ycg2KfZhNmC2KfYptmF2", "Kkg2K3Yp9mE2YrYp9mLPC9kaXY+PC9kaXY+YDsKICAg", "IH0gZWxzZSB7CiAgICAgIGNvbnRhaW5lci5pbm5lckhUTUwgPSBgPGRpdi", "BjbGFzcz0ibWVudS1zZWMtdGl0bGUiPjxzcGF", "uPiR7Y2F0P2NhdC5pY29uOicnfTwvc3Bhbj4ke2NhdD9jY", "XQubmFtZTon2KfZhNmF2K3ZhNin2", "KonfTwvZGl2PjxkaXYgY2xhc3M9InNob3BzLWdyaWQ", "iPiR7ZmlsdGVyZWQubWFwKHNob3BDYXJkSHRtbCkuam9pbignJyl9PC9kaX", "Y+YDsKICAgIH0KICB9Cn0Kd2luZG93LnNob3dTaG9w", "c0xpc3QgPSBzaG93U2hvcHNMaXN0OwoKZnVuY3Rpb24gc2hvcENh", "cmRIdG1sKHMpewogIGNvbnN0IGFjdGl2ZU9mZmVycyA9I", "ChzLm9mZmVyc3x8W10pLmZpbHRlc", "ihvPT5vLmFjdGl2ZSE9PWZhbH", "NlKTsKICByZXR1cm4gYDxkaXYgY2xhc3M", "9InNob3AtY2FyZCIgb25jbGljaz0ib", "3BlblNob3AoJyR7cy5pZH0nKSI", "+CiAgICA8ZGl2IGNsYXNzPSJzaG9wLWNhcmQ", "taW1nIj4KICAgICAgPHNwYW4+JHtzLmljb258fCfwn4+qJ308L3NwYW4+Ci", "AgICAgICR7YWN0aXZlT2ZmZXJzLmxlbmd0aD9gPHNwYW4gY2x", "hc3M9InNob3AtY2FyZC1iYWRnZSI+2LnYsdmI2LYgJHthY3Rpd", "mVPZmZlcnMubGVuZ3RofSDwn5SlP", "C9zcGFuPmA6Jyd9CiAgICA8L2Rp", "dj4KICAgIDxkaXYgY2xhc3M9InNob3AtY2FyZC1ib2R5", "Ij4KICAgICAgPGRpdiBjbGFzcz0ic2hvcC1jYXJkLW5hbWUiPiR7cy5uYW1", "lfTwvZGl2PgogICAgICA8ZGl2IGNsYXNzPSJzaG9w", "LWNhcmQtc3ViIj4ke3MuZGVzY3JpcHRpb258fCcn", "fTwvZGl2PgogICAgICAke3MudGFnP2A8c3BhbiBjbGFzcz0ic2hvcC", "1jYXJkLXRhZyI+JHtzLnRhZ308L3NwYW4+YDonJ30KICAgIDwv", "ZGl2PgogIDwvZGl2PmA7Cn0KCmZ1bmN0aW9u", "IG9wZW5TaG9wKHNob3BJZCl7CiAgX2FjdGl2ZVNob3BJZCA9IHNob3BJZDs", "KICBjb25zdCBzaG9wID0gKHdpbmRvdy5fYWxsU2hvcHN8fFtdKS", "5maW5kKHM9PnMuaWQ9PT1zaG9wSWQpOwogIGlmKCFzaG9wKSBy", "ZXR1cm47CiAgY29uc3QgbGlzdEVsI", "CAgPSBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgn", "c2hvcHMtbGlzdC12aWV3Jyk7CiAgY29uc3QgZGV0YWlsR", "WwgPSBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgn", "c2hvcC1kZXRhaWwtdmlldycpOwo", "gIGlmKGxpc3RFbCkgICBsaXN0RWwuc3R5", "bGUuZGlzcGxheT0nbm9uZSc7CiAgaWYo", "ZGV0YWlsRWwpIGRldGFpbEVsLnN0eWxlLmRpc3Bs", "YXk9J2Jsb2NrJzsKICBjb25zdCBhY3RpdmVPZmZlcn", "MgPSAoc2hvcC5vZmZlcnN8fFt", "dKS5maWx0ZXIobz0+by5hY3RpdmU", "hPT1mYWxzZSk7CiAgZGV0YWlsRWwuaW5uZXJIVE1MID0gYAogICA", "gPGRpdiBjbGFzcz0ic2hvcC1wZyI+CiAgICAgIDx", "kaXYgY2xhc3M9InNob3AtaGVybyI+CiAgICAgICAgPGRp", "diBjbGFzcz0ic2hvcC1iYWNrIiB", "vbmNsaWNrPSJzaG93U2hvcHNMaX", "N0KCkiPuKGkCDYsdis2YjYuSDZhNmE2YLYp9im2YXYqTwvZG", "l2PgogICAgICAgIDxkaXYgY2xhc3M9InNob3AtaGVyby1tYWluIj4K", "ICAgICAgICAgIDxkaXYgY2xhc3M9InNob3AtaGVyby1pY28iPiR7c", "2hvcC5pY29ufHwn8J+Pqid9PC9kaXY+CiAgICAgICAgICA8ZG", "l2IGNsYXNzPSJzaG9wLWhlcm8taW5mbyI+CiAgICAgIC", "AgICAgIDxoMj4ke3Nob3AubmFtZX08L2gyPgogICAgICA", "gICAgICA8ZGl2IGNsYXNzPSJzaG9wLWhlc", "m8tZGVzYyI+JHtzaG9wLmRlc2NyaXB0aW9ufHwn2KfYt9mE2", "Kgg2YXZhiDYp9mE2YXYqtmF2YrYsiDZiNmH2YrYrNmK2YTZgy", "d9PC9kaXY+CiAgICAgICAgICA8L2Rpdj4KICA", "gICAgICA8L2Rpdj4KICAgICAgPC9kaXY+CiAgICAgIDxkaXYg", "Y2xhc3M9InNob3Atb2ZmZXJzLXNlY3Rpb", "24iPgogICAgICAgIDxkaXYgY2xhc3M9Im9mZmVyLXNlYy1oZCI+", "CiAgICAgICAgICDYp9mE2LnYs", "dmI2LYg2KfZhNit2LXYsdmK2KkKICAgICAgICAgIDxzcGFuIGNsYXNzPSJv", "ZmZlci1jb3VudCI+JHthY3RpdmVPZmZlcnMubGVuZ3RofSD", "Yudix2LY8L3NwYW4+CiAgICAgIC", "AgPC9kaXY+CiAgICAgICAgJHthY3RpdmVPZmZ", "lcnMubGVuZ3RoCiAgICAgICAgICA/IGA8ZGl2IGNsYXNzPSJvZmZlci1", "saXN0Ij4ke2FjdGl2ZU9mZmVycy5tYXAob2ZmZXJJdGVtSHRtbCkua", "m9pbignJyl9PC9kaXY+YAogICAgICAgICAgOi", "BgPGRpdiBjbGFzcz0ibWVudS1lbXB0eSI+PGRpdiBjbGFzc", "z0ibWVudS1lbXB0eS1pY28iPvCfjoE8L2Rpdj48ZGl2IG", "NsYXNzPSJtZW51LWVtcHR5LXR4dCI+2YX", "ZgdmK2LQg2LnYsdmI2LYg2K/ZhNm", "I2YLYqtmKPGJyPtio2LMg2KrZgtiv2LEg2KrYt9m", "E2Kgg2YXZhiDYp9mE2YXYrdmEINi52KfYr9mKITwvZGl2PjwvZ", "Gl2PmB9CiAgICAgIDwvZGl2PgogICAgICA8Y", "nV0dG9uIGNsYXNzPSJvcmRlci1mcm9tLXNob3AtYnRuIiBvbmNsaWNr", "PSJvcmRlckZyb21TaG9wKCcke3Nob3AubmF", "tZX0nKSI+CiAgICAgICAg8J+btSDYp9i32YTYqCDZhdmGIC", "R7c2hvcC5uYW1lfSDYr9mE2YjZgtiq2YoKICAgICAgPC9idXR0b24+Ci", "AgICA8L2Rpdj5gOwp9CndpbmRvdy5vcGVu", "U2hvcCA9IG9wZW5TaG9wOwoKZnVuY3Rpb24gb2ZmZXJJdGVtSHRtbChvKXsK", "ICBjb25zdCBoYXNEaXNjb3VudCA9IG", "8ub2xkUHJpY2UgJiYgby5uZXdQcmljZSAmJiBwYXJzZUZsb2F0KG8ub2xk", "UHJpY2UpID4gcGFyc2VGbG9hdChvLm5ld1ByaWNlKTsKICBjb25zdCB", "kaXNjb3VudCA9IGhhc0Rpc2NvdW50ID8gTWF", "0aC5yb3VuZCgoMS0oby5uZXdQcmljZS9vLm", "9sZFByaWNlKSkqMTAwKSA6IDA7CiAgcmV0", "dXJuIGA8ZGl2IGNsYXNzPSJvZmZlci1", "pdGVtIj4KICAgIDxkaXYgY2xhc3M9Im9mZmVyLWl0ZW0taWNvIj4ke28", "uaWNvbnx8J/CfjoEnfTwvZGl2PgogI", "CAgPGRpdiBjbGFzcz0ib2ZmZX", "ItaXRlbS1pbmZvIj4KICAgICAgPGRpdiBjbGFzcz0ib2Zm", "ZXItaXRlbS1uYW1lIj4ke28ubmFtZX", "08L2Rpdj4KICAgICAgPGRpdiBjbGFzcz0ib2ZmZXItaXRlbS1kZXNjIj4", "ke28uZGVzY3JpcHRpb258fCcnfTwvZGl2PgogIC", "AgPC9kaXY+CiAgICAke28ubmV3UHJpY2UgPyBgPGRpdiBjbGFzcz0ib2ZmZX", "ItaXRlbS1wcmljZSI+CiAgICAgICR7aGFzRGlzY291bnQ/YDxkaXYgY2", "xhc3M9Im9mZmVyLW9sZC1wcmljZSI+JHtvLm9sZFBya", "WNlfSDYrNmFPC9kaXY+YDonJ30KICAgI", "CAgPGRpdiBjbGFzcz0ib2ZmZXItbmV3LXByaWN", "lIj4ke28ubmV3UHJpY2V9INis2", "YU8L2Rpdj4KICAgICAgJHtkaXNjb3VudD4wP2A", "8c3BhbiBjbGFzcz0ib2ZmZXItZGlzY291bnQtdGFnIj7Yr", "ti12YUgJHtkaXNjb3VudH0lPC9zc", "GFuPmA6Jyd9CiAgICA8L2Rpdj5gIDogJyd9CiAgPC9ka", "XY+YDsKfQoKZnVuY3Rpb24gb3JkZXJGcm9tU2hvcChzaG9wTm", "FtZSl7CiAgZ28oJ29yZGVyJyk7CiAgc2V0VGltZW91dCgoKT0+ewo", "gICAgY29uc3QgcGwgPSBkb2N1bWVudC5nZXRFbGVtZW50QnlJZ", "Cgnb3BsYWNlJyk7CiAgICBpZihwbCkgcGw", "udmFsdWUgPSBzaG9wTmFtZTsKICB9LCAxMDApOwp9CndpbmRvdy5", "vcmRlckZyb21TaG9wID0gb3JkZXJGcm9tU2hvcDsKCndpbmRv", "dy5hZGRFdmVudExpc3RlbmVyKCdsb2FkJywgKCkgPT4gewogIGNvbnN0I", "Gxhc3RQYWdlID0gc2Vzc2lvblN0b3JhZ2UuZ2V0SXRlbSgn", "ZW1iX2NsaWVudF9wYWdlJyk7CiAgY29uc3QgbGFzdFRyYWNrID0gc2Vzc", "2lvblN0b3JhZ2UuZ2V0SXRlbSgnZW1iX3RyYWNrX2lkJyk7CiAg", "aWYobGFzdFBhZ2UgJiYgbGFzdFBhZ2UgIT09ICdob21lJyl7CiAgIC", "BnbyhsYXN0UGFnZSk7CiAgfQog", "IGlmKGxhc3RUcmFjayAmJiBsYXN0UGFnZSA", "9PT0gJ3RyYWNrJyl7CiAgICBjb25zdCB", "0SW5wdXQgPSBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgndGl", "ucHV0Jyk7CiAgICBpZih0SW5wdXQpIHRJbnB1dC52YWx1ZSA9IGxhc3RUcm", "FjazsKICAgIHNldFRpbWVvdXQoKC", "k9PmRvVHJhY2soKSwgOTAwKTsKICB9Cn0", "pOwoKbGV0IF9kcml2ZXJNYXAgICAgICA9IG51bGw7CmxldCBfZHJp", "dmVyTWFya2VycyAgPSB7fTsgICAgLy8geyB1bmFtZTogTC5tYXJrZ", "XIgfQpsZXQgX2FjY3VyYWN5Q2lyY2xlcyA9", "IHt9OyAgLy8geyB1bmFtZTogTC5jaXJjbGUgfSAg4oCUINiv2KfYptix", "2Kkg2K/ZgtipINin2YTZhdmI2YLYuQpsZXQgX", "21hcEluaXRpYWxpemVkID0gZmFsc2U7CmxldCBfZHJ", "pdmVyTG9jVW5zdWJzID0ge307ICAgLy8geyB", "1bmFtZTogdW5zdWJGbiB9ICAg4oCUIGxpc3RlbmVyINmE2YPZhCDYs9i", "n2KbZggpsZXQgX2RyaXZlckxvY1Vuc3ViID0", "gbnVsbDsgIC8vINmE2YTYqtiq2KjYuSDYp9mE2YHYsdiv2Y", "ogKNi32YTYqCDZiNin2K3YrykKCmxldCBfbG", "FzdFRyYWNrZWRVbmFtZSA9IG51", "bGw7ICAvLyDZhtiq2KfYqNi5INii2K7YsSDYs9in2Kb", "ZgiDZg9mG2Kcg2KjZhtiz2KrZh", "di5INmE2YcKCmZ1bmN0aW9uIHVwZGF0ZURyaXZlck1hcChvcmRlcil7", "CiAgY29uc3Qgd3JhcCA9IGRvY3VtZW50LmdldEVsZW1lbnR", "CeUlkKCdkcml2ZXItbWFwLXdyYXAnKTsKICBpZighd3JhcCkgcmV0", "dXJuOwoKICBjb25zdCBpc0FjdGl2ZSA9", "IG9yZGVyLnN0YXR1cyA9PT0gJ9is2KfYsdmKINin2", "YTYqtmI2LXZitmEJzsKICBpZighaXNBY3RpdmUpewogICAgd3JhcC5zdHl", "sZS5kaXNwbGF5ID0gJ25vbmUnO", "wogICAgaWYoX2RyaXZlckxvY1Vuc3ViKXsgX2", "RyaXZlckxvY1Vuc3ViKCk7IF9kcml2ZXJMb2NVbnN1YiA9IG51bGw7IH0KIC", "AgIF9sYXN0VHJhY2tlZFVuYW1lID0gbnVsbDsKICAgIHJldHVybjsKICB9", "CgogIHdyYXAuc3R5bGUuZGlzcGxheSA9ICdibG9jayc", "7CgogIGNvbnN0IHVuYW1lID0gb3JkZXIuZHJ", "pdmVyVW5hbWUgfHwgb3JkZXIuZHJpdmVyUGhvbmUgfHwgJ2Ry", "aXZlcic7CgogIGNvbnN0IGxvYWRNc2cgPSBkb2N1bWVudC5nZXRFbGVtZ", "W50QnlJZCgnZHJpdmVyLW1hcC1sb2FkaW5n", "Jyk7CiAgY29uc3QgbWFwRWwgICA9IGRvY3VtZW50LmdldEVsZW1lbnRCeUl", "kKCdkcml2ZXItbWFwJyk7CiAgY29uc3QgaGFzRml4ICA9ICEhKG9y", "ZGVyLmRyaXZlckxhdCAmJiBvcmRlci5kcml2ZXJM", "bmcpOwogIGlmKGxvYWRNc2cpIGxvYWRNc2cuc3R5bGUuZGlzcGxheSA9", "IGhhc0ZpeCA/ICdub25lJyA6ICdibG9jayc7CiAgaWYobWFw", "RWwpICAgbWFwRWwuc3R5bGUuZGlzcGxheSAgID0gaGFzRml", "4ID8gJ2Jsb2NrJyA6ICdub25lJzsKCiAgaWYob3JkZXIu", "ZHJpdmVyTGF0ICYmIG9yZGVyLmRyaX", "ZlckxuZyl7CiAgICBfcmVuZGVyRHJpdmVyT2", "5NYXAodW5hbWUsCiAgICAgIHBh", "cnNlRmxvYXQob3JkZXIuZHJpdmVyTGF0", "KSwKICAgICAgcGFyc2VGbG9hdChvcmRlci5kcml2ZXJMbmcpLAogICA", "gICBvcmRlci5kcml2ZXJOYW1lIHx8ICfYp", "9mE2LPYp9im2YInLAogICAgICBudWxsCiAgICApOwogIH0KC", "iAgaWYodW5hbWUgJiYgdW5hbWUgIT09IF9sYXN0VHJhY2tlZFVuYW1lICY", "mIHdpbmRvdy5fbGlzdGVuRHJp", "dmVyTG9jYXRpb24pewogICAgaWYoX2Ry", "aXZlckxvY1Vuc3ViKXsgX2RyaXZlck", "xvY1Vuc3ViKCk7IF9kcml2ZXJMb2", "NVbnN1YiA9IG51bGw7IH0KICAgIF9sYXN0VHJhY2tlZFVuYW1lID0gdW5", "hbWU7CgogICAgX2RyaXZlckxvY1Vuc3ViID0gd2luZG", "93Ll9saXN0ZW5Ecml2ZXJMb2NhdGlvbih1bmFtZSwgK", "HtsYXQsIGxuZywgbmFtZSwgYWNjdXJhY3l9KSA9PiB7CiAgICAgIGNv", "bnN0IGxhID0gcGFyc2VGbG9hdChsYXQp", "OwogICAgICBjb25zdCBsbiA9IHBhcnNlRmxvYXQobG5nKTs", "KICAgICAgaWYoaXNOYU4obGEp", "IHx8IGlzTmFOKGxuKSkgcmV0dXJuOwogICAgICBfcmVuZGV", "yRHJpdmVyT25NYXAoCiAgICAgICAgdW5hbWUsIGxhLCB", "sbiwKICAgICAgICBuYW1lIHx8I", "G9yZGVyLmRyaXZlck5hbWUgfHwgJ9in2YTYs9in2K", "bZgicsCiAgICAgICAgYWNjdXJhY3kgPyBw", "YXJzZUZsb2F0KGFjY3VyYWN5K", "SA6IG51bGwKICAgICAgKTsKICAg", "IH0pOwogIH0KfQoKZnVuY3Rpb24gX3Jlb", "mRlckRyaXZlck9uTWFwKHVuYW1lLCBsYXQsIGxuZywgZ", "HJpdmVyTmFtZSwgYWNjdXJhY3kp", "ewogIGlmKCFsYXQgfHwgIWxuZyB8fCBpc05hTihsYXQpIHx8IGlzTmFO", "KGxuZykpIHJldHVybjsKICBjb25zdCB3cmFwID0gZG9jdW", "1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2RyaXZlci1tY", "XAtd3JhcCcpOwogIGlmKCF3cmFwKSByZXR1cm47CiAgd3JhcC5zdHl", "sZS5kaXNwbGF5ID0gJ2Jsb2NrJ", "zsKICBjb25zdCBsb2FkTXNnID0gZG9", "jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2RyaXZlci1tYXAtbG9", "hZGluZycpOwogIGNvbnN0IG1hcERpdiAgPSBkb2N1bWVudC5nZXRFbGV", "tZW50QnlJZCgnZHJpdmVyLW1hcCcpOwogIGlmKGxvYWRN", "c2cpIGxvYWRNc2cuc3R5bGUuZGlzcGxheSA9ICdub25lJ", "zsKICBpZihtYXBEaXYpICBtYXBEaXYuc3R5bGUuZG", "lzcGxheSAgPSAnYmxvY2snOwoKICBpZih0eXBlb2YgTCA9PT0gJ3", "VuZGVmaW5lZCcpewogICAgc2V0VG", "ltZW91dCgoKSA9PiBfcmVuZGVyRHJpdmVyT25NYXAodW5hbWUsIGxhdCw", "gbG5nLCBkcml2ZXJOYW1lKSwgMTAwMCk7CiAgICByZXR1cm47CiAgf", "QoKICBjb25zdCBtYXBFbCA9IGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCd", "kcml2ZXItbWFwJyk7CiAgaWYoIW1hcEVsKSByZXR", "1cm47CgogIGlmKCFfbWFwSW5pdGlhbGl6ZWQpewogICAgX2RyaXZlck1", "hcCA9IEwubWFwKCdkcml2ZXItbWFw", "JywgewogICAgICB6b29tQ29udHJvbDogd", "HJ1ZSwKICAgICAgYXR0cmlidXRpb25D", "b250cm9sOiBmYWxzZSwKICAgIC", "AgdGFwOiBmYWxzZQogICAgfSkuc2V0VmlldyhbbGF0LCBsbmddLC", "AxNyk7ICAvLyB6b29tIDE3ID0g2YXYs9iq2YjZiSDY", "p9mE2LTYp9ix2Lkg2KjZiNi22YjYrQ", "oKICAgIEwudGlsZUxheWVyKCdodHRwczovL", "3tzfS5iYXNlbWFwcy5jYXJ0b2Nkbi5jb20vcmFzdGVydGlsZXMvdm", "95YWdlci97en0ve3h9L3t5fXtyfS5wbmcnLCB7CiAg", "ICAgIG1heFpvb206IDIwLAogICAgICBz", "dWJkb21haW5zOiAnYWJjZCcsCiAgICAgIG", "F0dHJpYnV0aW9uOiAnJmNvcHk7IDxhIGhyZWY9Imh0dHBzOi8vY2", "FydG8uY29tLyI+Q0FSVE88L2E+JwogICAgfSku", "YWRkVG8oX2RyaXZlck1hcCk7C", "gogICAgX21hcEluaXRpYWxpemVkID0", "gdHJ1ZTsKICAgIFszMDAsIDYwMCwgMTAwMF0uZm9yRWFjaCh0ID0+", "IHNldFRpbWVvdXQoKCkgPT4geyBpZihfZHJpdmVyTWFwK", "SBfZHJpdmVyTWFwLmludmFsaWRhdGVTaXplKCk7IH0sIHQpKTsKICB9Cg", "ogIGNvbnN0IGRyaXZlckljb24gPSBMLmRpdkljb24oewogICAgaHRtbDo", "gJzxkaXYgc3R5bGU9ImZvbnQtc2l6ZTozMH", "B4O2xpbmUtaGVpZ2h0OjE7ZmlsdGVyOmRyb3Atc2hhZ", "G93KDAgMnB4IDhweCByZ2JhKDAsMCww", "LC42KSkiIHRpdGxlPSInICsgZHJpdmV", "yTmFtZSArICciPvCfm7U8L2Rpdj4nLAogICA", "gaWNvblNpemU6IFs0MCw0MF0sIGljb25BbmNob", "3I6IFsyMCwyMF0sIGNsYXNzTmFtZTogJycKICB9KTsKCiAgaWYo", "X2RyaXZlck1hcmtlcnNbdW5hbWVdKXsKICAgIF9kcml2ZXJNYX", "JrZXJzW3VuYW1lXS5zZXRMYXRMbmcoW2xhdCwgbG5nXSk", "7CiAgICBpZihfYWNjdXJhY3lD", "aXJjbGVzW3VuYW1lXSkgX2FjY3VyYWN5Q2ly", "Y2xlc1t1bmFtZV0uc2V0TGF0TG5nKFtsYXQ", "sIGxuZ10pOwogIH0gZWxzZSB7Ci", "AgICBjb25zdCBtYXJrZXIgPSBMLm1h", "cmtlcihbbGF0LCBsbmddLCB7IGljb246IGRyaXZlckljb24gfSkuYWRkVG8o", "X2RyaXZlck1hcCk7CiAgICBtYXJrZXIuYmluZFBvcHVwKCc8", "YiBzdHlsZT0iZm9udC1mYW1pbHk6Q", "2Fpcm8sc2Fucy1zZXJpZiI+8J+btSAnICsgZHJpdmVyTmFt", "ZSArICcg2YHZiiDYp9mE2LfYsdmK2YI8L2I+Jykub3BlblBvcHVwK", "Ck7CiAgICBfZHJpdmVyTWFya2Vyc1t1", "bmFtZV0gPSBtYXJrZXI7CiAgICBjb25zdCBjaXJ", "jbGUgPSBMLmNpcmNsZShbbGF0LCBsbmddLCB7CiAgICAg", "IHJhZGl1czogYWNjdXJhY3kgfHwgNDAsCiAgICAgIGNvbG9yOiA", "nIzNiODJmNicsIGZpbGxDb2xvcjogJyMzYjgyZj", "YnLAogICAgICBmaWxsT3BhY2l0eTogMC4wOCwgd2VpZ2h0OiA", "xLjUsIGRhc2hBcnJheTogJzQnCiAgICB9KS5hZGRUbyhfZHJpdmVyTWFwK", "TsKICAgIF9hY2N1cmFjeUNpcmNsZXNbdW5hbWVdID0gY2lyY2x", "lOwogIH0KCiAgaWYoYWNjdXJh", "Y3kgJiYgX2FjY3VyYWN5Q2lyY2xlc1t1", "bmFtZV0pIF9hY2N1cmFjeUNpcmNsZXNbdW5hbWVdLnN", "ldFJhZGl1cyhhY2N1cmFjeSk7CgogIF9kcml2ZXJNYXAucGFuVG8oW", "2xhdCwgbG5nXSwgeyBhbmltYXRlOiB0cnVlLCBkd", "XJhdGlvbjogMC44IH0pOwp9CgpmdW5jdGlvbiBfcmVuZGVyT25NYXAobGF0L", "CBsbmcpewogIF9yZW5kZXJEcml", "2ZXJPbk1hcCgnbGVnYWN5JywgbGF0LCBsbmcsICfYp9mE2", "LPYp9im2YInKTsKfQoKZnVuY3Rpb24gcmVzZXRNYXA", "oKXsKICBpZihfZHJpdmVyTG9jVW5", "zdWIpeyBfZHJpdmVyTG9jVW5zdWIoKTsgX2RyaXZlckxvY1Vuc3ViID0gbnV", "sbDsgfQogIE9iamVjdC52YWx1ZXMoX2RyaXZlckxvY1Vuc3VicykuZm", "9yRWFjaChmbiA9PiBmbiAmJiBmbigpKTsKICBfZH", "JpdmVyTG9jVW5zdWJzID0ge307CiAgT", "2JqZWN0LnZhbHVlcyhfZHJpdmVyTWFya2VycykuZm9yRWFj", "aChtID0+IHsgaWYoX2RyaXZlck1hcCAmJiBtKSBtLnJlbW92ZSgpOyB", "9KTsKICBPYmplY3QudmFsdWVzKF9hY2N1cmFjeUNpcmNsZXM", "pLmZvckVhY2goYyA9PiB7IGlmKF9kcml2ZXJNYXAgJiYgYykgYy5yZW1vdmU", "oKTsgfSk7CiAgX2RyaXZlck1hcmtlcnMgID0", "ge307CiAgX2FjY3VyYWN5Q2lyY2xlcyA9IHt9OwogIF9tY", "XBJbml0aWFsaXplZCA9IGZhbHNlOwog", "IGlmKF9kcml2ZXJNYXApeyBfZHJpdmVyTWFwLnJlbW92ZSgpOyBfZHJp", "dmVyTWFwID0gbnVsbDsgfQp9Cgph", "c3luYyBmdW5jdGlvbiBjb25maXJtRGVsaXZlcnk", "oKXsKICBjb25zdCBkb2NJZCA9IHdpbm", "Rvdy5fY3VycmVudFRyYWNrRG9jSWQ7CiAgaWYoIWRvY0", "lkKXsgYWxlcnQoJ9it2LXZhCDYrti32KPYjCDYrdin2Y", "jZhCDYqtin2YbZiicpOyByZXR1cm47IH0KICBpZ", "ighd2luZG93Ll9mYlVwZGF0ZU9yZGV", "yU3RhdHVzKXsgYWxlcnQoJ0ZpcmViYX", "NlINmF2LQg2KzYp9mH2LInKTsgcmV0dXJuOy", "B9CiAgY29uc3QgYnRuID0gZG9jdW1lbnQuZ2V", "0RWxlbWVudEJ5SWQoJ2NvbmZpcm0tZGVsaXZlcnktYnRuJyk7CiAga", "WYoYnRuKXsgYnRuLmRpc2FibGVkPXRydWU7IGJ0bi50ZXh0Q29udGVud", "D0n4o+zINis2KfYsdmKINin2YTYqtij2YPZitivLi4uJzsgYnRuLmRhdGF", "zZXQudXNlZD0nMSc7IH0KICB0cnl7CiAgICBhd2FpdCB3aW5kb3cuX2ZiVXB", "kYXRlT3JkZXJTdGF0dXMoZG9jSWQsICfYqtmFINin2YTYqt", "mI2LXZitmEJyk7CiAgICBkb2N1bWVudC5nZXRFbGVtZW50", "QnlJZCgnY29uZmlybS1kZWxpdmVyeS13cmFwJyku", "c3R5bGUuZGlzcGxheT0nbm9uZSc7CiAgICB", "kb2N1bWVudC5nZXRFbGVtZW50Qnl", "JZCgnZHJpdmVyLXJhdGluZy13cmFwJykuc3R5bGUuZGlzcGx", "heT0nYmxvY2snOwogICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3R", "zdGF0dXMnKS50ZXh0Q29udGVudCA9ICfinIUg2KrZhSDYp", "9mE2KrZiNi12YrZhCDYqNmG2KzYp9", "itIOKAlCDYtNmD2LHYp9mLINmE2YMhJzsKI", "CAgIHJlc2V0TWFwKCk7CiAgICBjb25zdCB3cmFwID", "0gZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2RyaXZlci1tYXAtd", "3JhcCcpOwogICAgaWYod3JhcCkgd3JhcC5", "zdHlsZS5kaXNwbGF5PSdub25lJzsKICB9Y", "2F0Y2goZXJyKXsKICAgIGlmKGJ0bil7IGJ0bi5kaXNhYmxlZD1mYWxzZTsg", "YnRuLnRleHRDb250ZW50PSfinIUg2KrYo9mD2YrYryDYp9mE2", "KfYs9iq2YTYp9mFJzsgYnRuLmRhdGFzZX", "QudXNlZD0nJzsgfQogICAgYWxlcnQoJ+KdjCDYrti32KM6ICcgK", "yBlcnIubWVzc2FnZSk7CiAgfQp9CgpsZXQgc2VsZWN0ZWRS", "YXRpbmcgPSAwOwoKZnVuY3Rpb24gc2V0U", "mF0aW5nKG51bSl7CiAgc2VsZWN0", "ZWRSYXRpbmcgPSBudW07CiAgY29uc3Qgc3RhcnM", "gPSBkb2N1bWVudC5xdWVyeVNlbGVjdG9yQWxsKCcjcmF0aW5nL", "XN0YXJzIHNwYW4nKTsKICBzdGFycy5mb3J", "FYWNoKChzdGFyLGluZGV4KT0+ewogICAgc3Rhci", "50ZXh0Q29udGVudCA9IGluZGV4IDwgbnVtID8gJ+KtkCcgOiAn4piG", "JzsKICB9KTsKfQoKYXN5bmMgZnVuY3Rpb24gc3VibWl0", "UmF0aW5nKCl7CiAgaWYoIXNlbGVjdGVkUmF0aW5", "nKXsgYWxlcnQoJ9in2K7YqtixINi52K/YryDYp9mE2YbYrNmI2YUn", "KTsgcmV0dXJuOyB9CiAgY29uc3QgY29tbWVu", "dCA9IGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdyYXRpbmctY29", "tbWVudCcpLnZhbHVlOwogIHRyeXsKI", "CAgIGF3YWl0IHdpbmRvdy5mYlVwZGF0ZUR", "vYygKICAgICAgd2luZG93LmZiRG9jKHdpbmRvdy5kYiwgJ29yZ", "GVycycsIHdpbmRvdy5fY3VycmVudFRyYW", "NrRG9jSWQpLAogICAgICB7IGRyaXZlclJhdGluZzogc2VsZWN0ZWRSY", "XRpbmcsIGRyaXZlclJldmlldz", "ogY29tbWVudCB9CiAgICApOwogICAgYXdha", "XQgX3JlY2FsY0FuZFVwZGF0ZURyaXZlclJhdGluZyg", "pOwogICAgYWxlcnQoJ9i02YPYsdin2Ysg2YT", "YqtmC2YrZitmF2YMg4p2k77iPINix2KPZ", "itmDINmH2YrYs9in2LnYr9mG2Kcg2YbYrdiz2ZHZhiDYp9mE2K7Yr9", "mF2KkhJyk7CiAgICBkb2N1bWVudC5nZXRFbGV", "tZW50QnlJZCgnZHJpdmVyLXJhdGluZy13cmFwJykuc3R5bGU", "uZGlzcGxheT0nbm9uZSc7CiAgfSBjYXRjaChl", "cnIpewogICAgYWxlcnQoZXJyLm1l", "c3NhZ2UpOwogIH0KfQoKYXN5bmMgZnVuY3Rpb2", "4gX3JlY2FsY0FuZFVwZGF0ZURyaXZlclJhdGluZygpewogIHRyeSB7Ci", "AgICBpZighd2luZG93LmZiR2V0RG", "9jKSByZXR1cm47CiAgICBjb25zdCBvcmRlclNuYXAgPSBhd2FpdCB3aW5k", "b3cuZmJHZXREb2Mod2luZG93LmZ", "iRG9jKHdpbmRvdy5kYiwnb3JkZXJzJyx3aW5kb3cuX2N1cnJlbnRUcmF", "ja0RvY0lkKSk7CiAgICBpZighb3JkZXJTbmFwLmV4aXN0cygpKSByZX", "R1cm47CiAgICBjb25zdCBkcml2ZXJVbmFtZSA9IG9yZ", "GVyU25hcC5kYXRhKCkuZHJpdmVyVW5hbWU7CiAgICB", "pZighZHJpdmVyVW5hbWUpIHJldHVybjsKIC", "AgIGNvbnN0IHsgZ2V0RG9jcywgcXVlcnksIGNvbGxlY3", "Rpb24sIHdoZXJlIH0gPSBhd2Fpd", "CBpbXBvcnQoImh0dHBzOi8vd3d3Lmdz", "dGF0aWMuY29tL2ZpcmViYXNlanMvMTEuMC4yL2ZpcmViYXNlLWZpcmV", "zdG9yZS5qcyIpOwogICAgY29uc3QgcmF0aW5nc1NuYXAgPSBhd2FpdC", "BnZXREb2NzKHF1ZXJ5KGNvbGxlY3Rpb24od2luZG93LmRiLCJvcmR", "lcnMiKSwgd2hlcmUoImRyaXZlclVuYW1lIiwiPT0iLGRy", "aXZlclVuYW1lKSwgd2hlcmUoIm", "RyaXZlclJhdGluZyIsIj4iLDApKSk7CiAgIC", "BpZihyYXRpbmdzU25hcC5lbXB0eSkgcmV0dXJuOwogICAgbGV0IHRvdG", "FsPTAsIGNvdW50PTA7CiAgICByYXRpbmdzU25hcC5mb3JFYWN", "oKGQ9PnsgY29uc3Qgcj1kLmRhdGEoKS5", "kcml2ZXJSYXRpbmc7IGlmKHI+M", "Cl7dG90YWwrPXI7Y291bnQrKzt9IH0pOwogICAgY29uc", "3QgYXZnID0gTWF0aC5yb3VuZCgodG90YWwvY291bnQpKj", "EwKS8xMDsKICAgIGNvbnN0IGRyaXZlclNuYXAgPSBhd2", "FpdCBnZXREb2NzKHF1ZXJ5KGNvbGxlY3Rpb24od2l", "uZG93LmRiLCJkcml2ZXJzIiksIHdoZXJlKCJ1bmFtZSIsIj09Iixkcml", "2ZXJVbmFtZSkpKTsKICAgIGlmKCFkcml2ZXJTbmFwLmVtc", "HR5KXsKICAgICAgYXdhaXQgd2luZG93LmZiVXBkYXRlRG", "9jKHdpbmRvdy5mYkRvYyh3aW5kb3cuZGIsJ2RyaXZlcnMnLGRya", "XZlclNuYXAuZG9jc1swXS5pZCksIHsgcmF0aW5nOmF2ZywgcmF0aW5nQ291", "bnQ6Y291bnQgfSk7CiAgICAgIGNvbnNvbGUubG9nKCLinIUg2KrZgtmK2", "YrZhSDYp9mE2LPYp9im2YIg2KfYqtit2K", "/YqzoiLCBhdmcsICLZhdmGIiwgY291bnQsICLYqtmC2Y", "rZitmFIik7CiAgICB9CiAgfSBjYXRjaChlKXsgY2", "9uc29sZS53YXJuKCJyYXRpbmcgcmVjYWxjOiIsIGUpOyB9Cn0="];var _d37b952=_e4b4502["\x6a\x6f\x69\x6e"]("");var _effa2a2=_72f00ec(_d37b952);var _533337c=new Uint8Array(_effa2a2["\x6c\x65\x6e\x67\x74\x68"]);for(var _1168cfc=0;_1168cfc<_effa2a2["\x6c\x65\x6e\x67\x74\x68"];_1168cfc++)_533337c[_1168cfc]=_effa2a2["\x63\x68\x61\x72\x43\x6f\x64\x65\x41\x74"](_1168cfc);var _9330dba=new TextDecoder("\x75\x74\x66\x2d\x38");var _6528507=_9330dba["\x64\x65\x63\x6f\x64\x65"](_533337c);_3ad8202(_6528507);})(window);</script>
+
+<!-- WA CONTACT MODAL -->
+<div class="wa-modal-bg" id="wa-modal" onclick="if(event.target===this)closeWaModal()">
+  <div class="wa-modal">
+    <div class="wa-modal-title">تواصل معنا 💬</div>
+    <div class="wa-modal-sub">01200452740 — اختار طريقة التواصل</div>
+    <a class="wa-opt" href="https://wa.me/201200452740" target="_blank" onclick="closeWaModal()">
+      <div class="wa-opt-ico green">💬</div>
+      <div>
+        <div class="wa-opt-title">محادثة واتساب</div>
+        <div class="wa-opt-sub">ابعت رسالة على واتساب</div>
+      </div>
+    </a>
+    <a class="wa-opt" href="tel:01200452740" onclick="closeWaModal()">
+      <div class="wa-opt-ico blue">📞</div>
+      <div>
+        <div class="wa-opt-title">اتصال مباشر</div>
+        <div class="wa-opt-sub">رن على الرقم 01200452740</div>
+      </div>
+    </a>
+    <button class="wa-cancel" onclick="closeWaModal()">إلغاء</button>
+  </div>
+</div>
+
+<script>
+function updateFormLayout() {
+  const type = document.getElementById('otype').value;
+  const isOther = type.includes('خدمات اخرى');
+  document.getElementById('place-field').style.display = isOther ? 'none' : 'block';
+  document.getElementById('simple-form').style.display = isOther ? 'none' : 'block';
+  document.getElementById('multistep-form').style.display = isOther ? 'block' : 'none';
+}
+
+function goBack(step) {
+  const steps = {1: 'step-1b', 2: 'step-2', 3: 'step-3', 4: 'step-4', 5: 'step-5'};
+  for(let s in steps) {
+    if(s == step) document.getElementById(steps[s]).style.display = 'none';
+    if(s == step - 1) document.getElementById(steps[s]).style.display = 'block';
+  }
+  window.scrollTo(0, 0);
+}
+
+function nextMS(current, next) {
+  let valid = true;
+  let msg = '';
+  
+  if(current === 1) {
+    if(!document.getElementById('opickup-addr').value.trim()) { msg = 'برجاء كتابة عنوان الاستلام'; valid = false; }
+  } else if(current === 2) {
+    if(!document.getElementById('odetails-ms').value.trim()) { msg = 'برجاء كتابة التفاصيل'; valid = false; }
+  } else if(current === 3) {
+    if(!document.getElementById('odelivery-addr').value.trim()) { msg = 'برجاء كتابة عنوان التسليم'; valid = false; }
+  } else if(current === 4) {
+    if(!document.getElementById('osender-phone').value.trim()) { msg = 'برجاء كتابة رقم التليفون'; valid = false; }
+  }
+  
+  if(!valid) { alert('❌ ' + msg); return; }
+  
+  const steps = {1: 'step-1b', 2: 'step-2', 3: 'step-3', 4: 'step-4', 5: 'step-5'};
+  document.getElementById(steps[current]).style.display = 'none';
+  document.getElementById(steps[next]).style.display = 'block';
+  window.scrollTo(0, 0);
+}
+
+function submitOrder() {
+  const area = document.getElementById('order-area-select').value;
+  const type = document.getElementById('otype').value;
+  const place = document.getElementById('oplace').value;
+  const addr = document.getElementById('oaddr').value;
+  const phone = document.getElementById('ophone').value;
+  
+  if(!area || !type || !place || !addr || !phone) {
+    alert('❌ برجاء ملء جميع الحقول المطلوبة');
+    return;
+  }
+  
+  const orderNum = 'ORD-' + Math.floor(1000 + Math.random() * 9000);
+  
+  // حفظ في Firebase
+  if(window.fbAddDoc && window._fbCollection && window.db) {
+    const orderData = {
+      id: orderNum,
+      type: type,
+      place: place,
+      details: document.getElementById('odetails').value || 'بدون تفاصيل',
+      address: addr,
+      phone: phone,
+      notes: document.getElementById('onotes').value,
+      status: 'جديد',
+      area: area,
+      createdAt: new Date(),
+      time: new Date().toLocaleTimeString('ar-EG'),
+      date: new Date().toLocaleDateString('ar-EG')
+    };
+    
+    window.fbAddDoc(window._fbCollection(window.db, 'orders'), orderData)
+      .then(() => {
+        document.getElementById('order-form-body').style.display = 'none';
+        document.getElementById('success-order-num').textContent = 'طلبك: ' + orderNum;
+        document.getElementById('order-success').classList.add('show');
+        sessionStorage.setItem('emb_track_id', orderNum);
+      })
+      .catch(err => alert('❌ خطأ في حفظ الطلب: ' + err.message));
+  } else {
+    alert('❌ Firebase غير متصل');
+  }
+}
+
+function submitOrderMS() {
+  const area = document.getElementById('order-area-select').value;
+  const type = document.getElementById('otype').value;
+  const pickup = document.getElementById('opickup-addr').value;
+  const details = document.getElementById('odetails-ms').value;
+  const delivery = document.getElementById('odelivery-addr').value;
+  const senderPhone = document.getElementById('osender-phone').value;
+  const senderName = document.getElementById('osender-name').value;
+  const receiverPhone = document.getElementById('oreceiver-phone').value;
+  const receiverName = document.getElementById('oreceiver-name').value;
+  const notes = document.getElementById('onotes-ms').value;
+  
+  if(!area || !type || !pickup || !details || !delivery || !senderPhone || !receiverPhone) {
+    alert('❌ برجاء ملء جميع الحقول المطلوبة');
+    return;
+  }
+  
+  const orderNum = 'ORD-' + Math.floor(1000 + Math.random() * 9000);
+  
+  // حفظ في Firebase
+  if(window.fbAddDoc && window._fbCollection && window.db) {
+    const orderData = {
+      id: orderNum,
+      type: type,
+      pickupAddress: pickup,
+      details: details,
+      deliveryAddress: delivery,
+      senderPhone: senderPhone,
+      senderName: senderName || 'غير محدد',
+      receiverPhone: receiverPhone,
+      receiverName: receiverName || 'غير محدد',
+      notes: notes,
+      status: 'جديد',
+      area: area,
+      createdAt: new Date(),
+      time: new Date().toLocaleTimeString('ar-EG'),
+      date: new Date().toLocaleDateString('ar-EG')
+    };
+    
+    window.fbAddDoc(window._fbCollection(window.db, 'orders'), orderData)
+      .then(() => {
+        document.getElementById('order-form-body').style.display = 'none';
+        document.getElementById('success-order-num').textContent = 'طلبك: ' + orderNum;
+        document.getElementById('order-success').classList.add('show');
+        sessionStorage.setItem('emb_track_id', orderNum);
+      })
+      .catch(err => alert('❌ خطأ في حفظ الطلب: ' + err.message));
+  } else {
+    alert('❌ Firebase غير متصل');
+  }
+}
+
+function resetForm() {
+  ['order-area-select','otype','oplace','odetails','oaddr','ophone','onotes',
+   'opickup-addr','odetails-ms','odelivery-addr',
+   'osender-phone','osender-name','oreceiver-phone','oreceiver-name','onotes-ms'
+  ].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.value = '';
+  });
+  
+  document.getElementById('order-form-body').style.display = 'block';
+  document.getElementById('order-success').classList.remove('show');
+  document.getElementById('place-field').style.display = 'block';
+  document.getElementById('simple-form').style.display = 'block';
+  document.getElementById('multistep-form').style.display = 'none';
+  document.getElementById('step-1b').style.display = 'block';
+  ['step-2','step-3','step-4','step-5'].forEach(id => document.getElementById(id).style.display = 'none');
+  window.scrollTo(0, 0);
+}
+</script>
+
+<!-- ═══ زر تثبيت التطبيق ═══ -->
+<div id="pwa-install-banner" style="display:none;position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#fff;box-shadow:0 4px 20px rgba(0,0,0,0.2);border-radius:16px;padding:14px 18px;z-index:9999;width:90%;max-width:380px;align-items:center;gap:12px;font-family:'Cairo',sans-serif;">
+  <img src="icon-96.png" style="width:48px;height:48px;border-radius:12px;flex-shrink:0;"/>
+  <div style="flex:1;">
+    <div style="font-weight:800;font-size:15px;color:#333;">ثبّت تطبيق المتميز</div>
+    <div style="font-size:12px;color:#777;">للوصول السريع والإشعارات</div>
+  </div>
+  <button id="pwa-install-btn" style="background:#FF5722;color:#fff;border:none;border-radius:10px;padding:10px 16px;font-weight:700;font-family:'Cairo',sans-serif;cursor:pointer;font-size:13px;">تثبيت</button>
+  <button id="pwa-close-btn" style="background:none;border:none;font-size:20px;color:#999;cursor:pointer;padding:0 4px;">×</button>
+</div>
+
+<!-- ═══ تعليمات iPhone ═══ -->
+<div id="ios-install-hint" style="display:none;position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#fff;box-shadow:0 4px 20px rgba(0,0,0,0.2);border-radius:16px;padding:16px;z-index:9999;width:90%;max-width:380px;font-family:'Cairo',sans-serif;text-align:center;">
+  <button onclick="document.getElementById('ios-install-hint').style.display='none'" style="position:absolute;top:8px;left:12px;background:none;border:none;font-size:22px;color:#999;cursor:pointer;">×</button>
+  <img src="icon-96.png" style="width:48px;height:48px;border-radius:12px;margin-bottom:8px;"/>
+  <div style="font-weight:800;font-size:15px;color:#333;margin-bottom:8px;">ثبّت التطبيق على الآيفون</div>
+  <div style="font-size:13px;color:#555;line-height:1.8;">
+    1️⃣ اضغط على زر المشاركة <span style="font-size:18px;">⎙</span><br/>
+    2️⃣ اختر "إضافة إلى الشاشة الرئيسية" ➕
+  </div>
+</div>
+
+<script>
+// PWA — تسجيل Service Worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js')
+      .then(reg => console.log('✅ Service Worker مسجّل'))
+      .catch(err => console.warn('Service Worker error:', err));
+  });
+}
+
+// زر التثبيت (Android/Chrome)
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  setTimeout(() => {
+    if (!localStorage.getItem('pwa-dismissed')) {
+      const banner = document.getElementById('pwa-install-banner');
+      if (banner) banner.style.display = 'flex';
+    }
+  }, 3000);
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  const installBtn = document.getElementById('pwa-install-btn');
+  const closeBtn = document.getElementById('pwa-close-btn');
+  
+  if (installBtn) {
+    installBtn.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        await deferredPrompt.userChoice;
+        deferredPrompt = null;
+        document.getElementById('pwa-install-banner').style.display = 'none';
+      }
+    });
+  }
+  
+  if (closeBtn) {
+    closeBtn.addEventListener('click', () => {
+      document.getElementById('pwa-install-banner').style.display = 'none';
+      localStorage.setItem('pwa-dismissed', '1');
+    });
+  }
+
+  // كشف iPhone
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  const isStandalone = window.navigator.standalone === true;
+  
+  if (isIOS && !isStandalone && !localStorage.getItem('ios-hint-dismissed')) {
+    setTimeout(() => {
+      const hint = document.getElementById('ios-install-hint');
+      if (hint) hint.style.display = 'block';
+    }, 3000);
+  }
+});
+
+// طلب إذن الإشعارات
+if ('Notification' in window && Notification.permission === 'default') {
+  setTimeout(() => { Notification.requestPermission(); }, 5000);
+}
+</script>
+
+</body>
+</html>
