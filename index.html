@@ -909,20 +909,30 @@ async function submitMandoub() {
     const price    = areaOpt?.dataset.price || 0;
     const orderNum = 'ORD-' + Math.floor(1000 + Math.random() * 9000);
 
+    const pickupEl  = document.getElementById('m-pickup-addr');
+    const deliveryEl = document.getElementById('m-delivery-addr');
+
     await window.fbAddDoc(window.fbCollection(window.db, 'orders'), {
-      id:            orderNum,
-      type:          '🛵 مندوب',
-      place:         'استلام من العميل',
-      addr:          pickup,
-      deliveryAddr:  delivery,
-      details:       details,
-      phone:         phone,
-      area:          area,
-      deliveryPrice: parseFloat(price) || 0,
-      status:        'جديد',
-      createdAt:     window.fbTimestamp(),
-      time:          new Date().toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'}),
-      date:          new Date().toLocaleDateString('ar-EG')
+      id:              orderNum,
+      type:            '🛵 مندوب',
+      place:           'استلام من العميل',
+      pickupAddress:   pickup,
+      deliveryAddress: delivery,
+      addr:            pickup,
+      details:         details,
+      phone:           phone,
+      area:            area,
+      deliveryPrice:   parseFloat(price) || 0,
+      pickupGpsLat:    pickupEl?.dataset?.lat  || null,
+      pickupGpsLng:    pickupEl?.dataset?.lng  || null,
+      pickupGpsLink:   pickupEl?.dataset?.mapsLink  || null,
+      deliveryGpsLat:  deliveryEl?.dataset?.lat || null,
+      deliveryGpsLng:  deliveryEl?.dataset?.lng || null,
+      deliveryGpsLink: deliveryEl?.dataset?.mapsLink || null,
+      status:          'جديد',
+      createdAt:       window.fbTimestamp(),
+      time:            new Date().toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'}),
+      date:            new Date().toLocaleDateString('ar-EG')
     });
 
     // success
