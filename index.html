@@ -714,13 +714,18 @@ function resetForm() {
 </div>
 
 <!-- ═══ تعليمات iPhone ═══ -->
-<div id="ios-install-hint" style="display:none;position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#fff;box-shadow:0 4px 20px rgba(0,0,0,0.2);border-radius:16px;padding:16px;z-index:9999;width:90%;max-width:380px;font-family:'Cairo',sans-serif;text-align:center;">
-  <button onclick="document.getElementById('ios-install-hint').style.display='none'" style="position:absolute;top:8px;left:12px;background:none;border:none;font-size:22px;color:#999;cursor:pointer;">×</button>
-  <img src="icon-96.png" style="width:48px;height:48px;border-radius:12px;margin-bottom:8px;"/>
-  <div style="font-weight:800;font-size:15px;color:#333;margin-bottom:8px;">ثبّت التطبيق على الآيفون</div>
-  <div style="font-size:13px;color:#555;line-height:1.8;">
-    1️⃣ اضغط على زر المشاركة <span style="font-size:18px;">⎙</span><br/>
-    2️⃣ اختر "إضافة إلى الشاشة الرئيسية" ➕
+<div id="ios-install-hint" style="display:none;position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#fff;box-shadow:0 4px 20px rgba(0,0,0,0.2);border-radius:16px;padding:18px;z-index:9999;width:90%;max-width:380px;font-family:'Cairo',sans-serif;text-align:center;">
+  <button onclick="document.getElementById('ios-install-hint').style.display='none';localStorage.setItem('ios-hint-dismissed','1')" style="position:absolute;top:8px;left:12px;background:none;border:none;font-size:22px;color:#999;cursor:pointer;">×</button>
+  <img src="icon-96.png" style="width:52px;height:52px;border-radius:12px;margin-bottom:10px;"/>
+  <div style="font-weight:800;font-size:16px;color:#333;margin-bottom:10px;">ثبّت تطبيق المتميز على الآيفون</div>
+  <div id="ios-safari-warning" style="display:none;background:#fff3e0;border:1.5px solid #FF5722;border-radius:10px;padding:10px;margin-bottom:12px;font-size:13px;color:#E64A19;font-weight:700;">
+    ⚠️ لازم تفتح الموقع من متصفح Safari 🧭<br>
+    <span style="font-weight:400;color:#777;font-size:12px;">التثبيت مش هيشتغل من Chrome على الآيفون</span>
+  </div>
+  <div style="font-size:14px;color:#555;line-height:2;text-align:right;background:#f8f8f8;border-radius:10px;padding:12px;">
+    <div style="margin-bottom:6px;">1️⃣ اضغط على زر المشاركة <span style="display:inline-block;background:#007AFF;color:#fff;border-radius:6px;padding:1px 7px;font-size:15px;">⬆️</span> تحت في النص</div>
+    <div style="margin-bottom:6px;">2️⃣ انزل واختر "<b>إضافة إلى الشاشة الرئيسية</b>"</div>
+    <div>3️⃣ اضغط "<b>إضافة</b>" فوق على اليمين ✅</div>
   </div>
 </div>
 
@@ -773,11 +778,18 @@ document.addEventListener('DOMContentLoaded', () => {
   // كشف iPhone
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
   const isStandalone = window.navigator.standalone === true;
+  // كشف لو فاتح من Chrome على الآيفون (مش Safari)
+  const isIOSChrome = isIOS && /CriOS|FxiOS|EdgiOS/.test(navigator.userAgent);
   
   if (isIOS && !isStandalone && !localStorage.getItem('ios-hint-dismissed')) {
     setTimeout(() => {
       const hint = document.getElementById('ios-install-hint');
       if (hint) hint.style.display = 'block';
+      // لو فاتح من Chrome، أظهر تحذير Safari
+      if (isIOSChrome) {
+        const warning = document.getElementById('ios-safari-warning');
+        if (warning) warning.style.display = 'block';
+      }
     }, 3000);
   }
 });
