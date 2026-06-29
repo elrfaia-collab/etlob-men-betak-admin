@@ -368,122 +368,100 @@ e["\x70\x72\x65\x76\x65\x6e\x74\x44\x65\x66\x61\x75\x6c\x74"]();e["\x73\x74\x6f\
   </div>
 </div>
 
-<!-- ═══ صفحة محتاج مندوب (للمحلات) ═══ -->
+<!-- ═══ صفحة محتاج مندوب ═══ -->
 <div id="pg-mandoub" class="pg">
   <div class="order-pg">
     <div class="form-card">
+
+      <!-- هيدر -->
       <div class="form-hd">
         <div class="form-ico" style="background:linear-gradient(135deg,#10B981,#059669)">🛵</div>
         <div>
           <h2 style="font-size:18px;font-weight:800">محتاج مندوب</h2>
-          <p style="font-size:12px;color:var(--tm)">للمحلات — مندوب يستلم ويسلّم لعميلك</p>
+          <p style="font-size:12px;color:var(--tm)">مندوب يستلم من عندك ويوصّل للعميل</p>
         </div>
       </div>
 
       <div class="err-msg" id="mandoub-err"></div>
 
       <div id="mandoub-form-body">
+
+        <!-- 1. موقع الاستلام -->
         <div class="fg">
-          <label class="fl">اختر المنطقة *</label>
-          <select id="m-area-select" onchange="updateMandoubPrice()">
-            <option value="">-- اختر المنطقة --</option>
-          </select>
+          <label class="fl">📍 موقعك / عنوانك (مكان الاستلام) *</label>
+          <textarea id="m-pickup-addr" rows="2"
+            placeholder="مثال: شارع طرح البحر، برج النيل، الدور 3 — أو اضغط GPS"></textarea>
+          <button type="button" class="gps-btn" onclick="getGPS('m-pickup-addr','m-gps-pickup')">
+            📍 حدد موقعي تلقائياً بالـ GPS
+          </button>
+          <div id="m-gps-pickup" class="gps-status"></div>
         </div>
 
-        <div class="price-row">
-          <span>💵 رسوم التوصيل:</span>
-          <strong id="mandoub-delivery-price">0 جم</strong>
+        <!-- 2. تفاصيل الطلب + وين يتوصل -->
+        <div class="fg">
+          <label class="fl">📦 تفاصيل الطلب *</label>
+          <textarea id="m-details" rows="3"
+            placeholder="مثال: علبة أدوية من الصيدلية — 3 وجبات من المطعم — طرد يتوصل..."></textarea>
         </div>
 
-        <!-- الخطوة 1: موقع الاستلام -->
-        <div id="m-step-1">
-          <h3 style="margin-bottom:1rem;font-size:15px;font-weight:800;">الخطوة 1 من 5: موقع الاستلام</h3>
+        <!-- 3. عنوان التسليم -->
+        <div class="fg">
+          <label class="fl">🏠 المندوب هيوصّل فين؟ (عنوان العميل) *</label>
+          <textarea id="m-delivery-addr" rows="2"
+            placeholder="مثال: شارع الجمهورية، عمارة 5، شقة 12 — أو اضغط GPS"></textarea>
+          <button type="button" class="gps-btn" onclick="getGPS('m-delivery-addr','m-gps-delivery')">
+            📍 حدد موقع التسليم بالـ GPS
+          </button>
+          <div id="m-gps-delivery" class="gps-status"></div>
+        </div>
+
+        <!-- 4. رقم تليفون + منطقة في صف واحد -->
+        <div class="fr">
           <div class="fg">
-            <label class="fl">عنوان المحل / مكان الاستلام *</label>
-            <textarea id="m-pickup-addr" placeholder="اكتب عنوان المحل بالتفصيل... أو حدد الموقع بالـ GPS"></textarea>
-            <button type="button" class="gps-btn" onclick="getGPS('m-pickup-addr','m-gps-pickup')">📍 حدد موقع الاستلام عن طريق GPS</button>
-            <div id="m-gps-pickup" class="gps-status"></div>
-          </div>
-          <button class="sub-btn" onclick="mandoubNext(1,2)">التالي ➜</button>
-        </div>
-
-        <!-- الخطوة 2: تفاصيل الطلب -->
-        <div id="m-step-2" style="display:none;">
-          <h3 style="margin-bottom:1rem;font-size:15px;font-weight:800;">الخطوة 2 من 5: تفاصيل الطلب</h3>
-          <div class="fg">
-            <label class="fl">تفاصيل الطلب *</label>
-            <textarea id="m-details" placeholder="اكتب تفاصيل الطلب اللي المندوب هيوصله..."></textarea>
-          </div>
-          <div style="display:flex;gap:10px;">
-            <button class="sub-btn" style="flex:1;background:#999;color:#fff" onclick="mandoubBack(2)">← الرجوع</button>
-            <button class="sub-btn" style="flex:1;" onclick="mandoubNext(2,3)">التالي ➜</button>
-          </div>
-        </div>
-
-        <!-- الخطوة 3: موقع التسليم -->
-        <div id="m-step-3" style="display:none;">
-          <h3 style="margin-bottom:1rem;font-size:15px;font-weight:800;">الخطوة 3 من 5: موقع التسليم</h3>
-          <div class="fg">
-            <label class="fl">عنوان العميل / مكان التسليم *</label>
-            <textarea id="m-delivery-addr" placeholder="اكتب عنوان العميل بالتفصيل... أو حدد الموقع بالـ GPS"></textarea>
-            <button type="button" class="gps-btn" onclick="getGPS('m-delivery-addr','m-gps-delivery')">📍 حدد موقع التسليم عن طريق GPS</button>
-            <div id="m-gps-delivery" class="gps-status"></div>
-          </div>
-          <div style="display:flex;gap:10px;">
-            <button class="sub-btn" style="flex:1;background:#999;color:#fff" onclick="mandoubBack(3)">← الرجوع</button>
-            <button class="sub-btn" style="flex:1;" onclick="mandoubNext(3,4)">التالي ➜</button>
-          </div>
-        </div>
-
-        <!-- الخطوة 4: بيانات المحل (المُرسل) -->
-        <div id="m-step-4" style="display:none;">
-          <h3 style="margin-bottom:1rem;font-size:15px;font-weight:800;">الخطوة 4 من 5: بيانات المحل</h3>
-          <div class="fg">
-            <label class="fl">رقم تليفون المحل *</label>
+            <label class="fl">📞 رقم تليفونك *</label>
             <input id="m-sender-phone" type="tel" placeholder="01XXXXXXXXX"/>
           </div>
           <div class="fg">
-            <label class="fl">اسم المحل (اختياري)</label>
-            <input id="m-sender-name" type="text" placeholder="اسم المحل"/>
-          </div>
-          <div style="display:flex;gap:10px;">
-            <button class="sub-btn" style="flex:1;background:#999;color:#fff" onclick="mandoubBack(4)">← الرجوع</button>
-            <button class="sub-btn" style="flex:1;" onclick="mandoubNext(4,5)">التالي ➜</button>
+            <label class="fl">🗺️ المنطقة *</label>
+            <select id="m-area-select" onchange="updateMandoubPrice()">
+              <option value="">— اختر —</option>
+            </select>
           </div>
         </div>
 
-        <!-- الخطوة 5: بيانات العميل (المُستقبل) -->
-        <div id="m-step-5" style="display:none;">
-          <h3 style="margin-bottom:1rem;font-size:15px;font-weight:800;">الخطوة 5 من 5: بيانات العميل</h3>
-          <div class="fg">
-            <label class="fl">رقم تليفون العميل *</label>
-            <input id="m-receiver-phone" type="tel" placeholder="01XXXXXXXXX"/>
-          </div>
-          <div class="fg">
-            <label class="fl">اسم العميل (اختياري)</label>
-            <input id="m-receiver-name" type="text" placeholder="اسم العميل"/>
-          </div>
-          <div class="fg">
-            <label class="fl">ملاحظات</label>
-            <input id="m-notes" type="text" placeholder="أي تفاصيل مهمة..."/>
-          </div>
-          <div style="display:flex;gap:10px;">
-            <button class="sub-btn" style="flex:1;background:#999;color:#fff" onclick="mandoubBack(5)">← الرجوع</button>
-            <button class="sub-btn" style="flex:1;background:linear-gradient(135deg,#10B981,#059669)" onclick="submitMandoub()">تأكيد الطلب ✅</button>
-          </div>
+        <!-- سعر التوصيل -->
+        <div class="price-row" id="m-price-row" style="display:none">
+          <span>💵 رسوم التوصيل:</span>
+          <strong id="mandoub-delivery-price" style="color:var(--or);font-size:17px">0 جم</strong>
         </div>
+
+        <!-- hidden fields لو محتاجها في submit -->
+        <input type="hidden" id="m-sender-name" value=""/>
+        <input type="hidden" id="m-receiver-phone" value=""/>
+        <input type="hidden" id="m-receiver-name" value=""/>
+        <input type="hidden" id="m-notes" value=""/>
+
+        <!-- زرار الإرسال -->
+        <button class="sub-btn"
+          style="background:linear-gradient(135deg,#10B981,#059669);margin-top:.5rem"
+          id="mandoub-submit-btn"
+          onclick="submitMandoub()">
+          🛵 إرسال الطلب
+        </button>
+
       </div>
 
-      <!-- SUCCESS مندوب -->
+      <!-- SUCCESS -->
       <div class="success-box" id="mandoub-success">
         <div class="success-ico">✅</div>
         <div class="success-num" id="mandoub-success-num"></div>
-        <div class="success-msg">تم استلام طلبك بنجاح!<br>المندوب هيتواصل معك قريباً 🛵</div>
-        <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;">
+        <div class="success-msg">تم استلام طلبك!<br>المندوب هيتواصل معك قريباً 🛵</div>
+        <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:10px;">
           <button class="direct-track-btn" onclick="redirectToTrack()">تتبع الطلب 🔍</button>
           <button class="back-btn" onclick="resetMandoub()">طلب جديد</button>
         </div>
       </div>
+
     </div>
   </div>
 </div>
@@ -889,126 +867,111 @@ function resetForm() {
 // ═══════════════════════════════════════════════
 function updateMandoubPrice() {
   const select = document.getElementById('m-area-select');
+  const priceRow = document.getElementById('m-price-row');
+  const priceEl  = document.getElementById('mandoub-delivery-price');
+  if (!select || !priceEl) return;
   const opt = select.options[select.selectedIndex];
   const price = opt && opt.dataset.price ? opt.dataset.price : 0;
-  document.getElementById('mandoub-delivery-price').textContent = price + ' جم';
+  if (priceEl) priceEl.textContent = price + ' جم';
+  if (priceRow) priceRow.style.display = price > 0 ? 'flex' : 'none';
 }
 
-function mandoubBack(step) {
-  if(step > 1) {
-    document.getElementById('m-step-' + step).style.display = 'none';
-    document.getElementById('m-step-' + (step-1)).style.display = 'block';
+// دوال القديمة (stub) — عشان مش يطلع error لو في كود تاني بيناديها
+function mandoubBack(step) {}
+function mandoubNext(current, next) {}
+
+async function submitMandoub() {
+  const pickup   = (document.getElementById('m-pickup-addr')?.value  || '').trim();
+  const details  = (document.getElementById('m-details')?.value      || '').trim();
+  const delivery = (document.getElementById('m-delivery-addr')?.value|| '').trim();
+  const phone    = (document.getElementById('m-sender-phone')?.value || '').trim();
+  const area     = (document.getElementById('m-area-select')?.value  || '').trim();
+  const errEl    = document.getElementById('mandoub-err');
+  const btn      = document.getElementById('mandoub-submit-btn');
+
+  // reset error
+  if (errEl) { errEl.textContent = ''; errEl.classList.remove('show'); }
+
+  // validation
+  if (!pickup)   { showErr(errEl, '⚠️ اكتب موقعك / عنوانك'); return; }
+  if (!details)  { showErr(errEl, '⚠️ اكتب تفاصيل الطلب');   return; }
+  if (!delivery) { showErr(errEl, '⚠️ اكتب عنوان التسليم');   return; }
+  if (!phone || phone.length < 10) { showErr(errEl, '⚠️ رقم التليفون مش صح'); return; }
+
+  if (!window._firebaseReady || !window.db) {
+    showErr(errEl, '⚠️ جاري الاتصال بالخادم، حاول بعد ثانية'); return;
   }
-  window.scrollTo(0, 0);
+
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ جاري الإرسال...'; }
+
+  try {
+    const areaOpt  = document.getElementById('m-area-select')?.options[document.getElementById('m-area-select')?.selectedIndex];
+    const price    = areaOpt?.dataset.price || 0;
+    const orderNum = 'ORD-' + Math.floor(1000 + Math.random() * 9000);
+
+    await window.fbAddDoc(window.fbCollection(window.db, 'orders'), {
+      id:            orderNum,
+      type:          '🛵 مندوب',
+      place:         'استلام من العميل',
+      addr:          pickup,
+      deliveryAddr:  delivery,
+      details:       details,
+      phone:         phone,
+      area:          area,
+      deliveryPrice: parseFloat(price) || 0,
+      status:        'جديد',
+      createdAt:     window.fbTimestamp(),
+      time:          new Date().toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'}),
+      date:          new Date().toLocaleDateString('ar-EG')
+    });
+
+    // success
+    const numEl = document.getElementById('mandoub-success-num');
+    if (numEl) numEl.textContent = 'رقم طلبك: ' + orderNum;
+    document.getElementById('mandoub-form-body').style.display = 'none';
+    document.getElementById('mandoub-success').classList.add('show');
+
+    // حفظ رقم الطلب للتتبع
+    sessionStorage.setItem('last_order_id', orderNum);
+
+  } catch (e) {
+    showErr(errEl, '❌ خطأ: ' + (e.message || 'حاول تاني'));
+    if (btn) { btn.disabled = false; btn.textContent = '🛵 إرسال الطلب'; }
+  }
 }
 
-function mandoubNext(current, next) {
-  let valid = true;
-  let msg = '';
-
-  if(current === 1) {
-    if(!document.getElementById('m-area-select').value) { msg = 'برجاء اختيار المنطقة'; valid = false; }
-    else if(!document.getElementById('m-pickup-addr').value.trim()) { msg = 'برجاء كتابة عنوان الاستلام'; valid = false; }
-  } else if(current === 2) {
-    if(!document.getElementById('m-details').value.trim()) { msg = 'برجاء كتابة تفاصيل الطلب'; valid = false; }
-  } else if(current === 3) {
-    if(!document.getElementById('m-delivery-addr').value.trim()) { msg = 'برجاء كتابة عنوان التسليم'; valid = false; }
-  } else if(current === 4) {
-    if(!document.getElementById('m-sender-phone').value.trim()) { msg = 'برجاء كتابة رقم تليفون المحل'; valid = false; }
-  }
-
-  if(!valid) { alert('❌ ' + msg); return; }
-
-  document.getElementById('m-step-' + current).style.display = 'none';
-  document.getElementById('m-step-' + next).style.display = 'block';
-  window.scrollTo(0, 0);
-}
-
-function submitMandoub() {
-  const area = document.getElementById('m-area-select').value;
-  const pickup = document.getElementById('m-pickup-addr').value;
-  const details = document.getElementById('m-details').value;
-  const delivery = document.getElementById('m-delivery-addr').value;
-  const senderPhone = document.getElementById('m-sender-phone').value;
-  const senderName = document.getElementById('m-sender-name').value;
-  const receiverPhone = document.getElementById('m-receiver-phone').value;
-  const receiverName = document.getElementById('m-receiver-name').value;
-  const notes = document.getElementById('m-notes').value;
-
-  if(!area || !pickup || !details || !delivery || !senderPhone || !receiverPhone) {
-    alert('❌ برجاء ملء جميع الحقول المطلوبة');
-    return;
-  }
-
-  const orderNum = 'ORD-' + Math.floor(1000 + Math.random() * 9000);
-
-  // إحداثيات GPS
-  const pickupEl = document.getElementById('m-pickup-addr');
-  const deliveryEl = document.getElementById('m-delivery-addr');
-
-  if(window.fbAddDoc && window._fbCollection && window.db) {
-    const orderData = {
-      id: orderNum,
-      type: '🛵 محتاج مندوب',
-      pickupAddress: pickup,
-      details: details,
-      deliveryAddress: delivery,
-      senderPhone: senderPhone,
-      senderName: senderName || 'محل',
-      receiverPhone: receiverPhone,
-      receiverName: receiverName || 'عميل',
-      notes: notes,
-      pickupGpsLat: pickupEl.dataset.lat || null,
-      pickupGpsLng: pickupEl.dataset.lng || null,
-      pickupGpsLink: pickupEl.dataset.mapsLink || null,
-      deliveryGpsLat: deliveryEl.dataset.lat || null,
-      deliveryGpsLng: deliveryEl.dataset.lng || null,
-      deliveryGpsLink: deliveryEl.dataset.mapsLink || null,
-      status: 'جديد',
-      area: area,
-      createdAt: new Date(),
-      time: new Date().toLocaleTimeString('ar-EG'),
-      date: new Date().toLocaleDateString('ar-EG')
-    };
-
-    window.fbAddDoc(window._fbCollection(window.db, 'orders'), orderData)
-      .then(() => {
-        document.getElementById('mandoub-form-body').style.display = 'none';
-        document.getElementById('mandoub-success-num').textContent = 'طلبك: ' + orderNum;
-        document.getElementById('mandoub-success').classList.add('show');
-        sessionStorage.setItem('emb_track_id', orderNum);
-      })
-      .catch(err => alert('❌ خطأ في حفظ الطلب: ' + err.message));
-  } else {
-    alert('❌ Firebase غير متصل');
-  }
+function showErr(el, msg) {
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('show');
 }
 
 function resetMandoub() {
-  ['m-area-select','m-pickup-addr','m-details','m-delivery-addr',
-   'm-sender-phone','m-sender-name','m-receiver-phone','m-receiver-name','m-notes'
-  ].forEach(id => {
-    const el = document.getElementById(id);
-    if(el) { el.value = ''; el.removeAttribute('data-lat'); el.removeAttribute('data-lng'); el.removeAttribute('data-maps-link'); }
+  ['m-pickup-addr','m-details','m-delivery-addr'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
   });
-
-  document.getElementById('mandoub-delivery-price').textContent = '0 جم';
+  ['m-sender-phone'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  const sel = document.getElementById('m-area-select');
+  if (sel) sel.value = '';
+  const priceRow = document.getElementById('m-price-row');
+  if (priceRow) priceRow.style.display = 'none';
+  const btn = document.getElementById('mandoub-submit-btn');
+  if (btn) { btn.disabled = false; btn.textContent = '🛵 إرسال الطلب'; }
+  const errEl = document.getElementById('mandoub-err');
+  if (errEl) errEl.classList.remove('show');
   document.getElementById('mandoub-form-body').style.display = 'block';
   document.getElementById('mandoub-success').classList.remove('show');
-  document.getElementById('m-step-1').style.display = 'block';
-  ['m-step-2','m-step-3','m-step-4','m-step-5'].forEach(id => document.getElementById(id).style.display = 'none');
-  window.scrollTo(0, 0);
+
+  // reset GPS statuses
+  ['m-gps-pickup','m-gps-delivery'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.textContent = '';
+  });
 }
 
-// ═══ ربط الدوال بـ window لضمان الأولوية ═══
-window.submitOrder = submitOrder;
-window.submitOrderMS = submitOrderMS;
-window.resetForm = resetForm;
-window.getGPS = getGPS;
-window.updateFormLayout = updateFormLayout;
-window.goBack = goBack;
-window.nextMS = nextMS;
 window.updateMandoubPrice = updateMandoubPrice;
+window.mandoubBack = mandoubBack;
 window.mandoubBack = mandoubBack;
 window.mandoubNext = mandoubNext;
 window.submitMandoub = submitMandoub;
