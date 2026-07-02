@@ -440,6 +440,11 @@ window._fbAddAdmin = async (data) => {
 window._fbUpdateAdmin = (docId, data) => updateDoc(doc(db,"admins",docId), data);
 window._fbDeleteAdmin = (docId)       => deleteDoc(doc(db,"admins",docId));
 
+// ── دوال عجلة الجوائز (جوّه الـ module عشان doc متاح) ──
+window._fbGetDoc = (ref) => getDoc(ref);
+window._fbDoc    = (database, col, id) => doc(database, col, id);
+window._fbSetDoc = (ref, data) => setDoc(ref, data);
+
 window._firebaseReady = true;
 console.log("✅ Firebase Admin Ready");
 </script>
@@ -2479,13 +2484,25 @@ const DEFAULT_SPIN_PRIZES = [
 let _spinPrizes = [...DEFAULT_SPIN_PRIZES];
 
 async function loadSpinPage(){
-  // جلب الجوائز
+  // انتظر Firebase لو مش جاهز
+  let tries = 0;
+  while(!window._fbGetDoc && tries < 20){
+    await new Promise(r => setTimeout(r, 200));
+    tries++;
+  }
+
+  // جلب الجوائز من Firestore
   try {
     const cfgDoc = await window._fbGetDoc(window._fbDoc(window.db,'spin_config','prizes'));
     if(cfgDoc.exists() && cfgDoc.data().prizes?.length){
       _spinPrizes = cfgDoc.data().prizes;
+    } else {
+      _spinPrizes = [...DEFAULT_SPIN_PRIZES];
     }
-  } catch(e){}
+  } catch(e){
+    console.warn('spin load error:', e);
+    _spinPrizes = [...DEFAULT_SPIN_PRIZES];
+  }
 
   renderPrizesList();
   loadSpinStats();
@@ -2533,10 +2550,21 @@ function addSpinPrize(){
 
 async function savePrizes(){
   if(!_spinPrizes.length){ showToast('⚠️ أضف جايزة واحدة على الأقل'); return; }
+  
+  const btn = document.querySelector('#page-spin .sub-btn');
+  if(btn){ btn.disabled = true; btn.textContent = '⏳ جاري الحفظ...'; }
+  
   try {
-    await window._fbSetDoc(window._fbDoc(window.db,'spin_config','prizes'), {prizes: _spinPrizes});
-    showToast('✅ تم حفظ الجوائز بنجاح!');
-  } catch(e){ showToast('❌ خطأ: ' + e.message); }
+    const ref = window._fbDoc(window.db, 'spin_config', 'prizes');
+    await window._fbSetDoc(ref, { prizes: _spinPrizes });
+    showToast('✅ تم حفظ الجوائز بنجاح! التغييرات ظهرت للعملاء فوراً');
+    renderPrizesList();
+  } catch(e){
+    showToast('❌ خطأ في الحفظ: ' + e.message);
+    console.error(e);
+  } finally {
+    if(btn){ btn.disabled = false; btn.textContent = '💾 حفظ كل الجوائز'; }
+  }
 }
 
 async function loadSpinStats(){
@@ -2598,9 +2626,7 @@ async function clearSpinPlays(){
   } catch(e){ showToast('❌ خطأ: ' + e.message); }
 }
 
-window._fbGetDoc = window._fbGetDoc || ((ref) => import("https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js").then(m => m.getDoc(ref)));
-window._fbDoc    = window._fbDoc    || ((db,col,id) => doc(db,col,id));
-window._fbSetDoc = window._fbSetDoc || ((ref,data) => import("https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js").then(m => m.setDoc(ref,data,{merge:true})));
+// window._fbGetDoc / _fbDoc / _fbSetDoc معرّفين جوّه الـ Firebase module فوق
 
 </script>
 
