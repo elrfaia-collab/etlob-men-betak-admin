@@ -199,6 +199,7 @@ e["\x70\x72\x65\x76\x65\x6e\x74\x44\x65\x66\x61\x75\x6c\x74"]();e["\x73\x74\x6f\
     <li><a id="nl-order" onclick="go('order')">اطلب الآن</a></li>
     <li><a id="nl-mandoub" onclick="go('mandoub')">محتاج مندوب 🛵</a></li>
     <li><a id="nl-track" onclick="go('track')">تتبع طلبك</a></li>
+    <li><a href="spin.html" style="color:var(--gold,#F59E0B)!important">🎰 العجلة</a></li>
     <li><a id="nl-contact" onclick="go('contact')">تواصل</a></li>
   </ul>
   <button class="nav-btn" onclick="go('order')">اطلب دلوقتي 🚀</button>
@@ -225,6 +226,7 @@ e["\x70\x72\x65\x76\x65\x6e\x74\x44\x65\x66\x61\x75\x6c\x74"]();e["\x73\x74\x6f\
         <button class="cta-main" onclick="go('order')">اطلب دلوقتي 🚀</button>
         <button class="cta-main" onclick="go('mandoub')" style="background:linear-gradient(135deg,#10B981,#059669)">محتاج مندوب 🛵</button>
         <button class="cta-sec" onclick="go('track')">تتبع طلبك</button>
+        <a href="spin.html" class="cta-main" style="background:linear-gradient(135deg,#F59E0B,#D97706);text-decoration:none;display:inline-flex;align-items:center;gap:8px">🎰 العب واكسب!</a>
       </div>
     </div>
     <div class="hero-right">
@@ -233,7 +235,19 @@ e["\x70\x72\x65\x76\x65\x6e\x74\x44\x65\x66\x61\x75\x6c\x74"]();e["\x73\x74\x6f\
       <div class="fcard b"><div class="dot o"></div> في الطريق 🛵</div>
     </div>
   </div>
-  <div class="statsbar">
+  <!-- بانر عجلة الجوائز -->
+<div onclick="window.location.href='spin.html'" style="background:linear-gradient(135deg,#1a0a2e,#2d1b69);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;gap:12px;border-bottom:2px solid rgba(245,158,11,.3)">
+  <div style="display:flex;align-items:center;gap:12px">
+    <span style="font-size:28px;animation:bob 2s ease-in-out infinite">🎰</span>
+    <div>
+      <div style="color:#fff;font-weight:900;font-size:14px">العب واكسب جوايز مجانية!</div>
+      <div style="color:rgba(255,255,255,.6);font-size:11.5px">لفّ العجلة مرة واحدة واكسب خصماً أو هدية 🎁</div>
+    </div>
+  </div>
+  <div style="background:linear-gradient(135deg,#F59E0B,#D97706);color:#fff;padding:8px 16px;border-radius:10px;font-weight:800;font-size:13px;white-space:nowrap;box-shadow:0 4px 14px rgba(245,158,11,.4)">العب الآن!</div>
+</div>
+
+<div class="statsbar">
     <div class="sitem"><div class="snum">+500</div><div class="slbl">طلب يومي</div></div>
     <div class="sitem"><div class="snum">30 دقيقة</div><div class="slbl">متوسط التوصيل</div></div>
     <div class="sitem"><div class="snum">24 h</div><div class="slbl">خدمة مستمرة</div></div>
@@ -909,30 +923,20 @@ async function submitMandoub() {
     const price    = areaOpt?.dataset.price || 0;
     const orderNum = 'ORD-' + Math.floor(1000 + Math.random() * 9000);
 
-    const pickupEl  = document.getElementById('m-pickup-addr');
-    const deliveryEl = document.getElementById('m-delivery-addr');
-
     await window.fbAddDoc(window.fbCollection(window.db, 'orders'), {
-      id:              orderNum,
-      type:            '🛵 مندوب',
-      place:           'استلام من العميل',
-      pickupAddress:   pickup,
-      deliveryAddress: delivery,
-      addr:            pickup,
-      details:         details,
-      phone:           phone,
-      area:            area,
-      deliveryPrice:   parseFloat(price) || 0,
-      pickupGpsLat:    pickupEl?.dataset?.lat  || null,
-      pickupGpsLng:    pickupEl?.dataset?.lng  || null,
-      pickupGpsLink:   pickupEl?.dataset?.mapsLink  || null,
-      deliveryGpsLat:  deliveryEl?.dataset?.lat || null,
-      deliveryGpsLng:  deliveryEl?.dataset?.lng || null,
-      deliveryGpsLink: deliveryEl?.dataset?.mapsLink || null,
-      status:          'جديد',
-      createdAt:       window.fbTimestamp(),
-      time:            new Date().toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'}),
-      date:            new Date().toLocaleDateString('ar-EG')
+      id:            orderNum,
+      type:          '🛵 مندوب',
+      place:         'استلام من العميل',
+      addr:          pickup,
+      deliveryAddr:  delivery,
+      details:       details,
+      phone:         phone,
+      area:          area,
+      deliveryPrice: parseFloat(price) || 0,
+      status:        'جديد',
+      createdAt:     window.fbTimestamp(),
+      time:          new Date().toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'}),
+      date:          new Date().toLocaleDateString('ar-EG')
     });
 
     // success
